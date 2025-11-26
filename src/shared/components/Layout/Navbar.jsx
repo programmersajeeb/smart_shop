@@ -3,7 +3,7 @@ import logo from '../../../assets/smart_shop.png'
 
 export default function Navbar() {
   return (
-    <div>
+    <div className='container mx-auto'>
         <div className="navbar bg-base-100 shadow-sm">
     <div className="flex-1">
     <a className=" block w-20"><img className="w-max" src={logo} alt="Smart Shop" /></a>
