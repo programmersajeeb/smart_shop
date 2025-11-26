@@ -1,11 +1,13 @@
 import React from 'react'
-import Navbar from '../../shared/components/Layout/Navbar'
 import Footer from '../../shared/components/Layout/Footer'
+import Header from '../../shared/components/Layout/Header/Header'
+import Banner from './components/Banner'
 
 function HomePage() {
   return (
     <div>
-      <Navbar />
+      <Header />
+      <Banner />
       <Footer />
     </div>
   )
