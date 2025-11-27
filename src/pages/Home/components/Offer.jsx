@@ -1,6 +1,6 @@
 import React from 'react'
 
-export default function Banner() {
+export default function Offer() {
     return (
         <section>
             <div className=' container mx-auto'>
