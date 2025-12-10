@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+// import { Link } from "react-router-dom";
 
 export default function NotFound() {
   return (
@@ -9,7 +9,7 @@ export default function NotFound() {
         The page you are looking for does not exist or may have been moved.
       </p>
 
-      <Link to="/" className="btn btn-primary mt-6">Return to Smart Shop</Link>
+      {/* <Link to="/" className="btn btn-primary mt-6">Return to Smart Shop</Link> */}
     </div>
   );
 }
