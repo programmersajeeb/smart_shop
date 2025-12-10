@@ -1,9 +1,11 @@
 import React from 'react'
 import logo from '../../../../assets/smart_shop1.png'
+import CategoryNavbar from './CategoryNavbar'
+import MegaMenu from './MegaMenu'
 
 export default function HeaderNav() {
     return (
-        <nav className=" bg-base-100 shadow-sm">
+        <nav className=" bg-yellow-100">
             <div className='navbar container mx-auto'>
                 <div className="flex-1">
                     <a className=" block w-20"><img className="w-max" src={logo} alt="Smart Shop"/></a>
@@ -66,6 +68,7 @@ export default function HeaderNav() {
                     </div>
                 </div>
             </div>
+            <MegaMenu />
         </nav>
     )
 }

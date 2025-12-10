@@ -6,7 +6,7 @@ export default function Header() {
   return (
     <header>
         <HeaderNav />
-        <CategoryNavbar />
+        {/* <CategoryNavbar /> */}
     </header>
   )
 }
