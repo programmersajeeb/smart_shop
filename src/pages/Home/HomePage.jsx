@@ -1,6 +1,4 @@
 import React from 'react'
-import Footer from '../../shared/components/Layout/Footer'
-import Header from '../../shared/components/Layout/Header/Header'
 import HeroBanner from './components/HeroBanner'
 import Collections from './components/Collections'
 import Products from './components/Products/Products'
@@ -14,14 +12,16 @@ import ShopByPrice from './components/ShopByPrice'
 import ShopByStyle from './components/ShopByStyle'
 import InstagramFeed from './components/InstagramFeed'
 import BrandStory from './components/BrandStory'
+import { useLoaderData } from 'react-router'
 
 function HomePage() {
+  const products = useLoaderData();
   return (
     <div>
       <HeroBanner />
       <Collections />
-      <Trending />
-      <Products />
+      <Trending trend={products} />
+      <Products product ={products}/>
       <FlashSale />
       <Testimonials />
       <WhyChooseUs />

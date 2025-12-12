@@ -1,6 +1,18 @@
-import React from 'react'
+import React, { useEffect } from 'react'
+import { useState } from 'react';
+import Trend from './Trend';
 
-export default function Trending() {
+export default function Trending({trend}) {
+
+  const [trends, setTrends] = useState([]);
+  
+
+
+  useEffect(() => {
+    setTrends(trend.products.slice(0, 4));
+  }, [trend]);
+// console.log(trends[0].title);
+
   return (
     <div className="container mx-auto mt-20 px-4">
   <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">
@@ -8,6 +20,9 @@ export default function Trending() {
   </h2>
 
   <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+    {/* {trends?.map((item, index)=>(item ? (
+      <Trend key={item.id || index} item={item} />
+    ) : null))} */}
     
     {/* Product 1 */}
     <div className="group cursor-pointer rounded-xl overflow-hidden shadow-md bg-white">

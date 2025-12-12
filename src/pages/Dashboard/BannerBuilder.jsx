@@ -5,9 +5,9 @@ const uid = () => Math.random().toString(36).substring(2, 10);
 
 export default function BannerBuilder() {
   const [htmlCode, setHtmlCode] = useState(
-    `<div class="bg-black text-white py-10 text-center">
-        <h1 class="text-4xl font-bold">🔥 Mega Sale - 70% OFF</h1>
-        <p class="text-lg opacity-80 mt-2">Limited Time Offer</p>
+    `<div className="bg-black text-white py-10 text-center">
+        <h1 className="text-4xl font-bold">🔥 Mega Sale - 70% OFF</h1>
+        <p className="text-lg opacity-80 mt-2">Limited Time Offer</p>
     </div>`
   );
 
