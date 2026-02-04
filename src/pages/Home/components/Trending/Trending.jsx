@@ -1,84 +1,47 @@
-import React, { useEffect } from 'react'
-import { useState } from 'react';
-import Trend from './Trend';
+import React from "react";
+import Trend from "./Trend";
+import ProductGridSkeleton from "../../../../shared/components/ui/skeletons/ProductGridSkeleton";
 
-export default function Trending({trend}) {
-
-  const [trends, setTrends] = useState([]);
-  
-
-
-  useEffect(() => {
-    setTrends(trend.products.slice(0, 4));
-  }, [trend]);
-// console.log(trends[0].title);
+export default function Trending({ trend, loading, error }) {
+  const items = (trend?.products || []).slice(0, 4);
 
   return (
-    <div className="container mx-auto mt-20 px-4">
-  <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">
-    Trending Now
-  </h2>
+    <section className="container mx-auto mt-20 px-4">
+      <h2 className="text-3xl md:text-4xl font-bold text-center mb-10">
+        Trending Now
+      </h2>
 
-  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-    {/* {trends?.map((item, index)=>(item ? (
-      <Trend key={item.id || index} item={item} />
-    ) : null))} */}
-    
-    {/* Product 1 */}
-    <div className="group cursor-pointer rounded-xl overflow-hidden shadow-md bg-white">
-      <div className="relative">
-        <img
-          src="https://i.ibb.co/WW3n1g60/women.jpg"
-          className="h-64 w-full object-cover group-hover:scale-105 transition duration-500"
-          alt="Trending Product"
+      {loading && (
+        <ProductGridSkeleton
+          count={4}
+          gridClassName="grid grid-cols-2 md:grid-cols-4 gap-6"
+          imageClassName="h-64"
+          showButton={false}
         />
-      </div>
-      <div className="p-4">
-        <h3 className="font-semibold text-lg">Women's Blazer</h3>
-        <p className="text-gray-600 text-sm mt-1">$129</p>
-      </div>
-    </div>
+      )}
 
-    {/* Product 2 */}
-    <div className="group cursor-pointer rounded-xl overflow-hidden shadow-md bg-white">
-      <img
-        src="https://i.ibb.co/0jp07SkZ/men.jpg"
-        className="h-64 w-full object-cover group-hover:scale-105 transition duration-500"
-        alt="Trending Product"
-      />
-      <div className="p-4">
-        <h3 className="font-semibold text-lg">Men's Jacket</h3>
-        <p className="text-gray-600 text-sm mt-1">$149</p>
-      </div>
-    </div>
+      {!loading && error && (
+        <div className="alert alert-error">
+          <span>
+            Failed to load trending products{" "}
+            {error?.message ? `(${error.message})` : ""}
+          </span>
+        </div>
+      )}
 
-    {/* Product 3 */}
-    <div className="group cursor-pointer rounded-xl overflow-hidden shadow-md bg-white">
-      <img
-        src="https://i.ibb.co/bRMdDF5G/accessories.jpg"
-        className="h-64 w-full object-cover group-hover:scale-105 transition duration-500"
-        alt="Trending Product"
-      />
-      <div className="p-4">
-        <h3 className="font-semibold text-lg">Leather Accessories</h3>
-        <p className="text-gray-600 text-sm mt-1">$59</p>
-      </div>
-    </div>
-
-    {/* Product 4 */}
-    <div className="group cursor-pointer rounded-xl overflow-hidden shadow-md bg-white">
-      <img
-        src="https://i.ibb.co/0jp07SkZ/men.jpg"
-        className="h-64 w-full object-cover group-hover:scale-105 transition duration-500"
-        alt="Trending Product"
-      />
-      <div className="p-4">
-        <h3 className="font-semibold text-lg">Classic Hoodie</h3>
-        <p className="text-gray-600 text-sm mt-1">$89</p>
-      </div>
-    </div>
-
-  </div>
-</div>
-  )
+      {!loading && !error && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          {items.length === 0 ? (
+            <div className="col-span-full text-center opacity-70">
+              No products found.
+            </div>
+          ) : (
+            items.map((item, index) => (
+              <Trend key={item?._id || item?.id || index} item={item} />
+            ))
+          )}
+        </div>
+      )}
+    </section>
+  );
 }

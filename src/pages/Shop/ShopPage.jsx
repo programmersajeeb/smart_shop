@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Home,
@@ -12,39 +12,51 @@ import {
   Heart,
   Star,
   ChevronDown,
+  Search,
+  X,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import api from "../../services/apiClient";
+
+import ProductGridSkeleton from "../../shared/components/ui/skeletons/ProductGridSkeleton";
+import SidebarFiltersSkeleton from "../../shared/components/ui/skeletons/SidebarFiltersSkeleton";
 
 /* =========================================================
-   SHOP PAGE – FULLY FUNCTIONAL & RESPONSIVE
+   SHOP PAGE (Enterprise-ready)
+   - Server-driven pagination, search, category, brand, sorting
+   - Smooth skeleton loading (initial + transitions)
    ========================================================= */
 
 export default function ShopPage() {
-
-  /* =========================
-     🔹 GLOBAL STATES
-     ========================= */
-
   // Mobile filter drawer open/close
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
-  // Filter states
+  // Filters
   const [category, setCategory] = useState("All");
-  const [maxPrice, setMaxPrice] = useState(500);
   const [brand, setBrand] = useState("");
-  const [size, setSize] = useState("");
-  const [inStock, setInStock] = useState(false);
+  const [inStockOnly, setInStockOnly] = useState(false);
+  const [maxPrice, setMaxPrice] = useState(999999); // client-side refinement (optional)
+
+  // Search (debounced)
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
 
   // Sorting
-  const [sortBy, setSortBy] = useState("newest");
+  const [sortBy, setSortBy] = useState("newest"); // newest | priceLow | priceHigh
 
   // Pagination
-  const pageSize = 6;
+  const pageSize = 12;
   const [page, setPage] = useState(1);
 
-  /* =========================
-     🔹 CATEGORY PILLS
-     ========================= */
+  const resetPage = () => setPage(1);
 
+  // Debounce search input to avoid firing requests on every keystroke
+  useEffect(() => {
+    const id = setTimeout(() => setSearch(searchInput.trim()), 350);
+    return () => clearTimeout(id);
+  }, [searchInput]);
+
+  // Category pills (keep these aligned with your real product categories)
   const categories = [
     { name: "All", icon: ShoppingBag },
     { name: "Men", icon: Shirt },
@@ -55,102 +67,68 @@ export default function ShopPage() {
     { name: "Gifts", icon: Gift },
   ];
 
-  /* =========================
-     🔹 PRODUCT DATA (DEMO)
-     ========================= */
+  // Map UI sort to API sort
+  const apiSort =
+    sortBy === "priceLow"
+      ? "price_asc"
+      : sortBy === "priceHigh"
+      ? "price_desc"
+      : undefined;
 
-  const products = [
-    {
-      id: 1,
-      name: "Premium Cotton T-Shirt",
-      category: "Men",
-      brand: "Nike",
-      size: "M",
-      price: 29,
-      rating: 4.8,
-      inStock: true,
-      badge: "-25%",
-      image: "https://images.unsplash.com/photo-1520974735194-9c7e2c97f4c1",
-    },
-    {
-      id: 2,
-      name: "Minimal Watch",
-      category: "Accessories",
-      brand: "Apple",
-      size: "M",
-      price: 199,
-      rating: 4.6,
-      inStock: true,
-      badge: "New",
-      image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30",
-    },
-    {
-      id: 3,
-      name: "Running Sneakers",
-      category: "Men",
-      brand: "Nike",
-      size: "L",
-      price: 120,
-      rating: 4.9,
-      inStock: true,
-      badge: "-20%",
-      image: "https://images.unsplash.com/photo-1542291026-7eec264c27ff",
-    },
-    {
-      id: 4,
-      name: "Luxury Perfume",
-      category: "Accessories",
-      brand: "Chanel",
-      size: "M",
-      price: 250,
-      rating: 4.7,
-      inStock: false,
-      badge: "Hot",
-      image: "https://images.unsplash.com/photo-1541643600914-78b084683601",
-    },
-  ];
+  const params = {
+    page,
+    limit: pageSize,
+    ...(category !== "All" ? { category } : {}),
+    ...(brand ? { brand } : {}),
+    ...(search ? { q: search } : {}),
+    ...(apiSort ? { sort: apiSort } : {}),
+  };
 
-  /* =========================
-     🔹 FILTER LOGIC
-     ========================= */
-
-  let filtered = products.filter((p) => {
-    return (
-      (category === "All" || p.category === category) &&
-      p.price <= maxPrice &&
-      (brand === "" || p.brand === brand) &&
-      (size === "" || p.size === size) &&
-      (!inStock || p.inStock)
-    );
+  const { data, isPending, isFetching, isError, error } = useQuery({
+    queryKey: ["products", params],
+    queryFn: async () => {
+      const res = await api.get("/products", { params });
+      return res.data;
+    },
+    // Keep previous page while next page loads (no UI flicker)
+    placeholderData: (prev) => prev,
   });
 
-  /* =========================
-     🔹 SORT LOGIC
-     ========================= */
+  const serverProducts = data?.products ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.max(1, data?.pages ?? 1);
 
-  if (sortBy === "priceLow") filtered.sort((a, b) => a.price - b.price);
-  if (sortBy === "priceHigh") filtered.sort((a, b) => b.price - a.price);
-  if (sortBy === "rating") filtered.sort((a, b) => b.rating - a.rating);
+  // Optional client-side refinement filters (works on the current page items)
+  const displayProducts = useMemo(() => {
+    let list = [...serverProducts];
 
-  /* =========================
-     🔹 PAGINATION LOGIC
-     ========================= */
+    if (Number.isFinite(maxPrice) && maxPrice > 0) {
+      list = list.filter((p) => Number(p?.price ?? 0) <= maxPrice);
+    }
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const paginated = filtered.slice(
-    (page - 1) * pageSize,
-    page * pageSize
-  );
+    if (inStockOnly) {
+      list = list.filter((p) => Number(p?.stock ?? 0) > 0);
+    }
 
-  const resetPage = () => setPage(1);
+    return list;
+  }, [serverProducts, maxPrice, inStockOnly]);
 
-  /* =========================================================
-     🔹 UI START
-     ========================================================= */
+  const isInitialLoading = isPending && !data;
+  const isUpdating = isFetching && !!data;
+
+  const clearFilters = () => {
+    setCategory("All");
+    setBrand("");
+    setInStockOnly(false);
+    setMaxPrice(999999);
+    setSearchInput("");
+    setSearch("");
+    setSortBy("newest");
+    setPage(1);
+  };
 
   return (
     <div className="w-full">
-
       {/* ================= HERO HEADER ================= */}
       <section className="border-b bg-white py-8">
         <div className="container mx-auto px-6">
@@ -163,12 +141,50 @@ export default function ShopPage() {
               <li className="font-semibold">Shop</li>
             </ul>
           </div>
-          <h1 className="text-3xl font-bold">Shop All Products</h1>
-          {/* Subtitle */}
-        <p className="text-gray-600 mt-2 max-w-xl">
-          Discover our latest collections, trending fashion, accessories, and more.
-          Shop with confidence—premium quality guaranteed.
-        </p>
+
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Shop All Products</h1>
+              <p className="text-gray-600 mt-2 max-w-xl">
+                Discover our latest collections, trending fashion, accessories, and more.
+                Shop with confidence—premium quality guaranteed.
+              </p>
+            </div>
+
+            {/* Search box */}
+            <div className="w-full md:w-[420px]">
+              <label className="input input-bordered flex items-center gap-2">
+                <Search size={18} className="opacity-60" />
+                <input
+                  value={searchInput}
+                  onChange={(e) => {
+                    setSearchInput(e.target.value);
+                    resetPage();
+                  }}
+                  type="text"
+                  className="grow"
+                  placeholder="Search products..."
+                />
+                {searchInput ? (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-xs"
+                    onClick={() => {
+                      setSearchInput("");
+                      setSearch("");
+                      resetPage();
+                    }}
+                    aria-label="Clear search"
+                  >
+                    <X size={16} />
+                  </button>
+                ) : null}
+              </label>
+              <p className="text-xs text-gray-500 mt-1">
+                Tip: Search runs automatically after a short pause.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -184,11 +200,10 @@ export default function ShopPage() {
                   setCategory(c.name);
                   resetPage();
                 }}
-                className={`
-                  flex items-center gap-2 px-5 py-2
-                  rounded-full border text-sm whitespace-nowrap
-                  ${category === c.name ? "bg-black text-white" : "bg-white"}
-                `}
+                className={[
+                  "flex items-center gap-2 px-5 py-2 rounded-full border text-sm whitespace-nowrap",
+                  category === c.name ? "bg-black text-white" : "bg-white",
+                ].join(" ")}
               >
                 <Icon size={16} />
                 {c.name}
@@ -200,10 +215,20 @@ export default function ShopPage() {
 
       {/* ================= TOP BAR (SORT + FILTER BTN) ================= */}
       <section className="py-5">
-        <div className="container mx-auto px-6 flex justify-between items-center">
-          <span className="text-sm text-gray-500">
-            Showing {filtered.length} Products
-          </span>
+        <div className="container mx-auto px-6 flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">
+              Showing <span className="font-semibold">{displayProducts.length}</span>{" "}
+              items {total ? <span>(of {total} total)</span> : null}
+            </span>
+
+            {isUpdating ? (
+              <span className="text-xs text-gray-500 flex items-center gap-2">
+                <span className="h-3 w-20 skeleton rounded-md" />
+                Updating...
+              </span>
+            ) : null}
+          </div>
 
           <div className="flex items-center gap-3">
             {/* Mobile filter button */}
@@ -212,7 +237,11 @@ export default function ShopPage() {
               onClick={() => setMobileFilterOpen(true)}
             >
               <SlidersHorizontal size={18} />
-              Filter
+              Filters
+            </button>
+
+            <button className="btn btn-sm" onClick={clearFilters}>
+              Clear
             </button>
 
             {/* Sort dropdown */}
@@ -224,10 +253,15 @@ export default function ShopPage() {
                 tabIndex={0}
                 className="dropdown-content menu p-2 shadow bg-base-100 rounded-box w-52"
               >
-                <li onClick={() => setSortBy("newest")}><a>Newest</a></li>
-                <li onClick={() => setSortBy("priceLow")}><a>Price: Low → High</a></li>
-                <li onClick={() => setSortBy("priceHigh")}><a>Price: High → Low</a></li>
-                <li onClick={() => setSortBy("rating")}><a>Top Rated</a></li>
+                <li onClick={() => setSortBy("newest")}>
+                  <a>Newest</a>
+                </li>
+                <li onClick={() => setSortBy("priceLow")}>
+                  <a>Price: Low → High</a>
+                </li>
+                <li onClick={() => setSortBy("priceHigh")}>
+                  <a>Price: High → Low</a>
+                </li>
               </ul>
             </div>
           </div>
@@ -237,91 +271,90 @@ export default function ShopPage() {
       {/* ================= MAIN CONTENT ================= */}
       <section className="pb-16">
         <div className="container mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-10">
-
           {/* ================= DESKTOP SIDEBAR ================= */}
           <aside className="hidden md:block space-y-8">
             <h3 className="font-semibold text-lg">Filters</h3>
 
-            {/* PRICE */}
-            <div>
-              <p className="font-medium mb-2">Price Range</p>
-              <input
-                type="range"
-                min="0"
-                max="500"
-                value={maxPrice}
-                onChange={(e) => {
-                  setMaxPrice(Number(e.target.value));
-                  resetPage();
-                }}
-                className="range range-sm"
-              />
-              <div className="flex justify-between text-xs text-gray-500">
-                <span>$0</span>
-                <span>${maxPrice}</span>
-              </div>
-            </div>
+            {isInitialLoading ? (
+              <SidebarFiltersSkeleton />
+            ) : (
+              <>
+                <FilterRadio
+                  title="Brand"
+                  options={["", "Nike", "Apple", "Chanel"]}
+                  value={brand}
+                  onChange={(v) => {
+                    setBrand(v);
+                    resetPage();
+                  }}
+                />
 
-            {/* BRAND */}
-            <FilterRadio
-              title="Brand"
-              options={["", "Nike", "Apple", "Chanel"]}
-              value={brand}
-              onChange={(v) => {
-                setBrand(v);
-                resetPage();
-              }}
-            />
+                <div>
+                  <p className="font-medium mb-2">Max Price</p>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5000"
+                    value={Math.min(maxPrice, 5000)}
+                    onChange={(e) => {
+                      setMaxPrice(Number(e.target.value));
+                      resetPage();
+                    }}
+                    className="range range-sm"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>$0</span>
+                    <span>${Math.min(maxPrice, 5000)}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Note: This refines items on the current page.
+                  </p>
+                </div>
 
-            {/* SIZE */}
-            <FilterButtons
-              title="Size"
-              options={["S", "M", "L"]}
-              value={size}
-              onChange={(v) => {
-                setSize(v);
-                resetPage();
-              }}
-            />
-
-            {/* STOCK */}
-            <label className="flex gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={inStock}
-                onChange={(e) => {
-                  setInStock(e.target.checked);
-                  resetPage();
-                }}
-              />
-              In Stock Only
-            </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={inStockOnly}
+                    onChange={(e) => {
+                      setInStockOnly(e.target.checked);
+                      resetPage();
+                    }}
+                  />
+                  In stock only
+                </label>
+              </>
+            )}
           </aside>
 
           {/* ================= PRODUCT GRID ================= */}
-          <div className="md:col-span-3 grid grid-cols-2 md:grid-cols-3 gap-6">
-            {paginated.map((p) => (
-              <div key={p.id} className="border rounded-2xl overflow-hidden bg-white">
-                <div className="relative">
-                  <span className="absolute top-3 left-3 bg-black text-white text-xs px-2 py-1 rounded-full">
-                    {p.badge}
-                  </span>
-                  <button className="absolute top-3 right-3 bg-white p-2 rounded-full shadow">
-                    <Heart size={16} />
-                  </button>
-                  <img src={p.image} className="h-[200px] w-full object-cover" />
-                </div>
-
-                <div className="p-4">
-                  <h3 className="text-sm font-medium">{p.name}</h3>
-                  <div className="flex items-center gap-1 text-yellow-500 mt-1">
-                    <Star size={14} fill="currentColor" />
-                    <span className="text-xs text-gray-600">{p.rating}</span>
-                  </div>
-                  <p className="font-semibold mt-2">${p.price}</p>
+          <div className="md:col-span-3">
+            {isInitialLoading ? (
+              <ProductGridSkeleton
+                count={pageSize}
+                gridClassName="grid grid-cols-2 md:grid-cols-3 gap-6"
+                imageClassName="h-[200px]"
+                showButton={false}
+              />
+            ) : isError ? (
+              <div className="alert alert-error">
+                <span>
+                  Failed to load products.{" "}
+                  {error?.message ? `(${error.message})` : ""}
+                </span>
+              </div>
+            ) : (
+              <div className={isUpdating ? "opacity-60 pointer-events-none" : ""}>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                  {displayProducts.length === 0 ? (
+                    <div className="col-span-full text-center text-gray-600 py-10">
+                      No products found for the selected filters.
+                    </div>
+                  ) : (
+                    displayProducts.map((p) => <ProductCard key={p?._id} p={p} />)
+                  )}
                 </div>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </section>
@@ -331,16 +364,16 @@ export default function ShopPage() {
         <div className="join">
           <button
             className="join-item btn btn-sm"
-            disabled={page === 1}
-            onClick={() => setPage(page - 1)}
+            disabled={page === 1 || isFetching}
+            onClick={() => setPage((v) => Math.max(1, v - 1))}
           >
             Prev
           </button>
           <button className="join-item btn btn-sm btn-active">{page}</button>
           <button
             className="join-item btn btn-sm"
-            disabled={page === totalPages}
-            onClick={() => setPage(page + 1)}
+            disabled={page >= totalPages || isFetching}
+            onClick={() => setPage((v) => Math.min(totalPages, v + 1))}
           >
             Next
           </button>
@@ -351,20 +384,73 @@ export default function ShopPage() {
       {mobileFilterOpen && (
         <div className="fixed inset-0 bg-black/40 z-50 md:hidden">
           <div className="absolute bottom-0 w-full bg-white rounded-t-2xl p-6 space-y-6">
-            <h3 className="font-semibold text-lg">Filters</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-lg">Filters</h3>
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setMobileFilterOpen(false)}
+                aria-label="Close filters"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-            <FilterRadio title="Brand" options={["", "Nike", "Apple", "Chanel"]} value={brand} onChange={setBrand} />
-            <FilterButtons title="Size" options={["S", "M", "L"]} value={size} onChange={setSize} />
+            {isInitialLoading ? (
+              <SidebarFiltersSkeleton />
+            ) : (
+              <>
+                <FilterRadio
+                  title="Brand"
+                  options={["", "Nike", "Apple", "Chanel"]}
+                  value={brand}
+                  onChange={(v) => {
+                    setBrand(v);
+                    resetPage();
+                  }}
+                />
 
-            <button
-              onClick={() => {
-                setMobileFilterOpen(false);
-                resetPage();
-              }}
-              className="w-full bg-black text-white py-3 rounded-xl"
-            >
-              Apply Filters
-            </button>
+                <div>
+                  <p className="font-medium mb-2">Max Price</p>
+                  <input
+                    type="range"
+                    min="0"
+                    max="5000"
+                    value={Math.min(maxPrice, 5000)}
+                    onChange={(e) => {
+                      setMaxPrice(Number(e.target.value));
+                      resetPage();
+                    }}
+                    className="range range-sm"
+                  />
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>$0</span>
+                    <span>${Math.min(maxPrice, 5000)}</span>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={inStockOnly}
+                    onChange={(e) => {
+                      setInStockOnly(e.target.checked);
+                      resetPage();
+                    }}
+                  />
+                  In stock only
+                </label>
+
+                <button
+                  onClick={() => {
+                    setMobileFilterOpen(false);
+                    resetPage();
+                  }}
+                  className="w-full bg-black text-white py-3 rounded-xl"
+                >
+                  Apply Filters
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -373,43 +459,72 @@ export default function ShopPage() {
 }
 
 /* =========================
-   🔹 REUSABLE FILTER UI
+   Reusable UI helpers
    ========================= */
 
 function FilterRadio({ title, options, value, onChange }) {
   return (
     <div>
       <p className="font-medium mb-2">{title}</p>
-      {options.map((o) => (
-        <label key={o || "all"} className="flex gap-2 text-sm">
-          <input
-            type="radio"
-            checked={value === o}
-            onChange={() => onChange(o)}
-          />
-          {o || "All"}
-        </label>
-      ))}
+      <div className="space-y-2">
+        {options.map((o) => (
+          <label key={o || "all"} className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              checked={value === o}
+              onChange={() => onChange(o)}
+            />
+            {o || "All"}
+          </label>
+        ))}
+      </div>
     </div>
   );
 }
 
-function FilterButtons({ title, options, value, onChange }) {
+function ProductCard({ p }) {
+  const title = p?.title || "Untitled Product";
+  const price = Number(p?.price ?? 0);
+  const image = p?.images?.[0] || "https://placehold.co/600x600?text=Product";
+  const inStock = Number(p?.stock ?? 0) > 0;
+
   return (
-    <div>
-      <p className="font-medium mb-2">{title}</p>
-      <div className="flex gap-2 flex-wrap">
-        {options.map((o) => (
-          <button
-            key={o}
-            onClick={() => onChange(o === value ? "" : o)}
-            className={`px-3 py-1 border rounded-md text-sm ${
-              value === o ? "bg-black text-white" : ""
-            }`}
-          >
-            {o}
-          </button>
-        ))}
+    <div className="border rounded-2xl overflow-hidden bg-white">
+      <div className="relative">
+        <span
+          className={[
+            "absolute top-3 left-3 text-xs px-2 py-1 rounded-full",
+            inStock ? "bg-black text-white" : "bg-gray-200 text-gray-700",
+          ].join(" ")}
+        >
+          {inStock ? "In Stock" : "Out of Stock"}
+        </span>
+
+        <button
+          type="button"
+          className="absolute top-3 right-3 bg-white p-2 rounded-full shadow"
+          aria-label="Add to wishlist"
+        >
+          <Heart size={16} />
+        </button>
+
+        <img
+          src={image}
+          className="h-[200px] w-full object-cover"
+          alt={title}
+          loading="lazy"
+        />
+      </div>
+
+      <div className="p-4">
+        <h3 className="text-sm font-medium line-clamp-2">{title}</h3>
+
+        <div className="flex items-center gap-1 text-yellow-500 mt-1">
+          <Star size={14} fill="currentColor" />
+          <span className="text-xs text-gray-600">4.7</span>
+        </div>
+
+        <p className="font-semibold mt-2">${price}</p>
       </div>
     </div>
   );
