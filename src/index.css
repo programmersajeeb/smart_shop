@@ -2,6 +2,6 @@
 @plugin "daisyui";
 
 
-html { scrollbar-gutter: stable; }
+html { scrollbar-gutter: stable; color-scheme: light; }
 body { overflow-y: scroll; }
 
