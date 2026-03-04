@@ -21,12 +21,15 @@ import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { exchangeFirebaseToken } from "../../services/authApi";
 import { setAccessToken } from "../../core/config/tokenStore";
 
+const KEY_LAST_PATH = "ss_last_path";
+
 /**
  * SignUpPage (Production / Enterprise)
- * - Separate loading states (Google vs Email) to avoid mixed UX
+ * - Separate loading states (Google vs Email)
  * - Defensive error mapping (Firebase + backend)
  * - Prevent double submit / concurrent actions
  * - Clean validation & accessibility-friendly UI
+ * - ✅ Role-based post-signup redirect (Admin → /admin, User → /account)
  */
 
 function isValidEmail(email) {
@@ -71,17 +74,145 @@ function getErrorMessage(err) {
   return err?.message ? String(err.message) : "Sign up failed. Please try again.";
 }
 
+function roleOf(u) {
+  return String(u?.role || "").toLowerCase();
+}
+
+function isAdminRole(role) {
+  const r = String(role || "").toLowerCase();
+  return r === "admin" || r === "superadmin";
+}
+
+function sanitizeInternalPath(path, fallback = "/") {
+  const p = String(path || "").trim();
+  if (!p) return fallback;
+
+  // Must be an internal relative path
+  if (!p.startsWith("/")) return fallback;
+
+  // Prevent protocol-relative: //evil.com
+  if (p.startsWith("//")) return fallback;
+
+  // Prevent schemes inside
+  if (p.includes("://")) return fallback;
+
+  // Prevent weird backslash forms
+  if (p.startsWith("/\\")) return fallback;
+
+  return p;
+}
+
+function isAuthLikePath(p = "") {
+  const s = String(p || "");
+  return (
+    s === "/signin" ||
+    s.startsWith("/signin?") ||
+    s === "/signup" ||
+    s.startsWith("/signup?") ||
+    s === "/forgot-password" ||
+    s.startsWith("/forgot-password?")
+  );
+}
+
+function readReturnToFromQuery(search) {
+  const qs = String(search || "");
+  if (!qs) return "";
+  try {
+    const sp = new URLSearchParams(qs);
+    const v = sp.get("returnTo") || "";
+    return sanitizeInternalPath(v, "");
+  } catch {
+    return "";
+  }
+}
+
+function readLastPath() {
+  try {
+    const v = sessionStorage.getItem(KEY_LAST_PATH);
+    if (typeof v === "string") {
+      const s = sanitizeInternalPath(v, "");
+      if (s) return s;
+    }
+  } catch {
+    // ignore
+  }
+  return "";
+}
+
+/**
+ * ✅ Normalize auth payload to real user object (defensive)
+ * - { user }
+ * - { data: { user } }
+ * - direct user object (fallback)
+ */
+function pickUserFromAny(payload) {
+  if (!payload) return null;
+  const u = payload?.user || payload?.data?.user || null;
+  if (u) return u;
+
+  // If payload itself looks like a user object
+  if (typeof payload === "object") {
+    const maybeUser = payload;
+    if (maybeUser?.role || maybeUser?.email || maybeUser?.uid) return maybeUser;
+  }
+  return null;
+}
+
+/**
+ * Enterprise post-auth redirect rules (signup):
+ * - Admin default landing: /admin
+ * - User default landing: /account
+ * - If returnTo is an auth page or "/" -> role landing
+ * - If returnTo is /admin but user isn't admin -> /403
+ * - If returnTo is /account or /settings but admin -> /admin
+ */
+function resolvePostAuthTarget({ user, returnTo, returnToSource }) {
+  const r = roleOf(user);
+  const admin = isAdminRole(r);
+
+  const rt = sanitizeInternalPath(returnTo, "/");
+  const authLike = rt === "/" || isAuthLikePath(rt);
+
+  if (admin) {
+    // If they came directly to signup without any intent -> admin dashboard
+    if (returnToSource === "default" || authLike) return "/admin";
+
+    if (rt.startsWith("/admin")) return rt;
+    if (rt.startsWith("/account") || rt.startsWith("/settings")) return "/admin";
+
+    // Allow returning to store pages too
+    return rt || "/admin";
+  }
+
+  // Normal user
+  if (rt.startsWith("/admin")) return "/403";
+  if (authLike) return "/account";
+  return rt || "/account";
+}
+
 export default function SignUpPage() {
   const nav = useNavigate();
   const loc = useLocation();
 
   const { loginWithGoogle, setUser } = useAuth();
 
-  const returnTo = useMemo(() => {
-    const fromState = loc.state?.from;
-    if (typeof fromState === "string" && fromState.startsWith("/")) return fromState;
-    return "/";
-  }, [loc.state]);
+  // ✅ Enterprise: returnTo priority: query.returnTo -> loc.state.from -> sessionStorage last path -> default "/"
+  const returnToInfo = useMemo(() => {
+    const fromQuery = readReturnToFromQuery(loc.search);
+    if (fromQuery) return { value: fromQuery, source: "query" };
+
+    const fromStateRaw = loc.state?.from;
+    const fromState =
+      typeof fromStateRaw === "string" ? sanitizeInternalPath(fromStateRaw, "") : "";
+    if (fromState) return { value: fromState, source: "state" };
+
+    const last = readLastPath();
+    if (last) return { value: last, source: "last" };
+
+    return { value: "/", source: "default" };
+  }, [loc.search, loc.state]);
+
+  const returnTo = returnToInfo.value;
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -120,8 +251,7 @@ export default function SignUpPage() {
 
   const strength = useMemo(() => passwordStrength(password), [password]);
 
-  const canSubmit =
-    !isBusy && nameOk && emailOk && passMinOk && matchOk && !!agree;
+  const canSubmit = !isBusy && nameOk && emailOk && passMinOk && matchOk && !!agree;
 
   async function onGoogleSignup() {
     setError("");
@@ -130,10 +260,24 @@ export default function SignUpPage() {
     try {
       setGoogleLoading(true);
 
-      // AuthProvider handles popup + backend session exchange
-      await loginWithGoogle(remember);
+      // IMPORTANT: loginWithGoogle might return {user} or direct user; normalize
+      const payload = await loginWithGoogle(remember);
+      const authedUser = pickUserFromAny(payload) || null;
 
-      nav(returnTo, { replace: true });
+      if (authedUser) setUser(authedUser);
+
+      const target = resolvePostAuthTarget({
+        user: authedUser,
+        returnTo,
+        returnToSource: returnToInfo.source,
+      });
+
+      if (target === "/403" && returnTo.startsWith("/admin")) {
+        nav("/403", { replace: true, state: { from: returnTo } });
+        return;
+      }
+
+      nav(target, { replace: true });
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -159,9 +303,12 @@ export default function SignUpPage() {
     const data = await exchangeFirebaseToken(idToken);
 
     if (data?.accessToken) setAccessToken(data.accessToken, { remember });
-    if (data?.user) setUser(data.user);
 
-    return data;
+    // Defensive user normalize
+    const u = pickUserFromAny(data);
+    if (u) setUser(u);
+
+    return { ...data, user: u || data?.user };
   }
 
   async function onSubmit(e) {
@@ -180,10 +327,24 @@ export default function SignUpPage() {
     try {
       setEmailLoading(true);
 
-      await realSignupAndExchange();
+      const data = await realSignupAndExchange();
 
       setSuccess("Account created successfully. Redirecting...");
-      nav(returnTo, { replace: true });
+
+      const u = pickUserFromAny(data) || data?.user || null;
+
+      const target = resolvePostAuthTarget({
+        user: u,
+        returnTo,
+        returnToSource: returnToInfo.source,
+      });
+
+      if (target === "/403" && returnTo.startsWith("/admin")) {
+        nav("/403", { replace: true, state: { from: returnTo } });
+        return;
+      }
+
+      nav(target, { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

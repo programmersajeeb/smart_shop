@@ -1,19 +1,35 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { ENV } from "../core/config/env";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_apiKey,
-  authDomain: import.meta.env.VITE_authDomain,
-  projectId: import.meta.env.VITE_projectId,
-  storageBucket: import.meta.env.VITE_storageBucket,
-  messagingSenderId: import.meta.env.VITE_messagingSenderId,
-  appId: import.meta.env.VITE_appId,
+  apiKey: ENV.FIREBASE.apiKey,
+  authDomain: ENV.FIREBASE.authDomain,
+  projectId: ENV.FIREBASE.projectId,
+  storageBucket: ENV.FIREBASE.storageBucket,
+  messagingSenderId: ENV.FIREBASE.messagingSenderId,
+  appId: ENV.FIREBASE.appId,
 };
+
+// Optional: lightweight validation (helps catch misconfigured env quickly)
+function hasFirebaseConfig(cfg) {
+  return Boolean(cfg?.apiKey && cfg?.authDomain && cfg?.projectId);
+}
+
+if (!hasFirebaseConfig(firebaseConfig)) {
+  // Do not throw (keeps app booting), but warn in dev
+  // In production, this should be fixed in environment variables
+  // eslint-disable-next-line no-console
+  console.warn("[Firebase] Missing config. Check VITE_* env values.", firebaseConfig);
+}
 
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
 
-// ✅ MUST: named exports (AuthProvider.jsx এ এগুলোই import হচ্ছে)
+// ✅ Named exports used across the app
 export const auth = getAuth(app);
+
+// ✅ Google provider (prompt select_account for better UX)
 export const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: "select_account" });
 
 export default app;

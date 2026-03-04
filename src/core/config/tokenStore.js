@@ -2,9 +2,30 @@ const KEY_TOKEN = "ss_access_token";
 const KEY_MODE = "ss_access_token_mode"; // "local" | "session"
 
 let accessToken = null;
+// track where the current in-memory token is expected to live
+let tokenSource = null; // "local" | "session" | "memory"
+
+function getLocalStorage() {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function getSessionStorage() {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
 
 function safeGet(storage, key) {
   try {
+    if (!storage) return null;
     return storage.getItem(key);
   } catch {
     return null;
@@ -13,6 +34,7 @@ function safeGet(storage, key) {
 
 function safeSet(storage, key, value) {
   try {
+    if (!storage) return;
     storage.setItem(key, value);
   } catch {
     // ignore
@@ -21,6 +43,7 @@ function safeSet(storage, key, value) {
 
 function safeRemove(storage, key) {
   try {
+    if (!storage) return;
     storage.removeItem(key);
   } catch {
     // ignore
@@ -29,30 +52,71 @@ function safeRemove(storage, key) {
 
 function getStoredMode() {
   // Mode is stored in localStorage so it can survive browser restarts
-  const m = safeGet(localStorage, KEY_MODE);
+  const ls = getLocalStorage();
+  const m = safeGet(ls, KEY_MODE);
   return m === "session" || m === "local" ? m : null;
 }
 
 function setStoredMode(mode) {
   if (mode !== "session" && mode !== "local") return;
-  safeSet(localStorage, KEY_MODE, mode);
+  const ls = getLocalStorage();
+  safeSet(ls, KEY_MODE, mode);
+}
+
+function removeStoredMode() {
+  const ls = getLocalStorage();
+  safeRemove(ls, KEY_MODE);
+}
+
+function confirmWrite(mode, token) {
+  const ls = getLocalStorage();
+  const ss = getSessionStorage();
+
+  if (mode === "local") return safeGet(ls, KEY_TOKEN) === token;
+  if (mode === "session") return safeGet(ss, KEY_TOKEN) === token;
+  return false;
 }
 
 export function getAccessToken() {
-  if (accessToken) return accessToken;
+  // If we have a cached token, validate it against its expected storage.
+  // This fixes multi-tab logout + stale memory token issues.
+  if (accessToken) {
+    if (tokenSource === "local") {
+      const ls = getLocalStorage();
+      const t = safeGet(ls, KEY_TOKEN);
+      if (t === accessToken) return accessToken;
+      // token removed elsewhere -> drop memory cache
+      accessToken = null;
+      tokenSource = null;
+    } else if (tokenSource === "session") {
+      const ss = getSessionStorage();
+      const t = safeGet(ss, KEY_TOKEN);
+      if (t === accessToken) return accessToken;
+      accessToken = null;
+      tokenSource = null;
+    } else {
+      // memory-only (storage unavailable) -> keep
+      return accessToken;
+    }
+  }
+
+  const ss = getSessionStorage();
+  const ls = getLocalStorage();
 
   // Session first (remember=false)
-  const s = safeGet(sessionStorage, KEY_TOKEN);
+  const s = safeGet(ss, KEY_TOKEN);
   if (s) {
     accessToken = s;
+    tokenSource = "session";
     setStoredMode("session");
     return accessToken;
   }
 
   // Then local (remember=true)
-  const l = safeGet(localStorage, KEY_TOKEN);
+  const l = safeGet(ls, KEY_TOKEN);
   if (l) {
     accessToken = l;
+    tokenSource = "local";
     setStoredMode("local");
     return accessToken;
   }
@@ -72,9 +136,13 @@ export function getAccessToken() {
 export function setAccessToken(token, opts = {}) {
   accessToken = token || null;
 
+  const ls = getLocalStorage();
+  const ss = getSessionStorage();
+
   if (!token) {
-    safeRemove(localStorage, KEY_TOKEN);
-    safeRemove(sessionStorage, KEY_TOKEN);
+    safeRemove(ls, KEY_TOKEN);
+    safeRemove(ss, KEY_TOKEN);
+    tokenSource = null;
     return;
   }
 
@@ -91,8 +159,8 @@ export function setAccessToken(token, opts = {}) {
 
     // Fallback: infer from existing storage
     if (!mode) {
-      const hasSession = !!safeGet(sessionStorage, KEY_TOKEN);
-      const hasLocal = !!safeGet(localStorage, KEY_TOKEN);
+      const hasSession = !!safeGet(ss, KEY_TOKEN);
+      const hasLocal = !!safeGet(ls, KEY_TOKEN);
 
       if (hasSession) mode = "session";
       else if (hasLocal) mode = "local";
@@ -103,11 +171,19 @@ export function setAccessToken(token, opts = {}) {
   setStoredMode(mode);
 
   if (mode === "local") {
-    safeSet(localStorage, KEY_TOKEN, token);
-    safeRemove(sessionStorage, KEY_TOKEN);
+    safeSet(ls, KEY_TOKEN, token);
+    safeRemove(ss, KEY_TOKEN);
   } else {
-    safeSet(sessionStorage, KEY_TOKEN, token);
-    safeRemove(localStorage, KEY_TOKEN);
+    safeSet(ss, KEY_TOKEN, token);
+    safeRemove(ls, KEY_TOKEN);
+  }
+
+  // Confirm persistence; if storage write fails (private mode/quota),
+  // keep token as memory-only so app can still work in this tab.
+  if (confirmWrite(mode, token)) {
+    tokenSource = mode;
+  } else {
+    tokenSource = "memory";
   }
 }
 
@@ -117,15 +193,20 @@ export function setAccessToken(token, opts = {}) {
  */
 export function clearAccessToken(opts = {}) {
   accessToken = null;
-  safeRemove(localStorage, KEY_TOKEN);
-  safeRemove(sessionStorage, KEY_TOKEN);
+  tokenSource = null;
+
+  const ls = getLocalStorage();
+  const ss = getSessionStorage();
+
+  safeRemove(ls, KEY_TOKEN);
+  safeRemove(ss, KEY_TOKEN);
 
   if (opts?.removeMode) {
-    safeRemove(localStorage, KEY_MODE);
+    removeStoredMode();
   }
 }
 
-// Optional helper (sometimes useful in guards/debug)
+// Optional helper (guards/debug)
 export function getAccessTokenMode() {
   return getStoredMode();
 }

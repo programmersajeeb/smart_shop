@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ShieldCheck,
   ShoppingBag,
+  LayoutDashboard,
 } from "lucide-react";
 
 import api from "../../../services/apiClient";
@@ -122,14 +123,20 @@ export default function AccountLayout() {
 
   const isUserLoading = !user && meQuery.isPending;
 
-  const navItems = useMemo(
-    () => [
+  const navItems = useMemo(() => {
+    const items = [
       { to: "/account", label: "Overview", icon: <UserCircle size={18} /> },
       { to: "/account/orders", label: "Orders", icon: <ClipboardList size={18} /> },
       { to: "/account/profile", label: "Profile & Security", icon: <Settings size={18} /> },
-    ],
-    []
-  );
+    ];
+
+    // ✅ Admin হলে sidebar এ Admin Dashboard দেখাবে
+    if (String(user?.role || "").toLowerCase() === "admin") {
+      items.push({ to: "/admin", label: "Admin Dashboard", icon: <LayoutDashboard size={18} /> });
+    }
+
+    return items;
+  }, [user?.role]);
 
   async function onLogout() {
     await logout();
@@ -330,6 +337,15 @@ export function AccountOverviewPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {role === "admin" ? (
+              <Link
+                to="/admin"
+                className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
+              >
+                Admin dashboard
+              </Link>
+            ) : null}
+
             <Link
               to="/account/orders"
               className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"

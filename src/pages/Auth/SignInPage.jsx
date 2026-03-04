@@ -21,6 +21,8 @@ import { auth } from "../../services/firebaseClient";
 import { exchangeFirebaseToken } from "../../services/authApi";
 import { setAccessToken } from "../../core/config/tokenStore";
 
+const KEY_LAST_PATH = "ss_last_path";
+
 function isValidEmail(email) {
   const v = String(email || "").trim();
   if (!v) return false;
@@ -31,18 +33,125 @@ function getErrorMessage(err) {
   const serverMsg = err?.response?.data?.message || err?.response?.data?.error;
   if (serverMsg) return String(serverMsg);
 
-  // Firebase common error mapping (keep UX friendly)
   const code = err?.code || "";
   if (code === "auth/invalid-email") return "Please enter a valid email address.";
   if (code === "auth/user-not-found") return "No account found with this email.";
   if (code === "auth/wrong-password") return "Incorrect password. Please try again.";
   if (code === "auth/invalid-credential") return "Invalid email or password.";
-  if (code === "auth/too-many-requests")
-    return "Too many attempts. Please wait a bit and try again.";
-  if (code === "auth/network-request-failed")
-    return "Network error. Please check your connection and try again.";
+  if (code === "auth/too-many-requests") return "Too many attempts. Please wait a bit and try again.";
+  if (code === "auth/network-request-failed") return "Network error. Please check your connection and try again.";
 
   return err?.message ? String(err.message) : "Login failed. Please try again.";
+}
+
+/**
+ * ✅ FIX: auth payload থেকে শুধু "user" বের করবো
+ * - { user }
+ * - { data: { user } }
+ * - অন্য কিছু হলে null
+ */
+function pickUserFromAuthPayload(payload) {
+  if (!payload) return null;
+  return payload?.user || payload?.data?.user || null;
+}
+
+function roleOf(u) {
+  return String(u?.role || "").toLowerCase();
+}
+
+function sanitizeInternalPath(path, fallback = "/") {
+  const p = String(path || "").trim();
+  if (!p) return fallback;
+
+  // Must be an internal relative path
+  if (!p.startsWith("/")) return fallback;
+
+  // Prevent protocol-relative: //evil.com
+  if (p.startsWith("//")) return fallback;
+
+  // Prevent schemes inside
+  if (p.includes("://")) return fallback;
+
+  // Prevent weird backslash forms
+  if (p.startsWith("/\\")) return fallback;
+
+  return p;
+}
+
+function readLastPath() {
+  try {
+    const v = sessionStorage.getItem(KEY_LAST_PATH);
+    if (typeof v === "string") {
+      const s = sanitizeInternalPath(v, "");
+      if (s) return s;
+    }
+  } catch {
+    // ignore
+  }
+  return "";
+}
+
+function isAuthLikePath(p = "") {
+  const s = String(p || "");
+  return (
+    s === "/signin" ||
+    s.startsWith("/signin?") ||
+    s === "/signup" ||
+    s.startsWith("/signup?") ||
+    s === "/forgot-password" ||
+    s.startsWith("/forgot-password?")
+  );
+}
+
+function readReturnToFromQuery(search) {
+  const qs = String(search || "");
+  if (!qs) return "";
+  try {
+    const sp = new URLSearchParams(qs);
+    const v = sp.get("returnTo") || "";
+    const s = sanitizeInternalPath(v, "");
+    return s;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Enterprise rule (fixed):
+ * - Priority handled outside: query returnTo > state.from > lastPath > default
+ * - "/" is valid page (DO NOT treat as auth-like)
+ * - Admin default landing: /admin when no explicit returnTo (source: default)
+ * - If returnTo is /admin but user isn't admin => /403 (enterprise standard)
+ */
+function resolvePostLoginTarget({ user, returnTo, returnToSource }) {
+  const r = roleOf(user);
+  const isAdmin = r === "admin" || r === "superadmin";
+
+  const rt = sanitizeInternalPath(returnTo, "/");
+
+  // If returnTo is actually an auth page, ignore it
+  if (isAuthLikePath(rt)) {
+    if (isAdmin) return "/admin";
+    return "/";
+  }
+
+  if (isAdmin) {
+    // If no explicit returnTo (user opened sign-in directly)
+    if (returnToSource === "default") return "/admin";
+
+    // Admin should not be forced into /account area
+    if (rt.startsWith("/account") || rt.startsWith("/settings")) return "/admin";
+
+    // If they were trying to open admin, go there
+    if (rt.startsWith("/admin")) return rt;
+
+    // Otherwise allow returning to store pages like /shop, /collections, /
+    return rt || "/admin";
+  }
+
+  // Normal user
+  if (rt.startsWith("/admin")) return "/403";
+  return rt || "/";
 }
 
 export default function SignInPage() {
@@ -51,11 +160,29 @@ export default function SignInPage() {
 
   const { loginWithGoogle, setUser } = useAuth();
 
-  const returnTo = useMemo(() => {
-    const fromState = loc.state?.from;
-    if (typeof fromState === "string" && fromState.startsWith("/")) return fromState;
-    return "/";
-  }, [loc.state]);
+  // ✅ Enterprise: returnTo priority: query.returnTo -> loc.state.from -> sessionStorage last path -> default "/"
+  const returnToInfo = useMemo(() => {
+    const fromQuery = readReturnToFromQuery(loc.search);
+    if (fromQuery && !isAuthLikePath(fromQuery)) {
+      return { value: fromQuery, source: "query" };
+    }
+
+    const fromStateRaw = loc.state?.from;
+    const fromState =
+      typeof fromStateRaw === "string" ? sanitizeInternalPath(fromStateRaw, "") : "";
+    if (fromState && !isAuthLikePath(fromState)) {
+      return { value: fromState, source: "state" };
+    }
+
+    const last = readLastPath();
+    if (last && !isAuthLikePath(last)) {
+      return { value: last, source: "last" };
+    }
+
+    return { value: "/", source: "default" };
+  }, [loc.search, loc.state]);
+
+  const returnTo = returnToInfo.value;
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -63,7 +190,6 @@ export default function SignInPage() {
 
   const [showPass, setShowPass] = useState(false);
 
-  // Separate loading states (enterprise UX)
   const [googleLoading, setGoogleLoading] = useState(false);
   const [emailLoading, setEmailLoading] = useState(false);
 
@@ -77,16 +203,31 @@ export default function SignInPage() {
 
   async function onGoogleLogin() {
     setError("");
-    setTouched((s) => ({ ...s })); // keep form state
+    setTouched((s) => ({ ...s }));
 
     try {
       setGoogleLoading(true);
 
-      // AuthProvider should handle user/session internally.
-      // remember=true -> persistent storage; remember=false -> session-only (depends on your auth setup)
-      await loginWithGoogle(remember);
+      // ✅ FIX: loginWithGoogle যাই return করুক, user ঠিকমতো বের করি
+      const payload = await loginWithGoogle(remember);
+      const authedUser = pickUserFromAuthPayload(payload) || payload || null;
 
-      nav(returnTo, { replace: true });
+      // কন্টেক্সটে user না থাকলে set করে দিই (safe)
+      if (authedUser) setUser(authedUser);
+
+      const target = resolvePostLoginTarget({
+        user: authedUser,
+        returnTo,
+        returnToSource: returnToInfo.source,
+      });
+
+      // Enterprise: if user tried /admin -> 403 with context
+      if (target === "/403" && returnTo.startsWith("/admin")) {
+        nav("/403", { replace: true, state: { from: returnTo } });
+        return;
+      }
+
+      nav(target, { replace: true });
     } catch (e) {
       setError(getErrorMessage(e));
     } finally {
@@ -96,22 +237,19 @@ export default function SignInPage() {
 
   async function emailPasswordLogin() {
     const cred = await signInWithEmailAndPassword(auth, email, password);
-
-    // Use a fresh token (safe for backend session exchange)
     const idToken = await cred.user.getIdToken(true);
 
-    // Exchange Firebase ID token for backend access token + refresh cookie
     const data = await exchangeFirebaseToken(idToken);
 
     if (data?.accessToken) {
-      // tokenStore currently uses localStorage by default.
-      // remember=true -> keep token after browser restart; remember=false -> session-only (tokenStore must support it)
       setAccessToken(data.accessToken, { remember });
     }
 
-    if (data?.user) setUser(data.user);
+    // ✅ FIX: user normalize
+    const u = pickUserFromAuthPayload(data);
+    if (u) setUser(u);
 
-    return data;
+    return { ...data, user: u || data?.user };
   }
 
   async function onSubmit(e) {
@@ -124,8 +262,23 @@ export default function SignInPage() {
 
     try {
       setEmailLoading(true);
-      await emailPasswordLogin();
-      nav(returnTo, { replace: true });
+
+      const data = await emailPasswordLogin();
+      const u = pickUserFromAuthPayload(data) || data?.user || null;
+
+      const target = resolvePostLoginTarget({
+        user: u,
+        returnTo,
+        returnToSource: returnToInfo.source,
+      });
+
+      // Enterprise: if user tried /admin -> 403 with context
+      if (target === "/403" && returnTo.startsWith("/admin")) {
+        nav("/403", { replace: true, state: { from: returnTo } });
+        return;
+      }
+
+      nav(target, { replace: true });
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -135,7 +288,6 @@ export default function SignInPage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50">
-      {/* Top bar / breadcrumb */}
       <div className="border-b bg-white">
         <div className="container mx-auto px-6 py-4">
           <div className="breadcrumbs text-sm">
@@ -150,10 +302,8 @@ export default function SignInPage() {
         </div>
       </div>
 
-      {/* Main */}
       <div className="container mx-auto px-6 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-          {/* Left: Brand / Trust */}
           <div className="rounded-2xl border bg-white p-8 md:p-10 shadow-sm">
             <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 border px-3 py-1 text-sm">
               <Sparkles size={16} />
@@ -195,7 +345,6 @@ export default function SignInPage() {
             </div>
           </div>
 
-          {/* Right: Form */}
           <div className="rounded-2xl border bg-white p-8 md:p-10 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-2xl font-bold">Sign in</h2>
@@ -204,7 +353,6 @@ export default function SignInPage() {
               </Link>
             </div>
 
-            {/* Error box */}
             {error ? (
               <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex gap-3">
                 <AlertTriangle className="mt-0.5" size={18} />
@@ -215,7 +363,6 @@ export default function SignInPage() {
               </div>
             ) : null}
 
-            {/* Google Button */}
             <div className="mt-6">
               <button
                 type="button"
@@ -258,129 +405,94 @@ export default function SignInPage() {
 
             <form onSubmit={onSubmit} className={isBusy ? "opacity-90 pointer-events-none" : ""}>
               <div className="space-y-4">
-                {/* Email */}
-                <div>
-                  <label className="text-sm font-medium text-gray-800">Email address</label>
-                  <div
-                    className={[
-                      "mt-2 flex items-center gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm",
-                      "focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2",
-                      touched.email && !emailOk ? "border-red-300" : "border-gray-200",
-                    ].join(" ")}
-                  >
-                    <Mail size={18} className="text-gray-500" />
+                <label className="form-control w-full">
+                  <div className="label">
+                    <span className="label-text">Email</span>
+                  </div>
+
+                  <div className="relative">
+                    <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="email"
+                      className={[
+                        "input input-bordered w-full pl-11 rounded-2xl",
+                        touched.email && !emailOk ? "input-error" : "",
+                      ].join(" ")}
+                      placeholder="you@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       onBlur={() => setTouched((s) => ({ ...s, email: true }))}
-                      placeholder="you@example.com"
-                      className="w-full outline-none text-gray-900"
-                      aria-label="Email address"
                       autoComplete="email"
-                      autoFocus
                     />
                   </div>
+                </label>
 
-                  {touched.email && !emailOk ? (
-                    <div className="mt-2 text-xs text-red-600">Please enter a valid email.</div>
-                  ) : null}
-                </div>
+                <label className="form-control w-full">
+                  <div className="label">
+                    <span className="label-text">Password</span>
+                    <Link to="/forgot-password" className="label-text-alt link link-hover">
+                      Forgot password?
+                    </Link>
+                  </div>
 
-                {/* Password */}
-                <div>
-                  <label className="text-sm font-medium text-gray-800">Password</label>
-                  <div
-                    className={[
-                      "mt-2 flex items-center gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm",
-                      "focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2",
-                      touched.password && !passOk ? "border-red-300" : "border-gray-200",
-                    ].join(" ")}
-                  >
-                    <Lock size={18} className="text-gray-500" />
+                  <div className="relative">
+                    <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type={showPass ? "text" : "password"}
+                      className={[
+                        "input input-bordered w-full pl-11 pr-11 rounded-2xl",
+                        touched.password && !passOk ? "input-error" : "",
+                      ].join(" ")}
+                      placeholder="Your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       onBlur={() => setTouched((s) => ({ ...s, password: true }))}
-                      placeholder="Enter your password"
-                      className="w-full outline-none text-gray-900"
-                      aria-label="Password"
                       autoComplete="current-password"
                     />
+
                     <button
                       type="button"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-gray-100"
                       onClick={() => setShowPass((v) => !v)}
-                      className="p-2 rounded-xl hover:bg-gray-50 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
                       aria-label={showPass ? "Hide password" : "Show password"}
                     >
                       {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
+                </label>
 
-                  {touched.password && !passOk ? (
-                    <div className="mt-2 text-xs text-red-600">
-                      Password must be at least 6 characters.
-                    </div>
-                  ) : null}
-                </div>
-
-                {/* Remember / Forgot */}
-                <div className="flex items-center justify-between gap-3">
-                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
                     <input
                       type="checkbox"
-                      className="checkbox checkbox-sm"
                       checked={remember}
                       onChange={(e) => setRemember(e.target.checked)}
                     />
                     Remember me
                   </label>
-
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm underline text-gray-700 hover:text-gray-900"
-                  >
-                    Forgot password?
-                  </Link>
                 </div>
 
-                {/* Submit */}
-                <button
-                  type="submit"
-                  disabled={isBusy}
-                  className={[
-                    "w-full rounded-2xl px-6 py-4 font-semibold text-white transition",
-                    "bg-black hover:bg-gray-900",
-                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
-                    isBusy ? "opacity-80 cursor-not-allowed" : "",
-                  ].join(" ")}
-                >
+                <button type="submit" disabled={isBusy} className="btn btn-neutral w-full rounded-2xl">
                   {emailLoading ? (
-                    <span className="inline-flex items-center justify-center gap-2">
+                    <span className="inline-flex items-center gap-2">
                       <Loader2 className="animate-spin" size={18} />
                       Signing in...
                     </span>
                   ) : (
-                    <span className="inline-flex items-center justify-center gap-2">
+                    <span className="inline-flex items-center gap-2">
                       Sign in <ArrowRight size={18} />
                     </span>
                   )}
                 </button>
-
-                <p className="text-xs text-gray-500 mt-3">
-                  By continuing, you agree to our{" "}
-                  <Link className="underline hover:text-gray-800" to="/terms">
-                    Terms
-                  </Link>{" "}
-                  and{" "}
-                  <Link className="underline hover:text-gray-800" to="/privacy">
-                    Privacy Policy
-                  </Link>
-                  .
-                </p>
               </div>
             </form>
+
+            <p className="mt-5 text-sm text-gray-600">
+              New here?{" "}
+              <Link to="/signup" className="underline font-medium">
+                Create an account
+              </Link>
+            </p>
           </div>
         </div>
       </div>
