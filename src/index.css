@@ -1,7 +1,344 @@
 @import "tailwindcss";
 @plugin "daisyui";
 
+:root {
+  scrollbar-gutter: stable;
+  color-scheme: light;
 
-html { scrollbar-gutter: stable; color-scheme: light; }
-body { overflow-y: scroll; }
+  --app-bg:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.96), rgba(243, 244, 246, 1) 32%, rgba(229, 231, 235, 1) 100%);
+  --surface-1: #ffffff;
+  --surface-2: #f9fafb;
+  --surface-3: #f3f4f6;
+  --border-soft: rgba(17, 24, 39, 0.08);
+  --text-strong: #111827;
+  --text-muted: #6b7280;
+  --ring-soft: rgba(17, 24, 39, 0.12);
+}
 
+html {
+  scrollbar-gutter: stable;
+  color-scheme: light;
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+  scroll-behavior: smooth;
+  overflow-x: clip;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  overflow-x: clip;
+  overflow-y: scroll;
+  background: var(--app-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+  overflow-x: clip;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  min-width: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: rgba(17, 24, 39, 0.12);
+  color: #111827;
+}
+
+img,
+svg,
+video,
+canvas,
+iframe {
+  display: block;
+  max-width: 100%;
+}
+
+img {
+  height: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+textarea {
+  resize: vertical;
+}
+
+a {
+  text-decoration: none;
+}
+
+input,
+textarea,
+select {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+:focus-visible {
+  outline: 2px solid rgba(17, 24, 39, 0.9);
+  outline-offset: 2px;
+}
+
+@supports (scrollbar-width: thin) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(107, 114, 128, 0.55) transparent;
+  }
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: rgba(107, 114, 128, 0.38);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: rgba(75, 85, 99, 0.5);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Enterprise utility classes */
+.admin-glass {
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.admin-surface,
+.user-surface {
+  background: var(--surface-1);
+  border: 1px solid var(--border-soft);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+}
+
+.admin-surface-muted,
+.user-surface-muted {
+  background: var(--surface-2);
+  border: 1px solid rgba(17, 24, 39, 0.06);
+}
+
+.admin-hairline {
+  border-color: rgba(17, 24, 39, 0.06);
+}
+
+.admin-text-strong {
+  color: var(--text-strong);
+}
+
+.admin-text-muted {
+  color: var(--text-muted);
+}
+
+.admin-ring-soft:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px #ffffff,
+    0 0 0 4px var(--ring-soft);
+}
+
+/* Auth pages */
+.auth-shell {
+  color: var(--text-strong);
+}
+
+.auth-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.auth-panel-dark {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.14), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.08), transparent 24%),
+    linear-gradient(135deg, #111827 0%, #0f172a 55%, #1f2937 100%);
+}
+
+.auth-panel-dark > * {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-social-btn {
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+}
+
+/* User dashboard helpers */
+.account-shell {
+  color: var(--text-strong);
+}
+
+.account-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.account-panel-dark {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.14), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.08), transparent 24%),
+    linear-gradient(135deg, #111827 0%, #0f172a 55%, #1f2937 100%);
+}
+
+.account-panel-dark > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Fix DaisyUI form color consistency */
+.input,
+.textarea,
+.select {
+  color: #111827;
+  background-color: #ffffff;
+  border-color: rgba(17, 24, 39, 0.12);
+}
+
+.input::placeholder,
+.textarea::placeholder {
+  color: #9ca3af;
+}
+
+.input:disabled,
+.textarea:disabled,
+.select:disabled {
+  color: #6b7280;
+  background-color: #f9fafb;
+}
+
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus {
+  -webkit-text-fill-color: #111827;
+  box-shadow: 0 0 0px 1000px #ffffff inset;
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Breadcrumb */
+.breadcrumbs {
+  color: #6b7280;
+}
+
+.breadcrumbs a {
+  color: inherit;
+}
+
+/* Badge stability */
+.badge {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Table polish */
+.table th {
+  color: #6b7280;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+/* Skeleton polish */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.5),
+    transparent
+  );
+  animation: skeleton-shimmer 1.6s infinite;
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Card hover polish for dashboard UIs */
+.dashboard-card-hover {
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    border-color 0.22s ease,
+    background-color 0.22s ease;
+}
+
+.dashboard-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+  border-color: rgba(17, 24, 39, 0.12);
+}
+
+/* Sticky header anchor offset */
+[id] {
+  scroll-margin-top: 96px;
+}

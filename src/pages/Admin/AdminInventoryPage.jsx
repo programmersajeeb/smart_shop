@@ -10,10 +10,12 @@ import ConfirmDialog from "../../shared/ui/ConfirmDialog";
 
 function useDebouncedValue(value, delay = 350) {
   const [debounced, setDebounced] = useState(value);
+
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
   }, [value, delay]);
+
   return debounced;
 }
 
@@ -22,7 +24,7 @@ function Skeleton({ className = "" }) {
 }
 
 function Badge({ children, tone = "gray" }) {
-  const cls =
+  const className =
     tone === "green"
       ? "bg-green-50 text-green-700 border-green-200"
       : tone === "red"
@@ -32,63 +34,71 @@ function Badge({ children, tone = "gray" }) {
       : tone === "blue"
       ? "bg-blue-50 text-blue-700 border-blue-200"
       : "bg-gray-50 text-gray-700 border-gray-200";
-  return <span className={`text-[11px] px-2 py-1 rounded-full border ${cls}`}>{children}</span>;
+
+  return (
+    <span className={`rounded-full border px-2 py-1 text-[11px] ${className}`}>
+      {children}
+    </span>
+  );
 }
 
-function statusOf(p) {
-  const stock = Number(p?.stock || 0);
-  const thr = Number(p?.lowStockThreshold ?? 5);
+function statusOf(product) {
+  const stock = Number(product?.stock || 0);
+  const threshold = Number(product?.lowStockThreshold ?? 5);
+
   if (stock <= 0) return { label: "Out of stock", tone: "red" };
-  if (stock <= thr) return { label: "Low stock", tone: "amber" };
+  if (stock <= threshold) return { label: "Low stock", tone: "amber" };
   return { label: "OK", tone: "green" };
 }
 
-function safeNum(v) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+function safeNum(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /* ----------------------------- page ----------------------------- */
 
 export default function AdminInventoryPage() {
-  const qc = useQueryClient();
-  const [sp] = useSearchParams();
+  const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
 
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q, 350);
 
   const [category, setCategory] = useState("");
-  const [stock, setStock] = useState(""); // out | low | ok | ""
-  const [isActive, setIsActive] = useState(""); // "" | "true" | "false"
-  const [sort, setSort] = useState("stock_asc"); // stock_asc | stock_desc | updated_desc
+  const [stock, setStock] = useState("");
+  const [isActive, setIsActive] = useState("");
+  const [sort, setSort] = useState("stock_asc");
 
   const [page, setPage] = useState(1);
   const limit = 20;
 
-  // prefill from /admin/categories "View in inventory"
   useEffect(() => {
-    const cat = sp.get("category");
-    if (cat) setCategory(cat);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const categoryFromUrl = searchParams.get("category");
+    if (categoryFromUrl) setCategory(categoryFromUrl);
+  }, [searchParams]);
 
-  // reset page when filters change (use debouncedQ)
-  useEffect(() => setPage(1), [debouncedQ, category, stock, isActive, sort]);
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedQ, category, stock, isActive, sort]);
 
   const params = useMemo(() => {
-    const p = { page, limit, sort };
-    if (debouncedQ.trim()) p.q = debouncedQ.trim();
-    if (category) p.category = category;
-    if (stock) p.stock = stock;
-    if (isActive !== "") p.isActive = isActive;
-    return p;
+    const next = { page, limit, sort };
+
+    if (debouncedQ.trim()) next.q = debouncedQ.trim();
+    if (category) next.category = category;
+    if (stock) next.stock = stock;
+    if (isActive !== "") next.isActive = isActive;
+
+    return next;
   }, [page, limit, debouncedQ, category, stock, isActive, sort]);
 
   /* -------- categories dropdown -------- */
 
   const categoriesQuery = useQuery({
     queryKey: ["admin-categories-lite"],
-    queryFn: async ({ signal }) => (await api.get("/products/admin/categories", { signal })).data,
+    queryFn: async ({ signal }) =>
+      (await api.get("/products/admin/categories", { signal })).data,
     staleTime: 30_000,
     placeholderData: (prev) => prev,
   });
@@ -96,7 +106,7 @@ export default function AdminInventoryPage() {
   const categoryOptions = useMemo(() => {
     const rows = categoriesQuery.data?.categories || [];
     return rows
-      .map((r) => String(r?.name || r?._id || "").trim())
+      .map((row) => String(row?.name || row?._id || "").trim())
       .filter(Boolean)
       .sort((a, b) => a.localeCompare(b));
   }, [categoriesQuery.data]);
@@ -106,7 +116,7 @@ export default function AdminInventoryPage() {
   const summaryQuery = useQuery({
     queryKey: ["admin-inventory-summary", { q: debouncedQ, category, isActive }],
     queryFn: async ({ signal }) => {
-      const res = await api.get("/products/admin/inventory-summary", {
+      const response = await api.get("/products/admin/inventory-summary", {
         params: {
           q: debouncedQ.trim() || undefined,
           category: category || undefined,
@@ -114,7 +124,7 @@ export default function AdminInventoryPage() {
         },
         signal,
       });
-      return res.data;
+      return response.data;
     },
     staleTime: 20_000,
     placeholderData: (prev) => prev,
@@ -124,7 +134,8 @@ export default function AdminInventoryPage() {
 
   const listQuery = useQuery({
     queryKey: ["admin-inventory", params],
-    queryFn: async ({ signal }) => (await api.get("/products/admin", { params, signal })).data,
+    queryFn: async ({ signal }) =>
+      (await api.get("/products/admin", { params, signal })).data,
     staleTime: 20_000,
     placeholderData: (prev) => prev,
   });
@@ -138,18 +149,20 @@ export default function AdminInventoryPage() {
   const [edits, setEdits] = useState({});
 
   useEffect(() => {
-    // ensure defaults for new rows (don’t override existing edits)
     setEdits((prev) => {
       const next = { ...prev };
-      for (const p of items) {
-        if (!p?._id) continue;
-        if (!next[p._id]) {
-          next[p._id] = {
-            stock: String(p.stock ?? 0),
-            lowStockThreshold: String(p.lowStockThreshold ?? 5),
+
+      for (const product of items) {
+        if (!product?._id) continue;
+
+        if (!next[product._id]) {
+          next[product._id] = {
+            stock: String(product.stock ?? 0),
+            lowStockThreshold: String(product.lowStockThreshold ?? 5),
           };
         }
       }
+
       return next;
     });
   }, [items]);
@@ -163,34 +176,37 @@ export default function AdminInventoryPage() {
 
   function toggleSelect(id) {
     setSelected((prev) => {
-      const s = new Set(prev);
-      if (s.has(id)) s.delete(id);
-      else s.add(id);
-      return s;
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
     });
   }
 
   function toggleSelectAllOnPage(checked) {
     setSelected((prev) => {
-      const s = new Set(prev);
-      for (const p of items) {
-        if (!p?._id) continue;
-        if (checked) s.add(p._id);
-        else s.delete(p._id);
+      const next = new Set(prev);
+
+      for (const product of items) {
+        if (!product?._id) continue;
+        if (checked) next.add(product._id);
+        else next.delete(product._id);
       }
-      return s;
+
+      return next;
     });
   }
 
-  const idsOnPage = useMemo(
-    () => items.map((p) => p?._id).filter(Boolean),
-    [items]
-  );
+  const idsOnPage = useMemo(() => items.map((p) => p?._id).filter(Boolean), [items]);
 
-  const allSelectedOnPage = idsOnPage.length > 0 && idsOnPage.every((id) => selected.has(id));
-  const someSelectedOnPage = idsOnPage.some((id) => selected.has(id)) && !allSelectedOnPage;
+  const allSelectedOnPage =
+    idsOnPage.length > 0 && idsOnPage.every((id) => selected.has(id));
+
+  const someSelectedOnPage =
+    idsOnPage.some((id) => selected.has(id)) && !allSelectedOnPage;
 
   const selectAllRef = useRef(null);
+
   useEffect(() => {
     if (selectAllRef.current) {
       selectAllRef.current.indeterminate = someSelectedOnPage;
@@ -202,47 +218,70 @@ export default function AdminInventoryPage() {
   const [savingId, setSavingId] = useState(null);
 
   const updateOneMutation = useMutation({
-    mutationFn: async ({ id, payload }) => (await api.patch(`/products/${id}`, payload)).data,
+    mutationFn: async ({ id, payload }) =>
+      (await api.patch(`/products/${id}`, payload)).data,
     onSuccess: async () => {
       toast.success("Inventory updated");
-      await qc.invalidateQueries({ queryKey: ["admin-inventory"] });
-      await qc.invalidateQueries({ queryKey: ["admin-products"] });
-      await qc.invalidateQueries({ queryKey: ["admin-inventory-summary"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-inventory"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-inventory-summary"] });
     },
-    onError: (e) => toast.error(e?.response?.data?.message || "Update failed"),
+    onError: (error) =>
+      toast.error(error?.response?.data?.message || "Update failed"),
     onSettled: () => setSavingId(null),
   });
 
   const bulkMutation = useMutation({
-    mutationFn: async ({ ids, stock, lowStockThreshold }) =>
-      (await api.patch("/products/admin/bulk-stock", { ids, stock, lowStockThreshold })).data,
-    onSuccess: async (d) => {
-      toast.success("Bulk update done", { description: `${d?.modified || 0} updated` });
-      await qc.invalidateQueries({ queryKey: ["admin-inventory"] });
-      await qc.invalidateQueries({ queryKey: ["admin-products"] });
-      await qc.invalidateQueries({ queryKey: ["admin-inventory-summary"] });
+    mutationFn: async ({ ids, stock: nextStock, lowStockThreshold }) =>
+      (
+        await api.patch("/products/admin/bulk-stock", {
+          ids,
+          stock: nextStock,
+          lowStockThreshold,
+        })
+      ).data,
+    onSuccess: async (data) => {
+      toast.success("Bulk update completed", {
+        description: `${data?.modified || 0} item(s) updated`,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["admin-inventory"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      await queryClient.invalidateQueries({ queryKey: ["admin-inventory-summary"] });
       setSelected(new Set());
       setBulkStock("");
       setBulkThr("");
     },
-    onError: (e) => toast.error(e?.response?.data?.message || "Bulk update failed"),
+    onError: (error) =>
+      toast.error(error?.response?.data?.message || "Bulk update failed"),
   });
 
-  async function saveRow(p) {
-    const id = p?._id;
+  async function saveRow(product) {
+    const id = product?._id;
     if (!id) return;
 
-    const st = edits?.[id]?.stock;
-    const thr = edits?.[id]?.lowStockThreshold;
+    const stockValue = edits?.[id]?.stock;
+    const thresholdValue = edits?.[id]?.lowStockThreshold;
 
-    const stockNum = safeNum(st);
-    const thrNum = safeNum(thr);
+    const stockNum = safeNum(stockValue);
+    const thresholdNum = safeNum(thresholdValue);
 
-    if (stockNum == null || stockNum < 0) return toast.error("Stock must be 0 or greater");
-    if (thrNum == null || thrNum < 0) return toast.error("Low-stock threshold must be 0 or greater");
+    if (stockNum == null || stockNum < 0) {
+      return toast.error("Stock must be 0 or greater");
+    }
+
+    if (thresholdNum == null || thresholdNum < 0) {
+      return toast.error("Low-stock threshold must be 0 or greater");
+    }
 
     setSavingId(id);
-    await updateOneMutation.mutateAsync({ id, payload: { stock: stockNum, lowStockThreshold: thrNum } });
+
+    await updateOneMutation.mutateAsync({
+      id,
+      payload: {
+        stock: stockNum,
+        lowStockThreshold: thresholdNum,
+      },
+    });
   }
 
   function resetFilters() {
@@ -255,21 +294,66 @@ export default function AdminInventoryPage() {
   }
 
   const summary = summaryQuery.data?.summary || {};
-  const selCount = selected.size;
-
+  const selectedCount = selected.size;
   const isRefreshing = listQuery.isFetching || summaryQuery.isFetching;
 
   return (
-    <div className="bg-white border rounded-3xl p-6 md:p-8 shadow-sm">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-gray-500">Admin</div>
-          <h1 className="mt-2 text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Boxes className="opacity-70" size={22} /> Inventory
+    <div className="rounded-[30px] border border-gray-200 bg-gradient-to-b from-white to-gray-50/50 p-4 shadow-sm sm:p-5 lg:p-6">
+      <ConfirmDialog
+        open={confirmBulk.open}
+        title="Apply bulk update?"
+        description="This will update stock and/or threshold for all selected products."
+        confirmText="Apply"
+        cancelText="Cancel"
+        tone="neutral"
+        busy={bulkMutation.isPending}
+        onConfirm={async () => {
+          setConfirmBulk({ open: false });
+
+          const ids = Array.from(selected);
+          if (ids.length === 0) return;
+
+          const payload = { ids };
+
+          if (bulkStock !== "") {
+            const value = safeNum(bulkStock);
+            if (value == null || value < 0) {
+              return toast.error("Bulk stock must be 0 or greater");
+            }
+            payload.stock = value;
+          }
+
+          if (bulkThr !== "") {
+            const value = safeNum(bulkThr);
+            if (value == null || value < 0) {
+              return toast.error("Bulk threshold must be 0 or greater");
+            }
+            payload.lowStockThreshold = value;
+          }
+
+          if (payload.stock == null && payload.lowStockThreshold == null) {
+            return toast.error("Set stock or threshold first.");
+          }
+
+          await bulkMutation.mutateAsync(payload);
+        }}
+        onClose={() => setConfirmBulk({ open: false })}
+      />
+
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 shadow-sm">
+            <Boxes size={14} />
+            Inventory Management
+          </div>
+
+          <h1 className="mt-3 text-xl font-semibold tracking-tight text-gray-950 sm:text-2xl">
+            Inventory
           </h1>
-          <p className="mt-2 text-gray-600 max-w-2xl">
-            Monitor stock, thresholds, and do bulk inventory updates with smooth pagination & filters.
+
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+            Monitor stock, thresholds and product availability with filters, bulk updates
+            and fast inline editing.
           </p>
         </div>
 
@@ -280,183 +364,205 @@ export default function AdminInventoryPage() {
               summaryQuery.refetch();
               listQuery.refetch();
             }}
-            className="inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-60"
             disabled={isRefreshing}
+            className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:opacity-60"
           >
-            {isRefreshing ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            {isRefreshing ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <RefreshCw size={16} />
+            )}
             Refresh
           </button>
 
           <button
             type="button"
             onClick={resetFilters}
-            className="inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold hover:bg-gray-50 transition"
+            className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
           >
             Reset
           </button>
         </div>
       </div>
 
-      {/* Summary cards */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {summaryQuery.isPending ? (
           <>
-            <Skeleton className="h-[86px]" />
-            <Skeleton className="h-[86px]" />
-            <Skeleton className="h-[86px]" />
-            <Skeleton className="h-[86px]" />
-            <Skeleton className="h-[86px]" />
+            <Skeleton className="h-[92px]" />
+            <Skeleton className="h-[92px]" />
+            <Skeleton className="h-[92px]" />
+            <Skeleton className="h-[92px]" />
+            <Skeleton className="h-[92px]" />
           </>
         ) : (
           <>
-            <div className="rounded-3xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Total</div>
-              <div className="mt-1 text-2xl font-bold">{summary.total ?? "—"}</div>
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-gray-500">Total products</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-950">
+                {summary.total ?? "—"}
+              </div>
             </div>
-            <div className="rounded-3xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Active</div>
-              <div className="mt-1 text-2xl font-bold">{summary.active ?? "—"}</div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-gray-500">Active</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-950">
+                {summary.active ?? "—"}
+              </div>
             </div>
-            <div className="rounded-3xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Out of stock</div>
-              <div className="mt-1 text-2xl font-bold">{summary.outOfStock ?? "—"}</div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-gray-500">Out of stock</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-950">
+                {summary.outOfStock ?? "—"}
+              </div>
             </div>
-            <div className="rounded-3xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Low stock</div>
-              <div className="mt-1 text-2xl font-bold">{summary.lowStock ?? "—"}</div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-gray-500">Low stock</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-950">
+                {summary.lowStock ?? "—"}
+              </div>
             </div>
-            <div className="rounded-3xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Total stock</div>
-              <div className="mt-1 text-2xl font-bold">{summary.totalStock ?? "—"}</div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-gray-500">Total stock</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-950">
+                {summary.totalStock ?? "—"}
+              </div>
             </div>
           </>
         )}
       </div>
 
-      {/* Filters */}
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-12 gap-3">
-        <div className="md:col-span-5">
-          <label className="block text-sm font-semibold text-gray-800">Search</label>
-          <div className="mt-2 relative">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search (debounced)"
-              className="w-full rounded-2xl border px-10 py-3 text-sm outline-none focus:ring-2 focus:ring-black"
-            />
+      <div className="mt-5 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
+          <div className="md:col-span-5">
+            <label className="block text-sm font-semibold text-gray-800">Search</label>
+            <div className="relative mt-2">
+              <Search
+                size={18}
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                placeholder="Search inventory"
+                className="w-full rounded-2xl border border-gray-200 px-10 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:ring-2 focus:ring-black focus:ring-offset-2"
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="md:col-span-3">
-          <label className="block text-sm font-semibold text-gray-800">Category</label>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            className="mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black"
-          >
-            <option value="">All</option>
-            {categoryOptions.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
+          <div className="md:col-span-3">
+            <label className="block text-sm font-semibold text-gray-800">Category</label>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+            >
+              <option value="">All</option>
+              {categoryOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <div className="md:col-span-2">
-          <label className="block text-sm font-semibold text-gray-800">Stock</label>
-          <select
-            value={stock}
-            onChange={(e) => setStock(e.target.value)}
-            className="mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black"
-          >
-            <option value="">All</option>
-            <option value="out">Out</option>
-            <option value="low">Low</option>
-            <option value="ok">OK</option>
-          </select>
-        </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-gray-800">Stock state</label>
+            <select
+              value={stock}
+              onChange={(e) => setStock(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+            >
+              <option value="">All</option>
+              <option value="out">Out</option>
+              <option value="low">Low</option>
+              <option value="ok">OK</option>
+            </select>
+          </div>
 
-        <div className="md:col-span-2">
-          <label className="block text-sm font-semibold text-gray-800">Status</label>
-          <select
-            value={isActive}
-            onChange={(e) => setIsActive(e.target.value)}
-            className="mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black"
-          >
-            <option value="">All</option>
-            <option value="true">Active</option>
-            <option value="false">Inactive</option>
-          </select>
-        </div>
+          <div className="md:col-span-2">
+            <label className="block text-sm font-semibold text-gray-800">Status</label>
+            <select
+              value={isActive}
+              onChange={(e) => setIsActive(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+            >
+              <option value="">All</option>
+              <option value="true">Active</option>
+              <option value="false">Inactive</option>
+            </select>
+          </div>
 
-        <div className="md:col-span-12">
-          <label className="block text-sm font-semibold text-gray-800">Sort</label>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value)}
-            className="mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black"
-          >
-            <option value="stock_asc">Stock (low → high)</option>
-            <option value="stock_desc">Stock (high → low)</option>
-            <option value="updated_desc">Recently updated</option>
-          </select>
+          <div className="md:col-span-12">
+            <label className="block text-sm font-semibold text-gray-800">Sort</label>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+            >
+              <option value="stock_asc">Stock (low to high)</option>
+              <option value="stock_desc">Stock (high to low)</option>
+              <option value="updated_desc">Recently updated</option>
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Bulk bar */}
-      {selCount > 0 ? (
-        <div className="mt-6 rounded-3xl border bg-gray-50 p-4 flex flex-col md:flex-row md:items-center gap-3">
-          <div className="text-sm font-semibold">
-            Selected: <span className="text-gray-900">{selCount}</span>
-          </div>
+      {selectedCount > 0 ? (
+        <div className="mt-5 rounded-[28px] border border-gray-200 bg-gray-50 p-4">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="text-sm font-semibold text-gray-900">
+              Selected: <span>{selectedCount}</span>
+            </div>
 
-          <div className="flex flex-wrap gap-2 md:ml-auto">
-            <input
-              value={bulkStock}
-              onChange={(e) => setBulkStock(e.target.value)}
-              placeholder="Set stock (optional)"
-              type="number"
-              min={0}
-              className="rounded-2xl border px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-black w-[170px]"
-            />
-            <input
-              value={bulkThr}
-              onChange={(e) => setBulkThr(e.target.value)}
-              placeholder="Set threshold (optional)"
-              type="number"
-              min={0}
-              className="rounded-2xl border px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-black w-[190px]"
-            />
+            <div className="flex flex-wrap gap-2 lg:ml-auto">
+              <input
+                value={bulkStock}
+                onChange={(e) => setBulkStock(e.target.value)}
+                placeholder="Set stock (optional)"
+                type="number"
+                min={0}
+                className="w-[170px] rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+              />
 
-            <button
-              type="button"
-              onClick={() => setConfirmBulk({ open: true })}
-              className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-60"
-              disabled={bulkMutation.isPending}
-            >
-              {bulkMutation.isPending ? "Applying…" : "Apply bulk update"}
-            </button>
+              <input
+                value={bulkThr}
+                onChange={(e) => setBulkThr(e.target.value)}
+                placeholder="Set threshold (optional)"
+                type="number"
+                min={0}
+                className="w-[190px] rounded-2xl border border-gray-200 px-4 py-2 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+              />
 
-            <button
-              type="button"
-              onClick={() => setSelected(new Set())}
-              className="rounded-2xl border px-4 py-2 text-sm font-semibold hover:bg-white disabled:opacity-60"
-              disabled={bulkMutation.isPending}
-            >
-              Clear
-            </button>
+              <button
+                type="button"
+                onClick={() => setConfirmBulk({ open: true })}
+                disabled={bulkMutation.isPending}
+                className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:opacity-60"
+              >
+                {bulkMutation.isPending ? "Applying..." : "Apply bulk update"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelected(new Set())}
+                disabled={bulkMutation.isPending}
+                className="rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-white disabled:opacity-60"
+              >
+                Clear
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
 
-      {/* Table */}
-      <div className="mt-6 rounded-3xl border overflow-hidden">
-        <div className="px-5 py-4 flex items-center justify-between gap-3 bg-gray-50">
+      <div className="mt-5 overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-3 bg-gray-50 px-5 py-4">
           <div className="text-sm font-semibold text-gray-900">Products</div>
           <div className="text-xs text-gray-500">
-            {listQuery.isFetching ? "Updating…" : `${total} total`}
+            {listQuery.isFetching ? "Updating..." : `${total} total`}
           </div>
         </div>
 
@@ -476,7 +582,7 @@ export default function AdminInventoryPage() {
             <button
               type="button"
               onClick={resetFilters}
-              className="ml-3 underline font-semibold text-gray-900"
+              className="ml-3 font-semibold text-gray-900 underline"
             >
               Clear filters
             </button>
@@ -484,8 +590,8 @@ export default function AdminInventoryPage() {
         ) : (
           <div className="overflow-auto">
             <table className="min-w-[1100px] w-full text-sm">
-              <thead className="bg-white sticky top-0 z-10">
-                <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
+              <thead className="sticky top-0 z-10 bg-white">
+                <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-[0.14em] text-gray-500">
                   <th className="px-5 py-3">
                     <input
                       ref={selectAllRef}
@@ -504,19 +610,20 @@ export default function AdminInventoryPage() {
                   <th className="px-5 py-3 text-right">Save</th>
                 </tr>
               </thead>
+
               <tbody>
-                {items.map((p) => {
-                  const id = p._id;
-                  const st = statusOf(p);
-                  const e = edits[id] || {
-                    stock: String(p.stock ?? 0),
-                    lowStockThreshold: String(p.lowStockThreshold ?? 5),
+                {items.map((product) => {
+                  const id = product._id;
+                  const currentStatus = statusOf(product);
+                  const editState = edits[id] || {
+                    stock: String(product.stock ?? 0),
+                    lowStockThreshold: String(product.lowStockThreshold ?? 5),
                   };
 
                   const isRowSaving = savingId === id && updateOneMutation.isPending;
 
                   return (
-                    <tr key={id} className="border-b last:border-b-0">
+                    <tr key={id} className="border-b border-gray-100 last:border-b-0">
                       <td className="px-5 py-4">
                         <input
                           type="checkbox"
@@ -527,25 +634,28 @@ export default function AdminInventoryPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <div className="font-semibold text-gray-900">{p.title}</div>
+                        <div className="font-semibold text-gray-900">{product.title}</div>
                         <div className="text-xs text-gray-500">ID: {id}</div>
                       </td>
 
-                      <td className="px-5 py-4">{p.category || "—"}</td>
-                      <td className="px-5 py-4">{Number(p.price || 0)}</td>
+                      <td className="px-5 py-4 text-gray-700">{product.category || "—"}</td>
+                      <td className="px-5 py-4 text-gray-900">{Number(product.price || 0)}</td>
 
                       <td className="px-5 py-4">
                         <input
                           type="number"
                           min={0}
-                          value={e.stock}
-                          onChange={(ev) =>
+                          value={editState.stock}
+                          onChange={(event) =>
                             setEdits((prev) => ({
                               ...prev,
-                              [id]: { ...prev[id], stock: ev.target.value },
+                              [id]: {
+                                ...prev[id],
+                                stock: event.target.value,
+                              },
                             }))
                           }
-                          className="w-[120px] rounded-2xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
+                          className="w-[120px] rounded-2xl border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
                         />
                       </td>
 
@@ -553,20 +663,23 @@ export default function AdminInventoryPage() {
                         <input
                           type="number"
                           min={0}
-                          value={e.lowStockThreshold}
-                          onChange={(ev) =>
+                          value={editState.lowStockThreshold}
+                          onChange={(event) =>
                             setEdits((prev) => ({
                               ...prev,
-                              [id]: { ...prev[id], lowStockThreshold: ev.target.value },
+                              [id]: {
+                                ...prev[id],
+                                lowStockThreshold: event.target.value,
+                              },
                             }))
                           }
-                          className="w-[140px] rounded-2xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black"
+                          className="w-[140px] rounded-2xl border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
                         />
                       </td>
 
                       <td className="px-5 py-4">
-                        <Badge tone={st.tone}>{st.label}</Badge>
-                        {!p.isActive ? (
+                        <Badge tone={currentStatus.tone}>{currentStatus.label}</Badge>
+                        {!product.isActive ? (
                           <span className="ml-2">
                             <Badge tone="gray">Inactive</Badge>
                           </span>
@@ -576,9 +689,9 @@ export default function AdminInventoryPage() {
                       <td className="px-5 py-4 text-right">
                         <button
                           type="button"
-                          onClick={() => saveRow(p)}
-                          className="inline-flex items-center gap-2 rounded-2xl bg-black px-3 py-2 text-xs font-semibold text-white hover:bg-gray-900 disabled:opacity-60"
+                          onClick={() => saveRow(product)}
                           disabled={isRowSaving || bulkMutation.isPending}
+                          className="inline-flex items-center gap-2 rounded-2xl bg-black px-3 py-2 text-xs font-semibold text-white transition hover:bg-gray-900 disabled:opacity-60"
                         >
                           {isRowSaving ? (
                             <Loader2 size={14} className="animate-spin" />
@@ -597,8 +710,7 @@ export default function AdminInventoryPage() {
         )}
       </div>
 
-      {/* Pagination */}
-      <div className="mt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm text-gray-600">
           Page <span className="font-semibold text-gray-900">{page}</span> of{" "}
           <span className="font-semibold text-gray-900">{pages}</span>
@@ -608,59 +720,22 @@ export default function AdminInventoryPage() {
           <button
             type="button"
             disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            className="rounded-2xl border px-4 py-2 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-50"
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
           >
             Prev
           </button>
+
           <button
             type="button"
             disabled={page >= pages}
-            onClick={() => setPage((p) => Math.min(pages, p + 1))}
-            className="rounded-2xl border px-4 py-2 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-50"
+            onClick={() => setPage((prev) => Math.min(pages, prev + 1))}
+            className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
           >
             Next
           </button>
         </div>
       </div>
-
-      {/* Confirm Bulk */}
-      <ConfirmDialog
-        open={confirmBulk.open}
-        title="Apply bulk update?"
-        description="This will update stock and/or threshold for all selected products."
-        confirmText="Apply"
-        cancelText="Cancel"
-        tone="neutral"
-        busy={bulkMutation.isPending}
-        onConfirm={async () => {
-          setConfirmBulk({ open: false });
-
-          const ids = Array.from(selected);
-          if (ids.length === 0) return;
-
-          const payload = { ids };
-
-          if (bulkStock !== "") {
-            const n = safeNum(bulkStock);
-            if (n == null || n < 0) return toast.error("Bulk stock must be 0 or greater");
-            payload.stock = n;
-          }
-
-          if (bulkThr !== "") {
-            const n = safeNum(bulkThr);
-            if (n == null || n < 0) return toast.error("Bulk threshold must be 0 or greater");
-            payload.lowStockThreshold = n;
-          }
-
-          if (payload.stock == null && payload.lowStockThreshold == null) {
-            return toast.error("Set stock or threshold first.");
-          }
-
-          await bulkMutation.mutateAsync(payload);
-        }}
-        onClose={() => setConfirmBulk({ open: false })}
-      />
     </div>
   );
 }

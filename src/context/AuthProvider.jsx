@@ -1,4 +1,10 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   signInWithPopup,
   signOut as firebaseSignOut,
@@ -23,10 +29,8 @@ import {
 
 export const AuthContext = createContext(null);
 
-const AUTH_SYNC_KEY = "ss_auth_sync_event"; // localStorage cross-tab sync key
-const AUTH_BC_NAME = "ss_auth_bc"; // BroadcastChannel name
-
-/** ✅ Same key as apiClient guard (must match) */
+const AUTH_SYNC_KEY = "ss_auth_sync_event";
+const AUTH_BC_NAME = "ss_auth_bc";
 const REFRESH_DISABLED_KEY = "smartshop_refresh_disabled_v1";
 
 function isRefreshDisabled() {
@@ -39,8 +43,11 @@ function isRefreshDisabled() {
 
 function setRefreshDisabled(disabled) {
   try {
-    if (disabled) sessionStorage.setItem(REFRESH_DISABLED_KEY, "1");
-    else sessionStorage.removeItem(REFRESH_DISABLED_KEY);
+    if (disabled) {
+      sessionStorage.setItem(REFRESH_DISABLED_KEY, "1");
+    } else {
+      sessionStorage.removeItem(REFRESH_DISABLED_KEY);
+    }
   } catch {
     // ignore
   }
@@ -54,19 +61,16 @@ function emitAuthEvent(action, payload) {
     rnd: Math.random().toString(16).slice(2),
   };
 
-  // 1) BroadcastChannel (modern + fast)
   try {
     if (typeof window !== "undefined" && "BroadcastChannel" in window) {
       const bc = new BroadcastChannel(AUTH_BC_NAME);
       bc.postMessage(msg);
-      // close immediately (lightweight one-shot)
       bc.close();
     }
   } catch {
     // ignore
   }
 
-  // 2) localStorage event fallback (works widely)
   try {
     localStorage.setItem(AUTH_SYNC_KEY, JSON.stringify(msg));
   } catch {
@@ -74,86 +78,154 @@ function emitAuthEvent(action, payload) {
   }
 }
 
+function normalizePermissions(list) {
+  const arr = Array.isArray(list) ? list : [];
+  const out = [];
+  const seen = new Set();
+
+  for (const raw of arr) {
+    const p = String(raw || "").trim();
+    if (!p) continue;
+
+    const k = p.toLowerCase();
+    if (seen.has(k)) continue;
+
+    seen.add(k);
+    out.push(p);
+  }
+
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
+function normalizeUser(input) {
+  if (!input || typeof input !== "object") return null;
+
+  const role = String(input.role || "user").trim().toLowerCase();
+  const roleLevelRaw = Number(input.roleLevel || 0);
+  const roleLevel = Number.isFinite(roleLevelRaw)
+    ? Math.max(0, Math.min(100, roleLevelRaw))
+    : 0;
+
+  return {
+    ...input,
+    _id: input?._id ? String(input._id) : input?._id || null,
+    role,
+    roleLevel,
+    permissions: normalizePermissions(input.permissions),
+    isBlocked: Boolean(input.isBlocked),
+    email: input?.email || null,
+    phone: input?.phone || null,
+    displayName: input?.displayName || input?.name || null,
+    photoURL: input?.photoURL || null,
+  };
+}
+
+function pickUser(payload) {
+  if (!payload) return null;
+  return payload?.user || payload?.data?.user || payload?.data || payload;
+}
+
 export default function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUserState] = useState(null);
   const [booting, setBooting] = useState(true);
-
-  // ✅ Enterprise: ensure rerender on token changes (cross-tab / logout / refresh)
   const [authStamp, setAuthStamp] = useState(0);
-
-  /**
-   * Enterprise rule:
-   * Auth state should be token-driven (single source of truth).
-   * If token is missing -> not authed, even if stale user object exists.
-   */
-  const isAuthed = useMemo(() => !!getAccessToken(), [authStamp]);
 
   const bumpAuthStamp = useCallback(() => {
     setAuthStamp((s) => s + 1);
   }, []);
 
+  const setUser = useCallback((next) => {
+    if (typeof next === "function") {
+      setUserState((prev) => normalizeUser(next(prev)));
+      return;
+    }
+    setUserState(normalizeUser(next));
+  }, []);
+
+  const resetLocalAuth = useCallback(
+    ({ removeMode = true, disableRefresh = false } = {}) => {
+      if (disableRefresh) {
+        setRefreshDisabled(true);
+      }
+
+      clearAccessToken({ removeMode });
+      setUser(null);
+      bumpAuthStamp();
+    },
+    [bumpAuthStamp, setUser]
+  );
+
+  const applyLocalAccessToken = useCallback(
+    (token, remember) => {
+      const cleanToken = String(token || "").trim();
+
+      if (!cleanToken) {
+        resetLocalAuth({ removeMode: false });
+        return false;
+      }
+
+      setAccessToken(cleanToken, remember !== undefined ? { remember } : undefined);
+      bumpAuthStamp();
+      return true;
+    },
+    [bumpAuthStamp, resetLocalAuth]
+  );
+
+  const isAuthed = useMemo(() => !!getAccessToken(), [authStamp]);
+
   const hydrateMeSafe = useCallback(async () => {
     const me = await fetchMe();
-    return me?.user || me || null;
+    return normalizeUser(pickUser(me));
   }, []);
 
   const exchangeAndHydrate = useCallback(
     async (idToken, remember) => {
-      const data = await exchangeFirebaseToken(idToken); // { accessToken, user }
+      const data = await exchangeFirebaseToken(idToken);
 
-      // ✅ Login success => allow refresh again (this tab)
       setRefreshDisabled(false);
 
       if (data?.accessToken) {
-        setAccessToken(data.accessToken, { remember });
-        bumpAuthStamp();
+        applyLocalAccessToken(data.accessToken, remember);
       }
-      if (data?.user) setUser(data.user);
-      return data?.user || null;
+
+      const nextUser = normalizeUser(data?.user || null);
+      if (nextUser) {
+        setUser(nextUser);
+      }
+
+      return nextUser;
     },
-    [bumpAuthStamp]
+    [applyLocalAccessToken, setUser]
   );
 
-  // ✅ Multi-tab auth sync: logout across tabs instantly
   useEffect(() => {
     let bc = null;
 
     function applyLogoutSync() {
-      // ✅ Stop refresh attempts in this tab (prevents /refresh spam)
-      setRefreshDisabled(true);
-
-      // Clear everywhere (enterprise)
-      clearAccessToken({ removeMode: true });
-      setUser(null);
-      bumpAuthStamp();
+      resetLocalAuth({ removeMode: true, disableRefresh: true });
     }
 
     function onStorage(e) {
       if (!e) return;
 
-      // 1) Explicit auth sync events
       if (e.key === AUTH_SYNC_KEY && e.newValue) {
         try {
           const msg = JSON.parse(e.newValue);
           if (msg?.action === "logout") {
             applyLogoutSync();
+            return;
           }
         } catch {
           // ignore
         }
       }
 
-      // 2) Token changes (lightweight)
-      try {
-        const t = getAccessToken();
-        if (!t && user) {
-          setUser(null);
-          bumpAuthStamp();
-        } else if (t) {
-          bumpAuthStamp();
-        }
-      } catch {
-        // ignore
+      const t = getAccessToken();
+      if (!t && user) {
+        setUser(null);
+        bumpAuthStamp();
+      } else if (t) {
+        bumpAuthStamp();
       }
     }
 
@@ -164,7 +236,6 @@ export default function AuthProvider({ children }) {
       }
     }
 
-    // BroadcastChannel listener
     try {
       if (typeof window !== "undefined" && "BroadcastChannel" in window) {
         bc = new BroadcastChannel(AUTH_BC_NAME);
@@ -174,7 +245,6 @@ export default function AuthProvider({ children }) {
       bc = null;
     }
 
-    // localStorage listener
     window.addEventListener("storage", onStorage);
 
     return () => {
@@ -185,87 +255,72 @@ export default function AuthProvider({ children }) {
         // ignore
       }
     };
-  }, [bumpAuthStamp, user]);
+  }, [bumpAuthStamp, resetLocalAuth, setUser, user]);
 
-  // Boot: try existing token -> /me
-  // If fails, try refresh cookie -> new token -> /me
   useEffect(() => {
     let active = true;
 
     (async () => {
       try {
-        // ✅ If this tab is in "logged-out" mode, do NOT call /auth/refresh at boot.
         if (isRefreshDisabled()) {
-          clearAccessToken({ removeMode: true });
-          bumpAuthStamp();
-          if (active) setUser(null);
+          resetLocalAuth({ removeMode: true, disableRefresh: false });
           return;
         }
 
         const existing = getAccessToken();
 
-        // 1) If we have an access token, try hydrate (/auth/me).
         if (existing) {
           try {
             const nextUser = await hydrateMeSafe();
-            if (active) setUser(nextUser);
+            if (active) {
+              setUser(nextUser);
+            }
             bumpAuthStamp();
             return;
           } catch {
-            // token may be expired; fall through to refresh attempt
+            // fall through to refresh
           }
         }
 
-        // 2) Try refresh cookie -> new accessToken -> /me
         try {
-          const r = await refreshAccessToken(); // { accessToken }
-          if (r?.accessToken) {
-            // Refresh success => allow future refresh
-            setRefreshDisabled(false);
+          const r = await refreshAccessToken();
 
-            setAccessToken(r.accessToken);
-            bumpAuthStamp();
+          if (r?.accessToken) {
+            setRefreshDisabled(false);
+            applyLocalAccessToken(r.accessToken);
 
             const nextUser = await hydrateMeSafe();
-            if (active) setUser(nextUser);
+            if (active) {
+              setUser(nextUser);
+            }
           } else {
-            // No token returned => treat as logged out
-            setRefreshDisabled(true);
-            clearAccessToken({ removeMode: true });
-            bumpAuthStamp();
-            if (active) setUser(null);
+            resetLocalAuth({ removeMode: true, disableRefresh: true });
           }
         } catch (err) {
-          // ✅ If refresh returns 401/403 => stop future refresh attempts (prevents console spam)
           const st = err?.response?.status;
-          if (st === 401 || st === 403) setRefreshDisabled(true);
-
-          clearAccessToken({ removeMode: true });
-          bumpAuthStamp();
-          if (active) setUser(null);
+          resetLocalAuth({
+            removeMode: true,
+            disableRefresh: st === 401 || st === 403,
+          });
         }
       } catch {
-        clearAccessToken({ removeMode: true });
-        bumpAuthStamp();
-        if (active) setUser(null);
+        resetLocalAuth({ removeMode: true, disableRefresh: false });
       } finally {
-        if (active) setBooting(false);
+        if (active) {
+          setBooting(false);
+        }
       }
     })();
 
     return () => {
       active = false;
     };
-  }, [hydrateMeSafe, bumpAuthStamp]);
+  }, [applyLocalAccessToken, bumpAuthStamp, hydrateMeSafe, resetLocalAuth, setUser]);
 
-  /**
-   * Keep UI consistent:
-   * If token disappears (refresh failed in interceptors etc), clear stale user.
-   * We do this on window focus (cheap + effective).
-   */
   useEffect(() => {
     function syncAuth() {
       const t = getAccessToken();
+
       if (!t && user) {
         setUser(null);
         bumpAuthStamp();
@@ -273,21 +328,19 @@ export default function AuthProvider({ children }) {
         bumpAuthStamp();
       }
     }
+
     window.addEventListener("focus", syncAuth);
     return () => window.removeEventListener("focus", syncAuth);
-  }, [user, bumpAuthStamp]);
+  }, [user, bumpAuthStamp, setUser]);
 
   const loginWithGoogle = useCallback(
     async (remember = true) => {
-      // Sync Firebase persistence with app remember-me
       await setPersistence(
         auth,
         remember ? browserLocalPersistence : browserSessionPersistence
       );
 
       const result = await signInWithPopup(auth, googleProvider);
-
-      // Force fresh token (consistency)
       const idToken = await result.user.getIdToken(true);
 
       const authedUser = await exchangeAndHydrate(idToken, remember);
@@ -297,31 +350,23 @@ export default function AuthProvider({ children }) {
   );
 
   const logout = useCallback(async () => {
-    // ✅ Stop refresh attempts in this tab immediately
     setRefreshDisabled(true);
 
-    // 1) Revoke refresh cookie (backend)
     try {
       await apiLogout();
     } catch {
       // ignore
     }
 
-    // 2) Clear local access token + app user
-    clearAccessToken({ removeMode: true });
-    setUser(null);
-    bumpAuthStamp();
-
-    // ✅ Multi-tab sync
+    resetLocalAuth({ removeMode: true, disableRefresh: false });
     emitAuthEvent("logout");
 
-    // 3) Sign out from Firebase (client)
     try {
       await firebaseSignOut(auth);
     } catch {
       // ignore
     }
-  }, [bumpAuthStamp]);
+  }, [resetLocalAuth]);
 
   const value = useMemo(
     () => ({
@@ -332,7 +377,7 @@ export default function AuthProvider({ children }) {
       logout,
       setUser,
     }),
-    [user, booting, isAuthed, loginWithGoogle, logout]
+    [user, booting, isAuthed, loginWithGoogle, logout, setUser]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

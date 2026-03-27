@@ -34,15 +34,15 @@ const UPDATE_STATUS_OPTIONS = [
 ];
 
 function formatMoney(n) {
-  const v = Number(n || 0);
-  if (Number.isNaN(v)) return "৳0";
-  return `৳${v.toFixed(0)}`;
+  const value = Number(n || 0);
+  if (Number.isNaN(value)) return "৳0";
+  return `৳${value.toFixed(0)}`;
 }
 
 function formatDate(iso) {
   try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
+    const date = new Date(iso);
+    return date.toLocaleString(undefined, {
       year: "numeric",
       month: "short",
       day: "2-digit",
@@ -55,20 +55,26 @@ function formatDate(iso) {
 }
 
 function getErrorMessage(err) {
-  const msg =
+  const message =
     err?.response?.data?.message || err?.response?.data?.error || err?.message;
-  return msg ? String(msg) : "Something went wrong.";
+  return message ? String(message) : "Something went wrong.";
 }
 
 function statusBadgeClass(status) {
-  const s = String(status || "").toLowerCase();
-  if (s === "pending") return "bg-amber-50 border-amber-200 text-amber-800";
-  if (s === "paid") return "bg-emerald-50 border-emerald-200 text-emerald-800";
-  if (s === "processing") return "bg-blue-50 border-blue-200 text-blue-800";
-  if (s === "shipped") return "bg-indigo-50 border-indigo-200 text-indigo-800";
-  if (s === "delivered") return "bg-green-50 border-green-200 text-green-800";
-  if (s === "cancelled") return "bg-rose-50 border-rose-200 text-rose-800";
+  const value = String(status || "").toLowerCase();
+
+  if (value === "pending") return "bg-amber-50 border-amber-200 text-amber-800";
+  if (value === "paid") return "bg-emerald-50 border-emerald-200 text-emerald-800";
+  if (value === "processing") return "bg-blue-50 border-blue-200 text-blue-800";
+  if (value === "shipped") return "bg-indigo-50 border-indigo-200 text-indigo-800";
+  if (value === "delivered") return "bg-green-50 border-green-200 text-green-800";
+  if (value === "cancelled") return "bg-rose-50 border-rose-200 text-rose-800";
+
   return "bg-gray-50 border-gray-200 text-gray-700";
+}
+
+function clamp(n, min, max) {
+  return Math.max(min, Math.min(max, n));
 }
 
 function Drawer({ open, onClose, order }) {
@@ -82,16 +88,18 @@ function Drawer({ open, onClose, order }) {
         onClick={onClose}
         aria-label="Close details overlay"
       />
-      <div className="absolute right-0 top-0 h-full w-full max-w-xl bg-white border-l shadow-2xl overflow-auto">
-        <div className="p-5 border-b flex items-start justify-between gap-4">
+
+      <div className="absolute right-0 top-0 h-full w-full max-w-xl overflow-auto border-l border-gray-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-5">
           <div className="min-w-0">
-            <div className="text-xs uppercase tracking-wide text-gray-500">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
               Order details
             </div>
-            <div className="mt-1 text-lg font-semibold text-gray-900 truncate">
+            <div className="mt-1 truncate text-lg font-semibold text-gray-900">
               #{String(order?._id || "").slice(-10).toUpperCase()}
             </div>
-            <div className="mt-2 inline-flex items-center gap-2">
+
+            <div className="mt-2 inline-flex flex-wrap items-center gap-2">
               <span
                 className={[
                   "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
@@ -100,45 +108,38 @@ function Drawer({ open, onClose, order }) {
               >
                 {String(order?.status || "").toUpperCase()}
               </span>
-              <span className="text-xs text-gray-500">
-                {formatDate(order?.createdAt)}
-              </span>
+
+              <span className="text-xs text-gray-500">{formatDate(order?.createdAt)}</span>
             </div>
           </div>
 
           <button
             type="button"
-            className="p-2 rounded-2xl hover:bg-gray-50 transition"
             onClick={onClose}
             aria-label="Close"
+            className="rounded-2xl p-2 transition hover:bg-gray-50"
           >
             <X size={18} />
           </button>
         </div>
 
-        <div className="p-5 space-y-6">
-          {/* Customer */}
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
+        <div className="space-y-6 p-5">
+          <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
             <div className="text-sm font-semibold text-gray-900">Customer</div>
-            <div className="mt-2 text-sm text-gray-700 space-y-1">
-              <div className="font-medium text-gray-900">
-                {order?.user?.displayName || "—"}
-              </div>
+            <div className="mt-2 space-y-1 text-sm text-gray-700">
+              <div className="font-medium text-gray-900">{order?.user?.displayName || "—"}</div>
               <div className="text-gray-600">{order?.user?.email || "—"}</div>
               <div className="text-gray-600">{order?.user?.phone || "—"}</div>
             </div>
           </div>
 
-          {/* Shipping */}
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
+          <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
             <div className="text-sm font-semibold text-gray-900">Shipping</div>
-            <div className="mt-2 text-sm text-gray-700 space-y-1">
+            <div className="mt-2 space-y-1 text-sm text-gray-700">
               <div className="font-medium text-gray-900">
                 {order?.shippingAddress?.name || "—"}
               </div>
-              <div className="text-gray-600">
-                {order?.shippingAddress?.phone || "—"}
-              </div>
+              <div className="text-gray-600">{order?.shippingAddress?.phone || "—"}</div>
               <div className="text-gray-600">
                 {order?.shippingAddress?.addressLine || "—"}
               </div>
@@ -153,86 +154,86 @@ function Drawer({ open, onClose, order }) {
             </div>
           </div>
 
-          {/* Items */}
-          <div className="rounded-3xl border bg-white shadow-sm overflow-hidden">
-            <div className="p-5 border-b">
+          <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+            <div className="border-b border-gray-100 p-5">
               <div className="text-sm font-semibold text-gray-900">Items</div>
-              <div className="text-xs text-gray-500 mt-1">
+              <div className="mt-1 text-xs text-gray-500">
                 {(order?.items || []).length} item(s)
               </div>
             </div>
 
-            <div className="p-5 space-y-4">
-              {(order?.items || []).map((it, idx) => (
+            <div className="space-y-4 p-5">
+              {(order?.items || []).map((item, idx) => (
                 <div
-                  key={`${it.product}-${idx}`}
-                  className="flex items-center gap-4 rounded-2xl border p-4"
+                  key={`${item.product}-${idx}`}
+                  className="flex items-center gap-4 rounded-2xl border border-gray-200 p-4"
                 >
-                  <div className="w-14 h-14 rounded-2xl bg-gray-100 border overflow-hidden flex-shrink-0">
-                    {it.image ? (
+                  <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
+                    {item.image ? (
                       <img
-                        src={it.image}
-                        alt={it.title}
-                        className="w-full h-full object-cover"
+                        src={item.image}
+                        alt={item.title}
+                        className="h-full w-full object-cover"
                         loading="lazy"
                       />
                     ) : null}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-gray-900 truncate">
-                      {it.title}
-                    </div>
+                    <div className="truncate font-semibold text-gray-900">{item.title}</div>
                     <div className="text-sm text-gray-500">
-                      Qty: {it.qty} • Price: {formatMoney(it.price)}
+                      Qty: {item.qty} • Price: {formatMoney(item.price)}
                     </div>
                   </div>
 
                   <div className="text-right font-bold text-gray-900">
-                    {formatMoney((it.price || 0) * (it.qty || 0))}
+                    {formatMoney((item.price || 0) * (item.qty || 0))}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="p-5 border-t bg-gray-50">
-              <div className="text-sm text-gray-600 space-y-2">
+            <div className="border-t border-gray-100 bg-gray-50 p-5">
+              <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex items-center justify-between">
                   <span>Subtotal</span>
                   <span className="font-semibold text-gray-900">
                     {formatMoney(order?.subtotal)}
                   </span>
                 </div>
+
                 <div className="flex items-center justify-between">
                   <span>Shipping</span>
                   <span className="font-semibold text-gray-900">
                     {formatMoney(order?.shipping)}
                   </span>
                 </div>
+
                 <div className="flex items-center justify-between">
                   <span>Discount</span>
                   <span className="font-semibold text-gray-900">
                     - {formatMoney(order?.discount)}
                   </span>
                 </div>
+
                 <div className="h-px bg-gray-200" />
+
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-gray-900">Total</span>
-                  <span className="font-bold text-gray-900">
-                    {formatMoney(order?.total)}
-                  </span>
+                  <span className="font-bold text-gray-900">{formatMoney(order?.total)}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="rounded-3xl border bg-gray-50 p-5 text-xs text-gray-600">
-            <div className="font-semibold text-gray-800 flex items-center gap-2">
-              <ShieldCheck size={14} /> Enterprise note
+          <div className="rounded-[28px] border border-gray-200 bg-gray-50 p-5 text-xs text-gray-600">
+            <div className="flex items-center gap-2 font-semibold text-gray-800">
+              <ShieldCheck size={14} />
+              Order operations
             </div>
-            <div className="mt-1">
-              ✅ Server-side search + date filters + audit logging are now enabled for orders. Next step:
-              delivery tracking + invoice + refund workflow.
+            <div className="mt-1 leading-6">
+              Search, filters and status changes are active. Delivery tracking, invoice flow
+              and refund workflow can be added next.
             </div>
           </div>
         </div>
@@ -242,19 +243,16 @@ function Drawer({ open, onClose, order }) {
 }
 
 export default function AdminOrdersPage() {
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
 
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
-
-  // ✅ NEW: date range filters (YYYY-MM-DD)
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
 
-  const dq = useDeferredValue(q);
-
+  const deferredQuery = useDeferredValue(q);
   const [drawerOrder, setDrawerOrder] = useState(null);
 
   const [confirm, setConfirm] = useState({
@@ -265,30 +263,26 @@ export default function AdminOrdersPage() {
     description: "",
   });
 
-  // ✅ UPDATED: queryKey includes q + date filters (enterprise caching)
   const queryKey = useMemo(
-    () => ["admin-orders", page, limit, status, String(dq || ""), dateFrom, dateTo],
-    [page, limit, status, dq, dateFrom, dateTo]
+    () => ["admin-orders", page, limit, status, String(deferredQuery || ""), dateFrom, dateTo],
+    [page, limit, status, deferredQuery, dateFrom, dateTo]
   );
 
   const badRange = Boolean(dateFrom && dateTo && dateFrom > dateTo);
 
   const listQuery = useQuery({
     queryKey,
-    enabled: !badRange, // ✅ avoid invalid range fetch
+    enabled: !badRange,
     queryFn: async ({ signal }) => {
       const params = { page, limit };
+
       if (status) params.status = status;
-
-      // ✅ NEW: server-side search
-      if (String(dq || "").trim()) params.q = String(dq || "").trim();
-
-      // ✅ NEW: date range
+      if (String(deferredQuery || "").trim()) params.q = String(deferredQuery || "").trim();
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
 
       const { data } = await api.get("/orders/admin/list", { params, signal });
-      return data; // { orders, total, page, pages, ... }
+      return data;
     },
     staleTime: 8_000,
     keepPreviousData: true,
@@ -299,16 +293,15 @@ export default function AdminOrdersPage() {
   const total = listQuery.data?.total || 0;
   const pages = listQuery.data?.pages || 1;
 
-  // ✅ Keep your local filter logic as-is (now it works as extra filtering on top)
   const filteredOrders = useMemo(() => {
-    const term = String(dq || "").trim().toLowerCase();
+    const term = String(deferredQuery || "").trim().toLowerCase();
     if (!term) return orders;
 
-    return orders.filter((o) => {
-      const id = String(o?._id || "").toLowerCase();
-      const email = String(o?.user?.email || "").toLowerCase();
-      const phone = String(o?.user?.phone || "").toLowerCase();
-      const name = String(o?.user?.displayName || "").toLowerCase();
+    return orders.filter((order) => {
+      const id = String(order?._id || "").toLowerCase();
+      const email = String(order?.user?.email || "").toLowerCase();
+      const phone = String(order?.user?.phone || "").toLowerCase();
+      const name = String(order?.user?.displayName || "").toLowerCase();
 
       return (
         id.includes(term) ||
@@ -317,9 +310,7 @@ export default function AdminOrdersPage() {
         name.includes(term)
       );
     });
-  }, [orders, dq]);
-
-  const updatingId = useMemo(() => confirm?.id, [confirm]);
+  }, [orders, deferredQuery]);
 
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, nextStatus }) => {
@@ -329,72 +320,72 @@ export default function AdminOrdersPage() {
       return data;
     },
     onMutate: async ({ id, nextStatus }) => {
-      await qc.cancelQueries({ queryKey });
+      await queryClient.cancelQueries({ queryKey });
 
-      const prev = qc.getQueryData(queryKey);
+      const previous = queryClient.getQueryData(queryKey);
 
-      // optimistic update (only current page cache)
-      qc.setQueryData(queryKey, (old) => {
+      queryClient.setQueryData(queryKey, (old) => {
         if (!old?.orders) return old;
         return {
           ...old,
-          orders: old.orders.map((o) =>
-            o._id === id ? { ...o, status: nextStatus } : o
+          orders: old.orders.map((order) =>
+            order._id === id ? { ...order, status: nextStatus } : order
           ),
         };
       });
 
-      return { prev };
+      return { previous };
     },
-    onError: (err, _vars, ctx) => {
-      if (ctx?.prev) qc.setQueryData(queryKey, ctx.prev);
+    onError: (err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKey, context.previous);
+      }
       toast.error(getErrorMessage(err));
     },
     onSuccess: () => {
       toast.success("Order status updated");
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: ["admin-orders"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-orders"] });
     },
   });
 
-  function clamp(n, min, max) {
-    return Math.max(min, Math.min(max, n));
-  }
-
-  function goPage(p) {
-    const next = clamp(Number(p || 1), 1, Math.max(1, pages));
-    setPage(next);
+  function goPage(nextPage) {
+    setPage(clamp(Number(nextPage || 1), 1, Math.max(1, pages)));
   }
 
   function requestStatusChange(order, nextStatus) {
     const id = order?._id;
     if (!id) return;
 
-    const ns = String(nextStatus || "").trim();
-    if (!UPDATE_STATUS_OPTIONS.includes(ns)) {
+    const normalizedStatus = String(nextStatus || "").trim();
+    if (!UPDATE_STATUS_OPTIONS.includes(normalizedStatus)) {
       toast.error("Invalid status");
       return;
     }
 
-    // confirm only for cancellation (safer)
-    if (ns === "cancelled") {
+    if (normalizedStatus === "cancelled") {
       setConfirm({
         open: true,
         id,
-        nextStatus: ns,
+        nextStatus: normalizedStatus,
         title: "Cancel this order?",
-        description: "This will mark the order as CANCELLED. Continue?",
+        description: "This will mark the order as cancelled. Continue?",
       });
       return;
     }
 
-    updateStatusMutation.mutate({ id, nextStatus: ns });
+    updateStatusMutation.mutate({ id, nextStatus: normalizedStatus });
   }
 
   function onConfirmCancel() {
     if (!confirm?.id || !confirm?.nextStatus) return;
-    updateStatusMutation.mutate({ id: confirm.id, nextStatus: confirm.nextStatus });
+
+    updateStatusMutation.mutate({
+      id: confirm.id,
+      nextStatus: confirm.nextStatus,
+    });
+
     setConfirm({
       open: false,
       id: null,
@@ -406,6 +397,7 @@ export default function AdminOrdersPage() {
 
   function onCloseConfirm() {
     if (updateStatusMutation.isPending) return;
+
     setConfirm({
       open: false,
       id: null,
@@ -416,7 +408,7 @@ export default function AdminOrdersPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <ConfirmDialog
         open={confirm.open}
         title={confirm.title}
@@ -429,88 +421,102 @@ export default function AdminOrdersPage() {
         onClose={onCloseConfirm}
       />
 
-      <Drawer open={!!drawerOrder} order={drawerOrder} onClose={() => setDrawerOrder(null)} />
+      <Drawer
+        open={!!drawerOrder}
+        order={drawerOrder}
+        onClose={() => setDrawerOrder(null)}
+      />
 
-      {/* Header */}
-      <div className="rounded-3xl border bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-sm text-gray-500 flex items-center gap-2">
-            <ClipboardList size={16} />
-            <span>Admin • Orders</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
-            Orders Management
-          </h1>
-          <div className="text-sm text-gray-600 mt-2">
-            Total orders: <span className="font-semibold text-gray-900">{total}</span>
-          </div>
-        </div>
+      <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">
+              <ClipboardList size={14} />
+              Orders
+            </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
-            onClick={() => listQuery.refetch()}
-            disabled={listQuery.isFetching || badRange}
-          >
-            {listQuery.isFetching ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <RefreshCcw size={16} />
-            )}
-            Refresh
-          </button>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-gray-950 md:text-3xl">
+              Orders management
+            </h1>
+
+            <p className="mt-2 text-sm text-gray-600">
+              Total orders:{" "}
+              <span className="font-semibold text-gray-900">{total}</span>
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => listQuery.refetch()}
+              disabled={listQuery.isFetching || badRange}
+              className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+            >
+              {listQuery.isFetching ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <RefreshCcw size={16} />
+              )}
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="rounded-3xl border bg-white p-5 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <div className="lg:col-span-5">
             <div className="text-sm font-semibold text-gray-900">Search</div>
-            <div className="mt-2 relative">
-              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+            <div className="relative mt-2">
+              <Search
+                size={16}
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+
               <input
-                className="input input-bordered w-full rounded-2xl bg-white border-gray-200 pl-11 pr-11"
                 value={q}
                 onChange={(e) => {
                   setQ(e.target.value);
                   setPage(1);
                 }}
-                placeholder="Search (server) by order id / email / phone / name / item"
+                placeholder="Search by order id, email, phone, customer or item"
+                className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-11 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:ring-2 focus:ring-black focus:ring-offset-2"
               />
+
               {q ? (
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-gray-50"
                   onClick={() => {
                     setQ("");
                     setPage(1);
                   }}
                   aria-label="Clear search"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl p-2 transition hover:bg-gray-50"
                 >
                   <X size={16} />
                 </button>
               ) : null}
             </div>
+
             <div className="mt-2 text-xs text-gray-500">
-              ✅ Search is now server-side (fast + scalable). Local filter still applies as extra safety.
+              Search runs on the server. Local filtering is kept as an extra layer for the
+              current page view.
             </div>
           </div>
 
           <div className="lg:col-span-3">
             <div className="text-sm font-semibold text-gray-900">Status</div>
             <select
-              className="select select-bordered w-full rounded-2xl bg-white border-gray-200 mt-2"
               value={status}
               onChange={(e) => {
                 setStatus(e.target.value);
                 setPage(1);
               }}
+              className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
             >
-              {STATUS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
+              {STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
                 </option>
               ))}
             </select>
@@ -519,12 +525,12 @@ export default function AdminOrdersPage() {
           <div className="lg:col-span-2">
             <div className="text-sm font-semibold text-gray-900">Per page</div>
             <select
-              className="select select-bordered w-full rounded-2xl bg-white border-gray-200 mt-2"
               value={limit}
               onChange={(e) => {
                 setLimit(Number(e.target.value || 20));
                 setPage(1);
               }}
+              className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
             >
               {[10, 20, 50].map((n) => (
                 <option key={n} value={n}>
@@ -539,20 +545,22 @@ export default function AdminOrdersPage() {
             <div className="mt-2 flex items-center gap-2">
               <button
                 type="button"
-                className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
                 onClick={() => goPage(page - 1)}
                 disabled={page <= 1 || listQuery.isFetching || badRange}
+                className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Prev
               </button>
-              <div className="min-w-[90px] text-center text-sm font-semibold">
+
+              <div className="min-w-[90px] text-center text-sm font-semibold text-gray-900">
                 {page} / {pages}
               </div>
+
               <button
                 type="button"
-                className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
                 onClick={() => goPage(page + 1)}
                 disabled={page >= pages || listQuery.isFetching || badRange}
+                className="inline-flex items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Next
               </button>
@@ -560,18 +568,17 @@ export default function AdminOrdersPage() {
           </div>
         </div>
 
-        {/* ✅ NEW: Date Range row (minimal change, keeps your grid intact) */}
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
             <div className="text-sm font-semibold text-gray-900">Date from</div>
             <input
               type="date"
-              className="input input-bordered w-full rounded-2xl bg-white border-gray-200 mt-2"
               value={dateFrom}
               onChange={(e) => {
                 setDateFrom(e.target.value);
                 setPage(1);
               }}
+              className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
             />
           </div>
 
@@ -579,25 +586,24 @@ export default function AdminOrdersPage() {
             <div className="text-sm font-semibold text-gray-900">Date to</div>
             <input
               type="date"
-              className="input input-bordered w-full rounded-2xl bg-white border-gray-200 mt-2"
               value={dateTo}
               onChange={(e) => {
                 setDateTo(e.target.value);
                 setPage(1);
               }}
+              className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
             />
           </div>
         </div>
 
         {badRange ? (
           <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
-            Invalid date range: Date from must be earlier than Date to.
+            Invalid date range. “Date from” must be earlier than “Date to”.
           </div>
         ) : null}
       </div>
 
-      {/* Table */}
-      <div className="rounded-3xl border bg-white shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
         {listQuery.isPending ? (
           <OrdersTableSkeleton rows={10} />
         ) : listQuery.isError ? (
@@ -605,10 +611,11 @@ export default function AdminOrdersPage() {
             <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
               <div className="font-semibold">Failed to load orders</div>
               <div className="mt-1">{getErrorMessage(listQuery.error)}</div>
+
               <button
                 type="button"
-                className="btn btn-sm mt-4 rounded-xl bg-black text-white hover:bg-gray-900 border-0"
                 onClick={() => listQuery.refetch()}
+                className="mt-4 inline-flex items-center justify-center rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-900"
               >
                 Try again
               </button>
@@ -616,95 +623,98 @@ export default function AdminOrdersPage() {
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="p-10 text-center">
-            <div className="mx-auto mb-3 w-fit rounded-full border px-3 py-1 text-sm bg-gray-50">
+            <div className="mx-auto mb-3 w-fit rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm text-gray-700">
               No orders
             </div>
             <div className="text-2xl font-bold text-gray-900">No results found</div>
             <div className="mt-2 text-gray-600">
-              Try changing status filter, search, or date range.
+              Try changing the status, search term or date range.
             </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="table w-full">
-              <thead>
-                <tr>
-                  <th>Order</th>
-                  <th>Customer</th>
-                  <th>Date</th>
-                  <th>Items</th>
-                  <th className="text-right">Total</th>
-                  <th>Status</th>
-                  <th className="text-right">Action</th>
+            <table className="w-full min-w-[980px]">
+              <thead className="border-b border-gray-100 bg-gray-50/80">
+                <tr className="text-left text-xs uppercase tracking-[0.14em] text-gray-500">
+                  <th className="px-4 py-4 font-semibold">Order</th>
+                  <th className="px-4 py-4 font-semibold">Customer</th>
+                  <th className="px-4 py-4 font-semibold">Date</th>
+                  <th className="px-4 py-4 font-semibold">Items</th>
+                  <th className="px-4 py-4 text-right font-semibold">Total</th>
+                  <th className="px-4 py-4 font-semibold">Status</th>
+                  <th className="px-4 py-4 text-right font-semibold">Action</th>
                 </tr>
               </thead>
 
               <tbody>
-                {filteredOrders.map((o) => {
-                  const id = o?._id;
+                {filteredOrders.map((order) => {
+                  const id = order?._id;
                   const busy =
                     updateStatusMutation.isPending &&
                     updateStatusMutation.variables?.id === id;
 
                   return (
-                    <tr key={id}>
-                      <td>
+                    <tr
+                      key={id}
+                      className="border-b border-gray-100 transition hover:bg-gray-50/70 last:border-b-0"
+                    >
+                      <td className="px-4 py-4">
                         <div className="font-semibold text-gray-900">
                           #{String(id || "").slice(-8).toUpperCase()}
                         </div>
-                        <div className="text-xs text-gray-500 font-mono">
+                        <div className="font-mono text-xs text-gray-500">
                           {String(id || "")}
                         </div>
                       </td>
 
-                      <td>
-                        <div className="font-semibold text-gray-900 truncate max-w-[220px]">
-                          {o?.user?.displayName || "—"}
+                      <td className="px-4 py-4">
+                        <div className="max-w-[220px] truncate font-semibold text-gray-900">
+                          {order?.user?.displayName || "—"}
                         </div>
-                        <div className="text-sm text-gray-500 truncate max-w-[220px]">
-                          {o?.user?.email || "—"}
+                        <div className="max-w-[220px] truncate text-sm text-gray-500">
+                          {order?.user?.email || "—"}
                         </div>
                       </td>
 
-                      <td>
+                      <td className="px-4 py-4">
                         <div className="text-sm text-gray-700">
-                          {formatDate(o?.createdAt)}
+                          {formatDate(order?.createdAt)}
                         </div>
                       </td>
 
-                      <td>
-                        <div className="text-sm font-semibold">
-                          {(o?.items || []).length}
+                      <td className="px-4 py-4">
+                        <div className="text-sm font-semibold text-gray-900">
+                          {(order?.items || []).length}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {String(o?.status || "").toUpperCase()}
+                          {String(order?.status || "").toUpperCase()}
                         </div>
                       </td>
 
-                      <td className="text-right font-bold text-gray-900">
-                        {formatMoney(o?.total)}
+                      <td className="px-4 py-4 text-right font-bold text-gray-900">
+                        {formatMoney(order?.total)}
                       </td>
 
-                      <td>
+                      <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           <span
                             className={[
                               "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
-                              statusBadgeClass(o?.status),
+                              statusBadgeClass(order?.status),
                             ].join(" ")}
                           >
-                            {String(o?.status || "").toUpperCase()}
+                            {String(order?.status || "").toUpperCase()}
                           </span>
 
                           <select
-                            className="select select-sm select-bordered rounded-xl bg-white border-gray-200"
-                            value={String(o?.status || "pending")}
+                            value={String(order?.status || "pending")}
                             disabled={busy}
-                            onChange={(e) => requestStatusChange(o, e.target.value)}
+                            onChange={(e) => requestStatusChange(order, e.target.value)}
+                            className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
                           >
-                            {UPDATE_STATUS_OPTIONS.map((s) => (
-                              <option key={s} value={s}>
-                                {s}
+                            {UPDATE_STATUS_OPTIONS.map((value) => (
+                              <option key={value} value={value}>
+                                {value}
                               </option>
                             ))}
                           </select>
@@ -715,13 +725,14 @@ export default function AdminOrdersPage() {
                         </div>
                       </td>
 
-                      <td className="text-right">
+                      <td className="px-4 py-4 text-right">
                         <button
                           type="button"
-                          className="btn btn-sm btn-outline rounded-xl bg-white hover:bg-gray-50 border-gray-200"
-                          onClick={() => setDrawerOrder(o)}
+                          onClick={() => setDrawerOrder(order)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
                         >
-                          <Eye size={16} /> View
+                          <Eye size={16} />
+                          View
                         </button>
                       </td>
                     </tr>
@@ -730,7 +741,7 @@ export default function AdminOrdersPage() {
               </tbody>
             </table>
 
-            <div className="p-4 border-t text-xs text-gray-500 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 p-4 text-xs text-gray-500">
               <div>
                 Showing{" "}
                 <span className="font-semibold text-gray-900">
@@ -743,7 +754,8 @@ export default function AdminOrdersPage() {
               <div className="inline-flex items-center gap-2">
                 {listQuery.isFetching ? (
                   <span className="inline-flex items-center gap-2">
-                    <Loader2 size={14} className="animate-spin" /> Updating...
+                    <Loader2 size={14} className="animate-spin" />
+                    Updating...
                   </span>
                 ) : null}
               </div>

@@ -25,6 +25,7 @@ function safeParse(json, fallback) {
 
 function safeRead() {
   try {
+    if (typeof window === "undefined") return [];
     const raw = localStorage.getItem(CART_KEY);
     if (!raw) return [];
     const data = safeParse(raw, []);
@@ -36,16 +37,13 @@ function safeRead() {
 
 function safeWrite(items) {
   try {
+    if (typeof window === "undefined") return;
     localStorage.setItem(CART_KEY, JSON.stringify(items));
   } catch {
     // ignore
   }
 }
 
-/**
- * Normalize any product-like input into our cart item shape
- * (guest/local mode)
- */
 function normalizeItem(input) {
   const id = input?.id || input?._id;
   if (!id) return null;
@@ -55,30 +53,26 @@ function normalizeItem(input) {
   const image = input?.image || input?.images?.[0] || "";
 
   return {
-    id: String(id), // productId
+    id: String(id),
     title,
     price: Number.isFinite(price) ? price : 0,
     image: String(image || ""),
     qty: Math.max(1, Number(input?.qty ?? 1) || 1),
-
-    // server-mode extra (optional)
     cartItemId: input?.cartItemId ? String(input.cartItemId) : undefined,
   };
 }
 
-/**
- * Server cart -> UI cart items
- */
 function mapServerCartItems(cart) {
   const items = Array.isArray(cart?.items) ? cart.items : [];
+
   return items
     .map((it) => {
       const productId = it?.product?._id || it?.product;
       if (!productId) return null;
 
       return {
-        id: String(productId), // productId
-        cartItemId: String(it._id), // cart subdoc id (needed for PATCH/DELETE)
+        id: String(productId),
+        cartItemId: String(it._id),
         title: String(it.titleSnapshot || "Untitled Product"),
         price: Number(it.priceSnapshot || 0),
         image: String(it.imageSnapshot || ""),
@@ -88,9 +82,6 @@ function mapServerCartItems(cart) {
     .filter(Boolean);
 }
 
-/**
- * Simple concurrency limiter (enterprise safe)
- */
 async function runWithConcurrency(tasks, limit = 3) {
   const results = [];
   const queue = [...tasks];
@@ -98,7 +89,6 @@ async function runWithConcurrency(tasks, limit = 3) {
   const workers = Array.from({ length: Math.max(1, limit) }, async () => {
     while (queue.length) {
       const fn = queue.shift();
-      // eslint-disable-next-line no-await-in-loop
       results.push(await fn());
     }
   });
@@ -113,7 +103,6 @@ export default function CartProvider({ children }) {
   const [hydrated, setHydrated] = useState(false);
   const [items, setItems] = useState([]);
 
-  // prevent overlapping sync calls
   const syncingRef = useRef(false);
   const mountedRef = useRef(true);
 
@@ -124,14 +113,12 @@ export default function CartProvider({ children }) {
     };
   }, []);
 
-  // Initial hydrate from local (fast UI)
   useEffect(() => {
     const initial = safeRead();
     setItems(Array.isArray(initial) ? initial : []);
     setHydrated(true);
   }, []);
 
-  // Persist current items to local storage (guest + quick restore UX)
   useEffect(() => {
     if (!hydrated) return;
     safeWrite(items);
@@ -143,18 +130,15 @@ export default function CartProvider({ children }) {
     try {
       const { data } = await api.get("/cart");
       const mapped = mapServerCartItems(data);
-      if (mountedRef.current) setItems(mapped);
-    } catch (e) {
-      // silent fail: keep local snapshot
+
+      if (mountedRef.current) {
+        setItems(mapped);
+      }
+    } catch {
+      // silent fail
     }
   }, [isAuthed]);
 
-  /**
-   * When user becomes authed:
-   * - Load server cart
-   * - Merge guest/local items (only those WITHOUT cartItemId)
-   * - Replace UI with final server cart
-   */
   useEffect(() => {
     if (!hydrated) return;
     if (!isAuthed) return;
@@ -166,11 +150,9 @@ export default function CartProvider({ children }) {
       syncingRef.current = true;
 
       try {
-        // 1) get server cart
         const res = await api.get("/cart");
         let cart = res.data;
 
-        // 2) merge local guest items (only unsynced ones)
         const local = safeRead();
         const unsynced = (Array.isArray(local) ? local : []).filter(
           (x) => x && x.id && !x.cartItemId
@@ -190,21 +172,17 @@ export default function CartProvider({ children }) {
             }
           });
 
-          // enterprise: limit concurrency
           await runWithConcurrency(tasks, 3);
-
-          // after merge, read final cart from last response state
         }
 
         const mapped = mapServerCartItems(cart);
+
         if (!cancelled && mountedRef.current) {
           setItems(mapped);
           safeWrite(mapped);
         }
-      } catch (e) {
-        // keep local cart as fallback
-        // optional toast only when real failure
-        // toast.error("Failed to sync cart. Using local cart temporarily.");
+      } catch {
+        // keep local fallback
       } finally {
         syncingRef.current = false;
       }
@@ -226,7 +204,6 @@ export default function CartProvider({ children }) {
       const base = normalizeItem({ ...product, qty });
       if (!base) return;
 
-      // Auth mode → server cart
       if (isAuthed) {
         try {
           const productId = String(product?._id || product?.id || base.id);
@@ -234,6 +211,7 @@ export default function CartProvider({ children }) {
             productId,
             qty: base.qty,
           });
+
           const mapped = mapServerCartItems(data);
           setItems(mapped);
           safeWrite(mapped);
@@ -249,17 +227,19 @@ export default function CartProvider({ children }) {
         }
       }
 
-      // Guest mode → local
       setItems((prev) => {
         const next = [...prev];
         const idx = next.findIndex((x) => x.id === base.id);
+
         if (idx >= 0) {
           next[idx] = { ...next[idx], qty: next[idx].qty + base.qty };
           return next;
         }
+
         next.push(base);
         return next;
       });
+
       toast.success("Added to cart");
     }
 
@@ -271,8 +251,9 @@ export default function CartProvider({ children }) {
         const cartItemId = it?.cartItemId;
 
         if (!cartItemId) {
-          // fallback: remove locally
           setItems((prev) => prev.filter((x) => String(x.id) !== id));
+          safeWrite(items.filter((x) => String(x.id) !== id));
+          toast.success("Removed from cart");
           return;
         }
 
@@ -293,15 +274,18 @@ export default function CartProvider({ children }) {
         }
       }
 
-      setItems((prev) => prev.filter((x) => String(x.id) !== id));
+      const next = items.filter((x) => String(x.id) !== id);
+      setItems(next);
+      safeWrite(next);
+      toast.success("Removed from cart");
     }
 
     async function setQty(productId, qty) {
       const id = String(productId);
       const q = Number(qty);
+
       if (!Number.isFinite(q)) return;
 
-      // remove if qty <= 0
       if (q <= 0) {
         await removeItem(id);
         return;
@@ -312,13 +296,24 @@ export default function CartProvider({ children }) {
         const cartItemId = it?.cartItemId;
 
         if (!cartItemId) {
-          // if missing, fallback to add
-          await addItem({ _id: id, title: it?.title, price: it?.price, images: [it?.image] }, q);
+          if (!it) return;
+
+          await addItem(
+            {
+              _id: id,
+              title: it.title,
+              price: it.price,
+              images: [it.image],
+            },
+            q
+          );
           return;
         }
 
         try {
-          const { data } = await api.patch(`/cart/items/${cartItemId}`, { qty: q });
+          const { data } = await api.patch(`/cart/items/${cartItemId}`, {
+            qty: q,
+          });
           const mapped = mapServerCartItems(data);
           setItems(mapped);
           safeWrite(mapped);
@@ -333,10 +328,11 @@ export default function CartProvider({ children }) {
         }
       }
 
-      // guest local update
-      setItems((prev) =>
-        prev.map((x) => (String(x.id) === id ? { ...x, qty: q } : x))
+      const next = items.map((x) =>
+        String(x.id) === id ? { ...x, qty: q } : x
       );
+      setItems(next);
+      safeWrite(next);
     }
 
     async function clearCart() {
@@ -359,6 +355,7 @@ export default function CartProvider({ children }) {
 
       setItems([]);
       safeWrite([]);
+      toast.success("Cart cleared");
     }
 
     return {
@@ -366,13 +363,10 @@ export default function CartProvider({ children }) {
       items,
       count,
       subtotal,
-
       addItem,
       removeItem,
       setQty,
       clearCart,
-
-      // optional enterprise helper
       refresh,
     };
   }, [items, hydrated, isAuthed, refresh]);

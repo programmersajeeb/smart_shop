@@ -9,16 +9,9 @@ function sanitizeInternalPath(path, fallback = "/") {
   const p = String(path || "").trim();
   if (!p) return fallback;
 
-  // Must be a relative path
   if (!p.startsWith("/")) return fallback;
-
-  // Prevent protocol-relative URLs: //evil.com
   if (p.startsWith("//")) return fallback;
-
-  // Prevent schemes inside (extra safety)
   if (p.includes("://")) return fallback;
-
-  // Prevent weird backslash forms
   if (p.startsWith("/\\")) return fallback;
 
   return p;
@@ -40,9 +33,31 @@ function buildSignInUrl(returnTo) {
 function normalizeRole(u) {
   return String(u?.role || "").trim().toLowerCase();
 }
-function isAdminRole(role) {
-  return role === "admin" || role === "superadmin";
+
+function normalizePermissions(u) {
+  const list = Array.isArray(u?.permissions) ? u.permissions : [];
+  const out = [];
+  const seen = new Set();
+
+  for (const raw of list) {
+    const p = String(raw || "").trim();
+    if (!p) continue;
+
+    const normalized = p.toLowerCase();
+    if (seen.has(normalized)) continue;
+
+    seen.add(normalized);
+    out.push(normalized);
+  }
+
+  return out;
 }
+
+function getRoleLevel(u) {
+  const n = Number(u?.roleLevel || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function pickUser(payload) {
   if (!payload) return null;
   return payload?.user || payload?.data?.user || payload?.data || payload;
@@ -82,7 +97,6 @@ export default function PrivateRoute({ children }) {
   const loc = useLocation();
 
   const returnTo = useMemo(() => buildReturnTo(loc), [loc]);
-
   const needsHydrate = Boolean(isAuthed && !pickUser(user));
 
   const meQuery = useQuery({
@@ -97,18 +111,18 @@ export default function PrivateRoute({ children }) {
   });
 
   useEffect(() => {
-    const u = pickUser(meQuery.data);
-    if (u && !pickUser(user)) setUser(u);
+    const nextUser = pickUser(meQuery.data);
+    if (nextUser && !pickUser(user)) {
+      setUser(nextUser);
+    }
   }, [meQuery.data, setUser, user]);
 
-  // Enterprise: if token is invalid (401/403) while hydrating, clear token + stale user
   useEffect(() => {
-    if (!needsHydrate) return;
-    if (!meQuery.isError) return;
+    if (!needsHydrate || !meQuery.isError) return;
 
     const status = meQuery.error?.response?.status;
     if (status === 401 || status === 403) {
-      clearAccessToken();
+      clearAccessToken({ removeMode: true });
       setUser(null);
     }
   }, [needsHydrate, meQuery.isError, meQuery.error, setUser]);
@@ -119,8 +133,24 @@ export default function PrivateRoute({ children }) {
   );
 
   const role = normalizeRole(resolvedUser);
+  const roleLevel = getRoleLevel(resolvedUser);
+  const permissions = normalizePermissions(resolvedUser);
 
-  if (booting) return <RouteGateSkeleton />;
+  const isSuper =
+    role === "superadmin" ||
+    roleLevel >= 100 ||
+    permissions.includes("*");
+
+  const canAccessAdminShell =
+    isSuper ||
+    permissions.includes("admin:access") ||
+    roleLevel > 0;
+
+  const isInAccountArea = String(loc.pathname || "").startsWith("/account");
+
+  if (booting) {
+    return <RouteGateSkeleton />;
+  }
 
   if (!isAuthed) {
     return (
@@ -133,7 +163,10 @@ export default function PrivateRoute({ children }) {
   }
 
   if (needsHydrate) {
-    if (meQuery.isPending) return <RouteGateSkeleton />;
+    if (meQuery.isPending) {
+      return <RouteGateSkeleton />;
+    }
+
     if (meQuery.isError) {
       return (
         <Navigate
@@ -145,8 +178,7 @@ export default function PrivateRoute({ children }) {
     }
   }
 
-  // admin should not stay in /account area
-  if (isAdminRole(role) && String(loc.pathname || "").startsWith("/account")) {
+  if (canAccessAdminShell && isInAccountArea) {
     return <Navigate to="/admin" replace />;
   }
 

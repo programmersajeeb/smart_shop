@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import api from "../../services/apiClient";
@@ -18,12 +18,10 @@ import InstagramFeed from "./components/InstagramFeed";
 import BrandStory from "./components/BrandStory";
 
 export default function HomePage() {
-  const params = useMemo(() => ({ page: 1, limit: 20 }), []);
-
   const q = useQuery({
-    queryKey: ["home-products", params],
+    queryKey: ["home-page"],
     queryFn: async () => {
-      const { data } = await api.get("/products", { params });
+      const { data } = await api.get("/products/home");
       return data;
     },
     staleTime: 60 * 1000,
@@ -31,30 +29,50 @@ export default function HomePage() {
     retry: 1,
   });
 
-  const productsData = q.data;
-
-  // Initial load only (after we have data, do not show skeleton again on background refetch)
-  const loading = q.isPending && !productsData;
-
+  const homeData = q.data?.home || null;
+  const loading = q.isPending && !homeData;
   const error = q.isError ? q.error : null;
+
+  const trendingData = {
+    products: homeData?.trending?.products || [],
+  };
+
+  const bestSellerData = {
+    products: homeData?.bestSellers?.products || [],
+  };
 
   return (
     <div>
-      <HeroBanner />
-      <Collections />
+      <HeroBanner data={homeData?.hero} loading={loading} error={error} />
+      <Collections data={homeData?.collections} loading={loading} error={error} />
 
-      <Trending trend={productsData} loading={loading} error={error} />
-      <Products product={productsData} loading={loading} error={error} />
+      <Trending
+        trend={trendingData}
+        loading={loading}
+        error={error}
+        sectionTitle={homeData?.trending?.title}
+        sectionSubtitle={homeData?.trending?.subtitle}
+        cta={homeData?.trending?.cta}
+      />
 
-      <FlashSale />
-      <Testimonials />
-      <WhyChooseUs />
-      <Newsletter />
-      <SeasonalBanner />
-      <ShopByPrice />
-      <ShopByStyle />
-      <InstagramFeed />
-      <BrandStory />
+      <Products
+        product={bestSellerData}
+        loading={loading}
+        error={error}
+        sectionTitle={homeData?.bestSellers?.title}
+        sectionSubtitle={homeData?.bestSellers?.subtitle}
+        cta={homeData?.bestSellers?.cta}
+      />
+
+      <FlashSale data={homeData?.flashSale} loading={loading} error={error} />
+      <Testimonials data={homeData?.testimonials} loading={loading} error={error} />
+      <WhyChooseUs data={homeData?.whyChooseUs} loading={loading} error={error} />
+      <Newsletter data={homeData?.newsletter} loading={loading} error={error} />
+      <SeasonalBanner data={homeData?.seasonalBanner} loading={loading} error={error} />
+      <ShopByPrice data={homeData?.shopByPrice} loading={loading} error={error} />
+      <ShopByStyle data={homeData?.shopByStyle} loading={loading} error={error} />
+      <InstagramFeed data={homeData?.instagramFeed} loading={loading} error={error} />
+      <BrandStory data={homeData?.brandStory} loading={loading} error={error} />
     </div>
   );
 }

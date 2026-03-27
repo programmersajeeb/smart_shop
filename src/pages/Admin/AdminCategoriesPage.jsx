@@ -1,7 +1,15 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Search, RefreshCw, Pencil, Trash2, ArrowRight, Loader2 } from "lucide-react";
+import {
+  Boxes,
+  Search,
+  RefreshCw,
+  Pencil,
+  Trash2,
+  ArrowRight,
+  Loader2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import api from "../../services/apiClient";
@@ -11,16 +19,19 @@ import ConfirmDialog from "../../shared/ui/ConfirmDialog";
 
 function useDebouncedValue(value, delay = 350) {
   const [debounced, setDebounced] = useState(value);
+
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), delay);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
   }, [value, delay]);
+
   return debounced;
 }
 
 function lockBodyScroll(lock) {
   const body = document.body;
   if (!body) return;
+
   if (lock) {
     body.style.overflow = "hidden";
     body.style.touchAction = "none";
@@ -35,7 +46,7 @@ function Skeleton({ className = "" }) {
 }
 
 function Badge({ children, tone = "gray" }) {
-  const cls =
+  const className =
     tone === "green"
       ? "bg-green-50 text-green-700 border-green-200"
       : tone === "red"
@@ -43,46 +54,69 @@ function Badge({ children, tone = "gray" }) {
       : tone === "amber"
       ? "bg-amber-50 text-amber-800 border-amber-200"
       : "bg-gray-50 text-gray-700 border-gray-200";
-  return <span className={`text-[11px] px-2 py-1 rounded-full border ${cls}`}>{children}</span>;
+
+  return (
+    <span className={`rounded-full border px-2 py-1 text-[11px] ${className}`}>
+      {children}
+    </span>
+  );
 }
 
 /* ----------------------------- page ----------------------------- */
 
 export default function AdminCategoriesPage() {
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
 
   const [q, setQ] = useState("");
-  const qDebounced = useDebouncedValue(q, 350);
+  const debouncedQuery = useDebouncedValue(q, 350);
 
-  const [renameModal, setRenameModal] = useState({ open: false, from: "", to: "" });
-  const [confirm, setConfirm] = useState({ open: false, category: "" });
+  const [renameModal, setRenameModal] = useState({
+    open: false,
+    from: "",
+    to: "",
+  });
 
-  // track per-row busy state (enterprise UX)
-  const [working, setWorking] = useState({ type: null, category: "" }); // type: "rename" | "delete" | null
+  const [confirm, setConfirm] = useState({
+    open: false,
+    category: "",
+  });
+
+  const [working, setWorking] = useState({
+    type: null,
+    category: "",
+  });
+
   const isAnyWorking = Boolean(working.type);
+  const modalPanelRef = useRef(null);
 
   const listQuery = useQuery({
-    queryKey: ["admin-categories", { q: qDebounced?.trim() || "" }],
+    queryKey: ["admin-categories", { q: debouncedQuery?.trim() || "" }],
     queryFn: async ({ signal }) => {
-      const res = await api.get("/products/admin/categories", {
-        params: { q: qDebounced?.trim() || undefined },
+      const response = await api.get("/products/admin/categories", {
+        params: { q: debouncedQuery?.trim() || undefined },
         signal,
       });
-      return res.data;
+      return response.data;
     },
     staleTime: 20_000,
     placeholderData: (prev) => prev,
-    refetchOnWindowFocus: false, // ✅ smooth: avoid sudden refetch + layout jump
+    refetchOnWindowFocus: false,
   });
 
   const rows = listQuery.data?.categories || [];
 
   const totals = useMemo(() => {
     const totalCategories = rows.length;
-    const totalProducts = rows.reduce((a, r) => a + Number(r.count || 0), 0);
-    const totalStock = rows.reduce((a, r) => a + Number(r.totalStock || 0), 0);
-    const lowStock = rows.reduce((a, r) => a + Number(r.lowStockCount || 0), 0);
-    return { totalCategories, totalProducts, totalStock, lowStock };
+    const totalProducts = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
+    const totalStock = rows.reduce((sum, row) => sum + Number(row.totalStock || 0), 0);
+    const lowStock = rows.reduce((sum, row) => sum + Number(row.lowStockCount || 0), 0);
+
+    return {
+      totalCategories,
+      totalProducts,
+      totalStock,
+      lowStock,
+    };
   }, [rows]);
 
   const renameMutation = useMutation({
@@ -93,15 +127,20 @@ export default function AdminCategoriesPage() {
     },
     onSuccess: async () => {
       toast.success("Category renamed");
+
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["admin-categories"] }),
-        qc.invalidateQueries({ queryKey: ["admin-products"] }),
-        qc.invalidateQueries({ queryKey: ["admin-inventory"] }),
-        qc.invalidateQueries({ queryKey: ["admin-inventory-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-categories"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-products"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-inventory"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-inventory-summary"] }),
       ]);
     },
-    onError: (e) => toast.error(e?.response?.data?.message || "Rename failed"),
-    onSettled: () => setWorking({ type: null, category: "" }),
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Rename failed");
+    },
+    onSettled: () => {
+      setWorking({ type: null, category: "" });
+    },
   });
 
   const deleteMutation = useMutation({
@@ -112,23 +151,36 @@ export default function AdminCategoriesPage() {
     },
     onSuccess: async () => {
       toast.success("Category removed");
+
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["admin-categories"] }),
-        qc.invalidateQueries({ queryKey: ["admin-products"] }),
-        qc.invalidateQueries({ queryKey: ["admin-inventory"] }),
-        qc.invalidateQueries({ queryKey: ["admin-inventory-summary"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-categories"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-products"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-inventory"] }),
+        queryClient.invalidateQueries({ queryKey: ["admin-inventory-summary"] }),
       ]);
     },
-    onError: (e) => toast.error(e?.response?.data?.message || "Delete failed"),
-    onSettled: () => setWorking({ type: null, category: "" }),
+    onError: (error) => {
+      toast.error(error?.response?.data?.message || "Delete failed");
+    },
+    onSettled: () => {
+      setWorking({ type: null, category: "" });
+    },
   });
 
-  function openRename(cat) {
-    setRenameModal({ open: true, from: cat, to: cat });
+  function openRename(category) {
+    setRenameModal({
+      open: true,
+      from: category,
+      to: category,
+    });
   }
 
   function closeRename() {
-    setRenameModal({ open: false, from: "", to: "" });
+    setRenameModal({
+      open: false,
+      from: "",
+      to: "",
+    });
   }
 
   async function submitRename() {
@@ -137,7 +189,11 @@ export default function AdminCategoriesPage() {
 
     if (!from) return toast.error("Missing category");
     if (!to) return toast.error("New name required");
-    if (from === to) return toast.message("No change", { description: "Category name is unchanged." });
+    if (from === to) {
+      return toast.message("No change", {
+        description: "Category name is unchanged.",
+      });
+    }
 
     closeRename();
     await renameMutation.mutateAsync({ from, to });
@@ -147,48 +203,58 @@ export default function AdminCategoriesPage() {
     setQ("");
   }
 
-  // modal UX: ESC close + body lock
   useEffect(() => {
     if (!renameModal.open) return;
 
     lockBodyScroll(true);
-    function onKey(e) {
-      if (e.key === "Escape") closeRename();
+
+    function onKeyDown(event) {
+      if (event.key === "Escape") closeRename();
     }
-    document.addEventListener("keydown", onKey);
+
+    document.addEventListener("keydown", onKeyDown);
+
     return () => {
       lockBodyScroll(false);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKeyDown);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renameModal.open]);
 
-  const modalPanelRef = useRef(null);
   useEffect(() => {
     if (!renameModal.open) return;
-    function onClick(e) {
+
+    function onClickOutside(event) {
       if (!modalPanelRef.current) return;
-      if (!modalPanelRef.current.contains(e.target)) closeRename();
+      if (!modalPanelRef.current.contains(event.target)) {
+        closeRename();
+      }
     }
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("touchstart", onClick);
+
+    document.addEventListener("mousedown", onClickOutside);
+    document.addEventListener("touchstart", onClickOutside);
+
     return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("touchstart", onClick);
+      document.removeEventListener("mousedown", onClickOutside);
+      document.removeEventListener("touchstart", onClickOutside);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renameModal.open]);
 
   return (
-    <div className="bg-white border rounded-3xl p-6 md:p-8 shadow-sm">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-        <div>
-          <div className="text-xs uppercase tracking-wide text-gray-500">Admin</div>
-          <h1 className="mt-2 text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Boxes className="opacity-70" size={22} /> Categories
+    <div className="rounded-[30px] border border-gray-200 bg-gradient-to-b from-white to-gray-50/50 p-4 shadow-sm sm:p-5 lg:p-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 shadow-sm">
+            <Boxes size={14} />
+            Category Management
+          </div>
+
+          <h1 className="mt-3 text-xl font-semibold tracking-tight text-gray-950 sm:text-2xl">
+            Categories
           </h1>
-          <p className="mt-2 text-gray-600 max-w-2xl">
-            Categories are derived from Products (no separate category table). Rename/Remove updates all matching products.
+
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
+            Categories are derived from products. Renaming or removing a category updates all
+            matching products automatically.
           </p>
         </div>
 
@@ -196,81 +262,98 @@ export default function AdminCategoriesPage() {
           <button
             type="button"
             onClick={() => listQuery.refetch()}
-            className="inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold hover:bg-gray-50 transition disabled:opacity-60"
             disabled={listQuery.isFetching}
+            className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:opacity-60"
           >
-            {listQuery.isFetching ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+            {listQuery.isFetching ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <RefreshCw size={16} />
+            )}
             Refresh
           </button>
 
           <button
             type="button"
             onClick={resetFilters}
-            className="inline-flex items-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold hover:bg-gray-50 transition"
+            className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
           >
             Reset
           </button>
 
           <Link
             to="/admin/inventory"
-            className="inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-white hover:bg-gray-900 transition"
+            className="inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-900"
           >
-            Inventory <ArrowRight size={16} />
+            Inventory
+            <ArrowRight size={16} />
           </Link>
         </div>
       </div>
 
-      {/* Top cards */}
-      <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {listQuery.isPending ? (
           <>
-            <Skeleton className="h-[86px]" />
-            <Skeleton className="h-[86px]" />
-            <Skeleton className="h-[86px]" />
-            <Skeleton className="h-[86px]" />
+            <Skeleton className="h-[92px]" />
+            <Skeleton className="h-[92px]" />
+            <Skeleton className="h-[92px]" />
+            <Skeleton className="h-[92px]" />
           </>
         ) : (
           <>
-            <div className="rounded-3xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Categories</div>
-              <div className="mt-1 text-2xl font-bold">{totals.totalCategories}</div>
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-gray-500">Categories</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-950">
+                {totals.totalCategories}
+              </div>
             </div>
-            <div className="rounded-3xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Products mapped</div>
-              <div className="mt-1 text-2xl font-bold">{totals.totalProducts}</div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-gray-500">Products mapped</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-950">
+                {totals.totalProducts}
+              </div>
             </div>
-            <div className="rounded-3xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Total stock</div>
-              <div className="mt-1 text-2xl font-bold">{totals.totalStock}</div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-gray-500">Total stock</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-950">
+                {totals.totalStock}
+              </div>
             </div>
-            <div className="rounded-3xl border p-4">
-              <div className="text-xs text-gray-500 uppercase tracking-wide">Low-stock items</div>
-              <div className="mt-1 text-2xl font-bold">{totals.lowStock}</div>
+
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="text-xs text-gray-500">Low-stock items</div>
+              <div className="mt-1 text-2xl font-semibold text-gray-950">
+                {totals.lowStock}
+              </div>
             </div>
           </>
         )}
       </div>
 
-      {/* Search */}
-      <div className="mt-6">
+      <div className="mt-5 rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
         <label className="block text-sm font-semibold text-gray-800">Search</label>
-        <div className="mt-2 relative">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+
+        <div className="relative mt-2">
+          <Search
+            size={18}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Search category name (debounced)"
-            className="w-full rounded-2xl border px-10 py-3 text-sm outline-none focus:ring-2 focus:ring-black"
+            placeholder="Search category name"
+            className="w-full rounded-2xl border border-gray-200 px-10 py-3 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:ring-2 focus:ring-black focus:ring-offset-2"
           />
         </div>
       </div>
 
-      {/* Table */}
-      <div className="mt-6 rounded-3xl border overflow-hidden">
-        <div className="px-5 py-4 flex items-center justify-between gap-3 bg-gray-50">
+      <div className="mt-5 overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between gap-3 bg-gray-50 px-5 py-4">
           <div className="text-sm font-semibold text-gray-900">Category list</div>
           <div className="text-xs text-gray-500">
-            {listQuery.isFetching ? "Updating…" : `${rows.length} items`}
+            {listQuery.isFetching ? "Updating..." : `${rows.length} item(s)`}
           </div>
         </div>
 
@@ -290,7 +373,7 @@ export default function AdminCategoriesPage() {
             {q.trim() ? (
               <button
                 type="button"
-                className="ml-3 underline font-semibold text-gray-900"
+                className="ml-3 font-semibold text-gray-900 underline"
                 onClick={resetFilters}
               >
                 Clear search
@@ -300,8 +383,8 @@ export default function AdminCategoriesPage() {
         ) : (
           <div className="overflow-auto">
             <table className="min-w-[980px] w-full text-sm">
-              <thead className="bg-white sticky top-0 z-10">
-                <tr className="text-left text-xs uppercase tracking-wide text-gray-500 border-b">
+              <thead className="sticky top-0 z-10 bg-white">
+                <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-[0.14em] text-gray-500">
                   <th className="px-5 py-3">Category</th>
                   <th className="px-5 py-3">Products</th>
                   <th className="px-5 py-3">Active</th>
@@ -314,31 +397,34 @@ export default function AdminCategoriesPage() {
               </thead>
 
               <tbody>
-                {rows.map((r) => {
-                  const name = r?.name || r?._id || "";
-                  const count = Number(r?.count || 0);
-                  const activeCount = Number(r?.activeCount || 0);
-                  const inStock = Number(r?.inStockCount || 0);
-                  const lowStock = Number(r?.lowStockCount || 0);
-                  const out = Number(r?.outOfStockCount || 0);
-                  const totalStock = Number(r?.totalStock || 0);
+                {rows.map((row) => {
+                  const name = row?.name || row?._id || "";
+                  const count = Number(row?.count || 0);
+                  const activeCount = Number(row?.activeCount || 0);
+                  const inStock = Number(row?.inStockCount || 0);
+                  const lowStock = Number(row?.lowStockCount || 0);
+                  const outOfStock = Number(row?.outOfStockCount || 0);
+                  const totalStock = Number(row?.totalStock || 0);
 
                   const isRowWorking =
                     (working.type === "rename" || working.type === "delete") &&
                     String(working.category || "") === String(name || "");
 
                   return (
-                    <tr key={name} className="border-b last:border-b-0">
+                    <tr key={name} className="border-b border-gray-100 last:border-b-0">
                       <td className="px-5 py-4">
                         <div className="font-semibold text-gray-900">{name}</div>
                         <div className="mt-1 text-xs text-gray-500">
-                          <Link className="underline" to={`/admin/inventory?category=${encodeURIComponent(name)}`}>
+                          <Link
+                            className="underline"
+                            to={`/admin/inventory?category=${encodeURIComponent(name)}`}
+                          >
                             View in inventory
                           </Link>
                         </div>
                       </td>
 
-                      <td className="px-5 py-4">{count}</td>
+                      <td className="px-5 py-4 text-gray-900">{count}</td>
 
                       <td className="px-5 py-4">
                         <Badge tone={activeCount ? "green" : "gray"}>{activeCount}</Badge>
@@ -353,18 +439,18 @@ export default function AdminCategoriesPage() {
                       </td>
 
                       <td className="px-5 py-4">
-                        <Badge tone={out ? "red" : "gray"}>{out}</Badge>
+                        <Badge tone={outOfStock ? "red" : "gray"}>{outOfStock}</Badge>
                       </td>
 
-                      <td className="px-5 py-4">{totalStock}</td>
+                      <td className="px-5 py-4 text-gray-900">{totalStock}</td>
 
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
                           <button
                             type="button"
                             onClick={() => openRename(name)}
-                            className="rounded-2xl border px-3 py-2 text-xs font-semibold hover:bg-gray-50 transition disabled:opacity-60"
                             disabled={isAnyWorking || isRowWorking}
+                            className="rounded-2xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
                           >
                             <span className="inline-flex items-center gap-2">
                               {isRowWorking && working.type === "rename" ? (
@@ -379,8 +465,8 @@ export default function AdminCategoriesPage() {
                           <button
                             type="button"
                             onClick={() => setConfirm({ open: true, category: name })}
-                            className="rounded-2xl border px-3 py-2 text-xs font-semibold hover:bg-red-50 transition text-red-700 border-red-200 disabled:opacity-60"
                             disabled={isAnyWorking || isRowWorking}
+                            className="rounded-2xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:opacity-60"
                           >
                             <span className="inline-flex items-center gap-2">
                               {isRowWorking && working.type === "delete" ? (
@@ -402,14 +488,16 @@ export default function AdminCategoriesPage() {
         )}
       </div>
 
-      {/* Rename modal (simple but enterprise UX) */}
       {renameModal.open ? (
-        <div className="fixed inset-0 z-[9998] bg-black/40 flex items-center justify-center p-4">
-          <div ref={modalPanelRef} className="w-full max-w-lg bg-white rounded-3xl border shadow-lg">
-            <div className="p-5 border-b">
-              <div className="text-lg font-semibold">Rename category</div>
-              <div className="text-sm text-gray-600 mt-1">
-                This updates all products with category{" "}
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center bg-black/40 p-4">
+          <div
+            ref={modalPanelRef}
+            className="w-full max-w-lg rounded-[28px] border border-gray-200 bg-white shadow-lg"
+          >
+            <div className="border-b border-gray-100 p-5">
+              <div className="text-lg font-semibold text-gray-950">Rename category</div>
+              <div className="mt-1 text-sm text-gray-600">
+                This updates all products currently using{" "}
                 <span className="font-semibold">{renameModal.from}</span>.
               </div>
             </div>
@@ -418,15 +506,17 @@ export default function AdminCategoriesPage() {
               <label className="block text-sm font-semibold text-gray-800">New name</label>
               <input
                 value={renameModal.to}
-                onChange={(e) => setRenameModal((s) => ({ ...s, to: e.target.value }))}
-                className="mt-2 w-full rounded-2xl border px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black"
+                onChange={(e) =>
+                  setRenameModal((prev) => ({ ...prev, to: e.target.value }))
+                }
+                className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
                 placeholder="e.g. Accessories"
                 autoFocus
               />
 
               <div className="mt-4 flex justify-end gap-2">
                 <button
-                  className="rounded-2xl border px-4 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-60"
+                  className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
                   onClick={closeRename}
                   disabled={renameMutation.isPending}
                 >
@@ -434,16 +524,16 @@ export default function AdminCategoriesPage() {
                 </button>
 
                 <button
-                  className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-60"
+                  className="rounded-2xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:opacity-60"
                   onClick={submitRename}
                   disabled={renameMutation.isPending}
                 >
-                  {renameMutation.isPending ? "Working…" : "Rename"}
+                  {renameMutation.isPending ? "Working..." : "Rename"}
                 </button>
               </div>
 
               <div className="mt-3 text-xs text-gray-500">
-                Tip: Press <span className="font-semibold">Esc</span> to close.
+                Press <span className="font-semibold">Esc</span> to close.
               </div>
             </div>
           </div>
@@ -463,10 +553,10 @@ export default function AdminCategoriesPage() {
         tone="danger"
         busy={deleteMutation.isPending}
         onConfirm={async () => {
-          const cat = confirm.category;
+          const category = confirm.category;
           setConfirm({ open: false, category: "" });
-          if (!cat) return;
-          await deleteMutation.mutateAsync({ category: cat });
+          if (!category) return;
+          await deleteMutation.mutateAsync({ category });
         }}
         onClose={() => setConfirm({ open: false, category: "" })}
       />

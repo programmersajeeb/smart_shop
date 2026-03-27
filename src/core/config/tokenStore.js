@@ -34,10 +34,11 @@ function safeGet(storage, key) {
 
 function safeSet(storage, key, value) {
   try {
-    if (!storage) return;
+    if (!storage) return false;
     storage.setItem(key, value);
+    return true;
   } catch {
-    // ignore
+    return false;
   }
 }
 
@@ -51,16 +52,15 @@ function safeRemove(storage, key) {
 }
 
 function getStoredMode() {
-  // Mode is stored in localStorage so it can survive browser restarts
   const ls = getLocalStorage();
   const m = safeGet(ls, KEY_MODE);
   return m === "session" || m === "local" ? m : null;
 }
 
 function setStoredMode(mode) {
-  if (mode !== "session" && mode !== "local") return;
+  if (mode !== "session" && mode !== "local") return false;
   const ls = getLocalStorage();
-  safeSet(ls, KEY_MODE, mode);
+  return safeSet(ls, KEY_MODE, mode);
 }
 
 function removeStoredMode() {
@@ -85,13 +85,14 @@ export function getAccessToken() {
       const ls = getLocalStorage();
       const t = safeGet(ls, KEY_TOKEN);
       if (t === accessToken) return accessToken;
-      // token removed elsewhere -> drop memory cache
+
       accessToken = null;
       tokenSource = null;
     } else if (tokenSource === "session") {
       const ss = getSessionStorage();
       const t = safeGet(ss, KEY_TOKEN);
       if (t === accessToken) return accessToken;
+
       accessToken = null;
       tokenSource = null;
     } else {
@@ -121,6 +122,8 @@ export function getAccessToken() {
     return accessToken;
   }
 
+  accessToken = null;
+  tokenSource = null;
   return null;
 }
 
@@ -134,17 +137,20 @@ export function getAccessToken() {
  *   - else default => local
  */
 export function setAccessToken(token, opts = {}) {
-  accessToken = token || null;
+  const cleanToken = String(token || "").trim();
 
   const ls = getLocalStorage();
   const ss = getSessionStorage();
 
-  if (!token) {
+  if (!cleanToken) {
+    accessToken = null;
+    tokenSource = null;
     safeRemove(ls, KEY_TOKEN);
     safeRemove(ss, KEY_TOKEN);
-    tokenSource = null;
     return;
   }
+
+  accessToken = cleanToken;
 
   const remember = opts?.remember;
 
@@ -171,16 +177,16 @@ export function setAccessToken(token, opts = {}) {
   setStoredMode(mode);
 
   if (mode === "local") {
-    safeSet(ls, KEY_TOKEN, token);
+    safeSet(ls, KEY_TOKEN, cleanToken);
     safeRemove(ss, KEY_TOKEN);
   } else {
-    safeSet(ss, KEY_TOKEN, token);
+    safeSet(ss, KEY_TOKEN, cleanToken);
     safeRemove(ls, KEY_TOKEN);
   }
 
   // Confirm persistence; if storage write fails (private mode/quota),
   // keep token as memory-only so app can still work in this tab.
-  if (confirmWrite(mode, token)) {
+  if (confirmWrite(mode, cleanToken)) {
     tokenSource = mode;
   } else {
     tokenSource = "memory";

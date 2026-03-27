@@ -1,14 +1,8 @@
-import './App.css'
-import Home from './pages/Home/HomePage'
+import "./App.css";
+import Home from "./pages/Home/HomePage";
 
 function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <Home />
-    </>
-  )
+  return <Home />;
 }
 
-export default App
+export default App;

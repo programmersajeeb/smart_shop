@@ -1,4 +1,4 @@
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { ENV } from "../core/config/env";
 
@@ -11,25 +11,40 @@ const firebaseConfig = {
   appId: ENV.FIREBASE.appId,
 };
 
-// Optional: lightweight validation (helps catch misconfigured env quickly)
 function hasFirebaseConfig(cfg) {
-  return Boolean(cfg?.apiKey && cfg?.authDomain && cfg?.projectId);
+  return Boolean(
+    cfg?.apiKey &&
+    cfg?.authDomain &&
+    cfg?.projectId &&
+    cfg?.appId
+  );
 }
+
+const isDev = import.meta.env.DEV;
 
 if (!hasFirebaseConfig(firebaseConfig)) {
-  // Do not throw (keeps app booting), but warn in dev
-  // In production, this should be fixed in environment variables
-  // eslint-disable-next-line no-console
-  console.warn("[Firebase] Missing config. Check VITE_* env values.", firebaseConfig);
+  if (isDev) {
+    console.warn(
+      "[Firebase] Missing config. Check your .env values.",
+      firebaseConfig
+    );
+  }
+  // In production, silently fail (avoid console noise)
 }
 
-const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+// ✅ Safe init (prevents duplicate app crash)
+const app =
+  getApps().length > 0
+    ? getApp()
+    : initializeApp(firebaseConfig);
 
-// ✅ Named exports used across the app
+// ✅ Auth instance
 export const auth = getAuth(app);
 
-// ✅ Google provider (prompt select_account for better UX)
+// ✅ Google provider (better UX)
 export const googleProvider = new GoogleAuthProvider();
-googleProvider.setCustomParameters({ prompt: "select_account" });
+googleProvider.setCustomParameters({
+  prompt: "select_account",
+});
 
 export default app;

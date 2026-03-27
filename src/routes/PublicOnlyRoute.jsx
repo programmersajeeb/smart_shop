@@ -8,14 +8,31 @@ import { clearAccessToken } from "../core/config/tokenStore";
 function normalizeRole(u) {
   return String(u?.role || "").trim().toLowerCase();
 }
-function isAdminRole(role) {
-  return role === "admin" || role === "superadmin";
+
+function normalizePermissions(u) {
+  const list = Array.isArray(u?.permissions) ? u.permissions : [];
+  const out = [];
+  const seen = new Set();
+
+  for (const raw of list) {
+    const p = String(raw || "").trim();
+    if (!p) continue;
+
+    const normalized = p.toLowerCase();
+    if (seen.has(normalized)) continue;
+
+    seen.add(normalized);
+    out.push(normalized);
+  }
+
+  return out;
 }
 
-/**
- * ✅ Normalize /auth/me response to real user object
- * Supports: { user }, { data: { user } }, { data }, or direct user object
- */
+function getRoleLevel(u) {
+  const n = Number(u?.roleLevel || 0);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function pickUser(payload) {
   if (!payload) return null;
   return payload?.user || payload?.data?.user || payload?.data || payload;
@@ -50,25 +67,13 @@ function RouteGateSkeleton() {
   );
 }
 
-/**
- * Enterprise-safe internal path sanitizer (prevents open-redirect)
- */
 function sanitizeInternalPath(path, fallback = "") {
   const p = String(path || "").trim();
   if (!p) return fallback;
-
-  // Must be a relative path
   if (!p.startsWith("/")) return fallback;
-
-  // Prevent protocol-relative URLs: //evil.com
   if (p.startsWith("//")) return fallback;
-
-  // Prevent schemes inside
   if (p.includes("://")) return fallback;
-
-  // Prevent weird backslash forms
   if (p.startsWith("/\\")) return fallback;
-
   return p;
 }
 
@@ -77,13 +82,10 @@ function isAuthPagePath(path) {
   return p === "/signin" || p === "/signup";
 }
 
-/**
- * Priority: query returnTo > location.state.from
- */
 function getReturnTo(loc) {
-  // 1) Query param
   const qs = String(loc?.search || "");
   let qReturnTo = "";
+
   try {
     const sp = new URLSearchParams(qs);
     qReturnTo = sp.get("returnTo") || "";
@@ -91,27 +93,14 @@ function getReturnTo(loc) {
     qReturnTo = "";
   }
 
-  // 2) State from
   const sFrom = String(loc?.state?.from || "");
-
   const candidate = qReturnTo || sFrom;
   const safe = sanitizeInternalPath(candidate, "");
 
-  // avoid redirecting back to auth pages
   if (safe && isAuthPagePath(safe)) return "";
-
   return safe;
 }
 
-/**
- * PublicOnlyRoute
- * - Not authed -> allow public pages (signin/signup)
- * - Authed -> redirect:
- *    - Admin -> /admin (or safe admin returnTo)
- *    - User  -> safe returnTo (non-admin) else /account
- * - If token exists but user isn't hydrated -> hydrate via /auth/me
- * - If hydrate fails due to invalid token -> clear token so app doesn't get stuck
- */
 export default function PublicOnlyRoute({ children }) {
   const { isAuthed, booting, user, setUser } = useAuth();
   const loc = useLocation();
@@ -130,20 +119,19 @@ export default function PublicOnlyRoute({ children }) {
     retry: 0,
   });
 
-  // Hydrate user into context
   useEffect(() => {
-    const u = pickUser(meQuery.data);
-    if (u && !pickUser(user)) setUser(u);
+    const nextUser = pickUser(meQuery.data);
+    if (nextUser && !pickUser(user)) {
+      setUser(nextUser);
+    }
   }, [meQuery.data, setUser, user]);
 
-  // ✅ If /me fails (token invalid) => clear token so isAuthed becomes false next render
   useEffect(() => {
-    if (!needsHydrate) return;
-    if (!meQuery.isError) return;
+    if (!needsHydrate || !meQuery.isError) return;
 
     const status = meQuery.error?.response?.status;
     if (status === 401 || status === 403) {
-      clearAccessToken(); // keep your existing behavior
+      clearAccessToken({ removeMode: true });
       setUser(null);
     }
   }, [needsHydrate, meQuery.isError, meQuery.error, setUser]);
@@ -154,33 +142,53 @@ export default function PublicOnlyRoute({ children }) {
   );
 
   const role = normalizeRole(resolvedUser);
+  const roleLevel = getRoleLevel(resolvedUser);
+  const permissions = normalizePermissions(resolvedUser);
 
-  if (booting) return <RouteGateSkeleton />;
+  const isSuper =
+    role === "superadmin" ||
+    roleLevel >= 100 ||
+    permissions.includes("*");
 
-  // Not logged in -> allow public page
-  if (!isAuthed) return children;
+  const canAccessAdminShell =
+    isSuper ||
+    permissions.includes("admin:access") ||
+    roleLevel > 0;
 
-  // Logged in but user not hydrated yet
+  if (booting) {
+    return <RouteGateSkeleton />;
+  }
+
+  if (!isAuthed) {
+    return children;
+  }
+
   if (needsHydrate) {
-    if (meQuery.isPending) return <RouteGateSkeleton />;
-    if (meQuery.isError) return children; // after clearAccessToken, next render will be !isAuthed
+    if (meQuery.isPending) {
+      return <RouteGateSkeleton />;
+    }
+
+    if (meQuery.isError) {
+      return children;
+    }
   }
 
   const returnTo = getReturnTo(loc);
 
-  // Admin policy: always land in /admin scope
-  if (isAdminRole(role)) {
+  if (canAccessAdminShell) {
     if (returnTo && returnTo.startsWith("/admin")) {
       return <Navigate to={returnTo} replace />;
     }
     return <Navigate to="/admin" replace />;
   }
 
-  // User policy: never land in /admin (enterprise)
   if (returnTo && returnTo.startsWith("/admin")) {
     return <Navigate to="/403" replace state={{ from: returnTo }} />;
   }
 
-  if (returnTo) return <Navigate to={returnTo} replace />;
+  if (returnTo) {
+    return <Navigate to={returnTo} replace />;
+  }
+
   return <Navigate to="/account" replace />;
 }

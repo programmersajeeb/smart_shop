@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 
-import api, { raw } from "../../../services/apiClient"; // ✅ NEW: raw for guest
+import api, { raw } from "../../../services/apiClient";
 import { useCart } from "../../../shared/hooks/useCart";
 import { useAuth } from "../../../shared/hooks/useAuth";
 import ConfirmDialog from "../../../shared/ui/ConfirmDialog";
@@ -20,6 +20,7 @@ function getErrorMessage(error) {
     error?.response?.data?.message ||
     error?.response?.data?.error ||
     error?.message;
+
   return serverMessage ? String(serverMessage) : "Something went wrong.";
 }
 
@@ -36,9 +37,10 @@ function safeParse(json, fallback) {
 
 function safeLoadAddress() {
   try {
-    const raw = localStorage.getItem(CHECKOUT_ADDR_KEY);
-    if (!raw) return null;
-    const obj = safeParse(raw, null);
+    if (typeof window === "undefined") return null;
+    const rawValue = localStorage.getItem(CHECKOUT_ADDR_KEY);
+    if (!rawValue) return null;
+    const obj = safeParse(rawValue, null);
     return obj && typeof obj === "object" ? obj : null;
   } catch {
     return null;
@@ -47,10 +49,20 @@ function safeLoadAddress() {
 
 function safeSaveAddress(addr) {
   try {
+    if (typeof window === "undefined") return;
     localStorage.setItem(CHECKOUT_ADDR_KEY, JSON.stringify(addr || {}));
   } catch {
     // ignore
   }
+}
+
+function normalizeText(value) {
+  return String(value || "").trim();
+}
+
+function isPhoneValid(value) {
+  const phone = normalizeText(value).replace(/\s+/g, "");
+  return /^(\+?\d{10,15})$/.test(phone);
 }
 
 export default function CheckoutPage() {
@@ -58,31 +70,46 @@ export default function CheckoutPage() {
   const { user } = useAuth();
   const isAuthed = !!user;
 
-  const { hydrated, items, subtotal, refresh, clearCart } = useCart(); // ✅ NEW: clearCart for guest success
+  const { hydrated, items, subtotal, refresh, clearCart } = useCart();
 
   const [syncing, setSyncing] = useState(false);
   const [busy, setBusy] = useState(false);
-
   const [confirm, setConfirm] = useState(false);
 
-  // ✅ NEW: public settings flags (safe: silent fail)
   const [commerceFlags, setCommerceFlags] = useState({
     allowGuestCheckout: false,
+    allowBackorders: false,
   });
+
+  const [settingsLoading, setSettingsLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
+
     (async () => {
       try {
-        const res = await raw.get("/settings/public");
+        const res = await raw.get("/page-config/admin-settings/public");
         const payload = res?.data;
-        const d = payload?.data || payload || {};
-        const allowGuestCheckout = Boolean(d?.commerce?.allowGuestCheckout);
-        if (alive) setCommerceFlags({ allowGuestCheckout });
+        const d = payload?.data || {};
+
+        if (alive) {
+          setCommerceFlags({
+            allowGuestCheckout: Boolean(d?.commerce?.allowGuestCheckout),
+            allowBackorders: Boolean(d?.commerce?.allowBackorders),
+          });
+        }
       } catch {
-        // silent fallback: guest checkout OFF
+        if (alive) {
+          setCommerceFlags({
+            allowGuestCheckout: false,
+            allowBackorders: false,
+          });
+        }
+      } finally {
+        if (alive) setSettingsLoading(false);
       }
     })();
+
     return () => {
       alive = false;
     };
@@ -97,13 +124,12 @@ export default function CheckoutPage() {
     postalCode: saved?.postalCode || "",
     country: saved?.country || "Bangladesh",
     note: saved?.note || "",
-    paymentMethod: saved?.paymentMethod || "cod", // UI-only; safe to store
+    paymentMethod: saved?.paymentMethod || "cod",
   }));
 
   const [errors, setErrors] = useState({});
 
   const cartEmpty = items.length === 0;
-
   const total = useMemo(() => subtotal, [subtotal]);
 
   useEffect(() => {
@@ -111,6 +137,7 @@ export default function CheckoutPage() {
 
     (async () => {
       if (typeof refresh !== "function") return;
+
       setSyncing(true);
       try {
         await refresh();
@@ -135,11 +162,22 @@ export default function CheckoutPage() {
 
   function validate() {
     const next = {};
-    if (!String(form.name || "").trim()) next.name = "Full name is required";
-    if (!String(form.phone || "").trim()) next.phone = "Phone is required";
-    if (!String(form.addressLine || "").trim())
+
+    if (normalizeText(form.name).length < 2) {
+      next.name = "Full name is required";
+    }
+
+    if (!isPhoneValid(form.phone)) {
+      next.phone = "Enter a valid phone number";
+    }
+
+    if (!normalizeText(form.addressLine)) {
       next.addressLine = "Address is required";
-    if (!String(form.city || "").trim()) next.city = "City is required";
+    }
+
+    if (normalizeText(form.city).length < 2) {
+      next.city = "City is required";
+    }
 
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -158,14 +196,13 @@ export default function CheckoutPage() {
 
     if (!validate()) {
       toast.message("Please fix the form", {
-        description: "Some required fields are missing.",
+        description: "Some required fields are missing or invalid.",
       });
       return;
     }
 
     const guestAllowed = Boolean(commerceFlags.allowGuestCheckout);
 
-    // ✅ If not authed and guest checkout is disabled -> redirect to signin (no server 401)
     if (!isAuthed && !guestAllowed) {
       toast.message("Please sign in to checkout", {
         description: "Guest checkout is disabled by store settings.",
@@ -175,18 +212,17 @@ export default function CheckoutPage() {
     }
 
     setBusy(true);
+
     try {
       const shippingAddress = {
-        name: String(form.name || "").trim(),
-        phone: String(form.phone || "").trim(),
-        addressLine: String(form.addressLine || "").trim(),
-        city: String(form.city || "").trim(),
-        country: String(form.country || "").trim(),
-        postalCode: String(form.postalCode || "").trim() || null,
-
-        // extra (won't break server; mongoose will ignore unknown keys if not in schema)
-        note: String(form.note || "").trim() || null,
-        paymentMethod: String(form.paymentMethod || "cod"),
+        name: normalizeText(form.name),
+        phone: normalizeText(form.phone),
+        addressLine: normalizeText(form.addressLine),
+        city: normalizeText(form.city),
+        country: normalizeText(form.country) || "Bangladesh",
+        postalCode: normalizeText(form.postalCode) || null,
+        note: normalizeText(form.note) || null,
+        paymentMethod: normalizeText(form.paymentMethod || "cod") || "cod",
       };
 
       safeSaveAddress({
@@ -197,22 +233,26 @@ export default function CheckoutPage() {
         city: shippingAddress.city,
         country: shippingAddress.country,
         postalCode: shippingAddress.postalCode,
+        note: shippingAddress.note,
+        paymentMethod: shippingAddress.paymentMethod,
       });
 
-      // ✅ Auth checkout vs Guest checkout
       let data = null;
 
       if (isAuthed) {
         const res = await api.post("/orders/checkout", { shippingAddress });
         data = res?.data;
       } else {
-        // Guest: send cart items to backend
         const lineItems = (items || [])
           .map((it) => ({
-            product: it.id, // productId
+            product: String(it.id || "").trim(),
             qty: Number(it.qty || 1),
           }))
           .filter((x) => x.product && Number.isFinite(x.qty) && x.qty > 0);
+
+        if (!lineItems.length) {
+          throw new Error("No valid cart items found for checkout.");
+        }
 
         const res = await raw.post("/orders/checkout/guest", {
           items: lineItems,
@@ -221,23 +261,35 @@ export default function CheckoutPage() {
 
         data = res?.data;
 
-        // ✅ Clear local cart after successful guest order
         try {
-          if (typeof clearCart === "function") await clearCart();
+          if (typeof clearCart === "function") {
+            await clearCart();
+          }
         } catch {
           // ignore
         }
       }
 
+      const orderId = String(data?._id || "").trim();
+      if (!orderId) {
+        throw new Error("Order created but no order id was returned.");
+      }
+
       toast.success("Order placed successfully");
 
       try {
-        if (typeof refresh === "function") await refresh();
+        if (typeof refresh === "function" && isAuthed) {
+          await refresh();
+        }
       } catch {
         // ignore
       }
 
-      nav(`/order-confirmation/${data?._id || ""}`);
+      const phoneQuery = !isAuthed
+        ? `?phone=${encodeURIComponent(shippingAddress.phone)}`
+        : "";
+
+      nav(`/order-confirmation/${orderId}${phoneQuery}`);
     } catch (e) {
       toast.error(getErrorMessage(e));
     } finally {
@@ -262,10 +314,10 @@ export default function CheckoutPage() {
         onClose={() => (busy ? null : setConfirm(false))}
       />
 
-      <div className="container mx-auto px-6 py-8 space-y-6">
-        <div className="rounded-2xl border bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="container mx-auto space-y-6 px-6 py-8">
+        <div className="flex flex-col gap-4 rounded-2xl border bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-sm text-gray-500 flex items-center gap-2">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
               <span>Checkout</span>
               <span className="inline-flex items-center gap-1 rounded-full border bg-gray-50 px-3 py-1 text-xs text-gray-700">
                 <ShieldCheck size={14} /> Secure
@@ -273,33 +325,48 @@ export default function CheckoutPage() {
 
               {!isAuthed ? (
                 <span className="inline-flex items-center gap-1 rounded-full border bg-gray-50 px-3 py-1 text-xs text-gray-700">
-                  {guestAllowed ? "Guest checkout enabled" : "Sign in required"}
+                  {settingsLoading
+                    ? "Checking store policy..."
+                    : guestAllowed
+                    ? "Guest checkout enabled"
+                    : "Sign in required"}
                 </span>
               ) : null}
 
               {syncing ? (
-                <span className="text-xs text-gray-500 flex items-center gap-2">
+                <span className="flex items-center gap-2 text-xs text-gray-500">
                   <Loader2 size={14} className="animate-spin" /> Syncing cart...
                 </span>
               ) : null}
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
+            <h1 className="mt-1 text-2xl font-bold text-gray-900 md:text-3xl">
               Shipping & Payment
             </h1>
           </div>
 
           <Link
             to="/cart"
-            className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
+            className="btn btn-outline rounded-2xl border-gray-200 bg-white hover:bg-gray-50"
           >
             <ArrowLeft size={16} /> Back to cart
           </Link>
         </div>
 
+        {!isAuthed && !settingsLoading && !guestAllowed ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+              <div>
+                Guest checkout is currently disabled. Please sign in to continue.
+              </div>
+            </div>
+          </div>
+        ) : null}
+
         {cartEmpty ? (
-          <div className="rounded-2xl border bg-white p-10 shadow-sm text-center">
-            <div className="mx-auto mb-3 w-fit rounded-full border px-3 py-1 text-sm bg-gray-50">
+          <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto mb-3 w-fit rounded-full border bg-gray-50 px-3 py-1 text-sm">
               Empty cart
             </div>
             <h2 className="text-2xl font-bold">Your cart is empty</h2>
@@ -308,25 +375,24 @@ export default function CheckoutPage() {
             </p>
             <Link
               to="/shop"
-              className="btn mt-6 rounded-2xl bg-black text-white hover:bg-gray-900 border-0"
+              className="btn mt-6 rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
             >
               Go to shop
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Form */}
-            <div className="lg:col-span-8 rounded-2xl border bg-white p-6 shadow-sm space-y-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div className="space-y-6 rounded-2xl border bg-white p-6 shadow-sm lg:col-span-8">
               <div>
                 <div className="text-lg font-semibold text-gray-900">
                   Shipping details
                 </div>
-                <div className="text-sm text-gray-500 mt-1">
+                <div className="mt-1 text-sm text-gray-500">
                   Please provide your delivery information.
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <label className="space-y-1">
                   <span className="text-sm font-medium text-gray-700">
                     Full name <span className="text-red-600">*</span>
@@ -417,7 +483,7 @@ export default function CheckoutPage() {
                     name="postalCode"
                     value={form.postalCode}
                     onChange={onChange}
-                    className="input input-bordered w-full rounded-2xl bg-white border-gray-200"
+                    className="input input-bordered w-full rounded-2xl border-gray-200 bg-white"
                     placeholder="1207"
                     autoComplete="postal-code"
                   />
@@ -431,7 +497,7 @@ export default function CheckoutPage() {
                     name="country"
                     value={form.country}
                     onChange={onChange}
-                    className="input input-bordered w-full rounded-2xl bg-white border-gray-200"
+                    className="input input-bordered w-full rounded-2xl border-gray-200 bg-white"
                     placeholder="Bangladesh"
                     autoComplete="country-name"
                   />
@@ -445,7 +511,7 @@ export default function CheckoutPage() {
                     name="note"
                     value={form.note}
                     onChange={onChange}
-                    className="textarea textarea-bordered w-full rounded-2xl bg-white border-gray-200 min-h-[90px]"
+                    className="textarea textarea-bordered min-h-[90px] w-full rounded-2xl border-gray-200 bg-white"
                     placeholder="Delivery instructions (optional)"
                   />
                 </label>
@@ -455,7 +521,7 @@ export default function CheckoutPage() {
                 <div className="text-sm font-semibold text-gray-900">
                   Payment method
                 </div>
-                <div className="text-sm text-gray-600 mt-1">
+                <div className="mt-1 text-sm text-gray-600">
                   Currently available:
                 </div>
 
@@ -480,8 +546,7 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Summary */}
-            <div className="lg:col-span-4 rounded-2xl border bg-white p-6 shadow-sm space-y-4">
+            <div className="space-y-4 rounded-2xl border bg-white p-6 shadow-sm lg:col-span-4">
               <div className="text-lg font-semibold text-gray-900">
                 Order summary
               </div>
@@ -492,19 +557,19 @@ export default function CheckoutPage() {
                     key={`${it.id}${it.cartItemId ? `-${it.cartItemId}` : ""}`}
                     className="flex items-center gap-3 rounded-2xl border p-3"
                   >
-                    <div className="w-12 h-12 rounded-2xl bg-gray-100 border overflow-hidden flex-shrink-0">
+                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-2xl border bg-gray-100">
                       {it.image ? (
                         <img
                           src={it.image}
                           alt={it.title}
-                          className="w-full h-full object-cover"
+                          className="h-full w-full object-cover"
                           loading="lazy"
                         />
                       ) : null}
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-gray-900 truncate">
+                      <div className="truncate text-sm font-semibold text-gray-900">
                         {it.title}
                       </div>
                       <div className="text-xs text-gray-500">
@@ -521,7 +586,7 @@ export default function CheckoutPage() {
 
               <div className="h-px bg-gray-100" />
 
-              <div className="text-sm text-gray-600 space-y-2">
+              <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex items-center justify-between">
                   <span>Subtotal</span>
                   <span className="font-semibold text-gray-900">
@@ -545,9 +610,9 @@ export default function CheckoutPage() {
 
               <button
                 type="button"
-                className="btn w-full rounded-2xl bg-black text-white hover:bg-gray-900 border-0"
+                className="btn w-full rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
                 onClick={() => setConfirm(true)}
-                disabled={busy}
+                disabled={busy || settingsLoading || (!isAuthed && !guestAllowed)}
               >
                 {busy ? (
                   <span className="inline-flex items-center gap-2">
@@ -559,7 +624,8 @@ export default function CheckoutPage() {
               </button>
 
               <div className="text-xs text-gray-500">
-                Your order will be placed securely via backend (stock checked and cart cleared).
+                Your order will be placed securely via backend (stock checked and
+                cart cleared).
               </div>
             </div>
           </div>

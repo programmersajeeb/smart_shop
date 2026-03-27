@@ -14,8 +14,8 @@ import api from "../../services/apiClient";
 
 function formatDate(iso) {
   try {
-    const d = new Date(iso);
-    return d.toLocaleString(undefined, {
+    const date = new Date(iso);
+    return date.toLocaleString(undefined, {
       year: "numeric",
       month: "short",
       day: "2-digit",
@@ -33,12 +33,12 @@ function getErrorMessage(err) {
   return msg ? String(msg) : "Something went wrong.";
 }
 
-function safeJson(v) {
+function safeJson(value) {
   try {
-    if (v == null) return "null";
-    return JSON.stringify(v, null, 2);
+    if (value == null) return "null";
+    return JSON.stringify(value, null, 2);
   } catch {
-    return String(v);
+    return String(value);
   }
 }
 
@@ -48,35 +48,43 @@ function clamp(n, min, max) {
 
 function Skeleton({ rows = 10 }) {
   return (
-    <div className="p-6 overflow-x-auto" role="status" aria-live="polite" aria-busy="true">
-      <table className="table w-full">
+    <div className="overflow-x-auto p-6" role="status" aria-live="polite" aria-busy="true">
+      <table className="w-full min-w-[900px]">
         <thead>
-          <tr>
-            <th>Time</th>
-            <th>Actor</th>
-            <th>Action</th>
-            <th>Entity</th>
-            <th className="text-right">Details</th>
+          <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-[0.14em] text-gray-500">
+            <th className="px-4 py-4 font-semibold">Time</th>
+            <th className="px-4 py-4 font-semibold">Actor</th>
+            <th className="px-4 py-4 font-semibold">Action</th>
+            <th className="px-4 py-4 font-semibold">Entity</th>
+            <th className="px-4 py-4 text-right font-semibold">Details</th>
           </tr>
         </thead>
+
         <tbody>
-          {Array.from({ length: rows }).map((_, i) => (
-            <tr key={i}>
-              <td><div className="skeleton h-4 w-28 rounded-md" /></td>
-              <td>
-                <div className="skeleton h-4 w-40 rounded-md" />
-                <div className="mt-2 skeleton h-3 w-28 rounded-md" />
+          {Array.from({ length: rows }).map((_, index) => (
+            <tr key={index} className="border-b border-gray-100 last:border-b-0">
+              <td className="px-4 py-4">
+                <div className="h-4 w-28 animate-pulse rounded-md bg-gray-100" />
               </td>
-              <td><div className="skeleton h-4 w-44 rounded-md" /></td>
-              <td><div className="skeleton h-4 w-28 rounded-md" /></td>
-              <td className="text-right"><div className="skeleton h-8 w-20 rounded-xl ml-auto" /></td>
+              <td className="px-4 py-4">
+                <div className="h-4 w-40 animate-pulse rounded-md bg-gray-100" />
+                <div className="mt-2 h-3 w-28 animate-pulse rounded-md bg-gray-100" />
+              </td>
+              <td className="px-4 py-4">
+                <div className="h-4 w-44 animate-pulse rounded-md bg-gray-100" />
+              </td>
+              <td className="px-4 py-4">
+                <div className="h-4 w-28 animate-pulse rounded-md bg-gray-100" />
+              </td>
+              <td className="px-4 py-4 text-right">
+                <div className="ml-auto h-8 w-20 animate-pulse rounded-xl bg-gray-100" />
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="mt-4">
-        <div className="skeleton h-3 w-56 rounded-md" />
-      </div>
+
+      <div className="mt-4 h-3 w-56 animate-pulse rounded-md bg-gray-100" />
     </div>
   );
 }
@@ -95,26 +103,30 @@ function Drawer({ open, onClose, log }) {
         onClick={onClose}
         aria-label="Close log details overlay"
       />
-      <div className="absolute right-0 top-0 h-full w-full max-w-2xl bg-white border-l shadow-2xl overflow-auto">
-        <div className="p-5 border-b flex items-start justify-between gap-4">
+
+      <div className="absolute right-0 top-0 h-full w-full max-w-2xl overflow-auto border-l border-gray-200 bg-white shadow-2xl">
+        <div className="flex items-start justify-between gap-4 border-b border-gray-100 p-5">
           <div className="min-w-0">
             <div className="text-xs uppercase tracking-wide text-gray-500">
               Audit Log
             </div>
-            <div className="mt-1 text-lg font-semibold text-gray-900 truncate">
+
+            <div className="mt-1 truncate text-lg font-semibold text-gray-900">
               {String(log?.action || "—")}
             </div>
 
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-600">
-              <span className="inline-flex items-center rounded-full border px-3 py-1 bg-gray-50">
+              <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1">
                 {String(log?.entity || "—")}
               </span>
+
               {log?.entityId ? (
-                <span className="inline-flex items-center rounded-full border px-3 py-1 bg-white font-mono">
+                <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 font-mono">
                   {String(log.entityId)}
                 </span>
               ) : null}
-              <span className="inline-flex items-center rounded-full border px-3 py-1 bg-white">
+
+              <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1">
                 {formatDate(log?.createdAt)}
               </span>
             </div>
@@ -122,7 +134,7 @@ function Drawer({ open, onClose, log }) {
 
           <button
             type="button"
-            className="p-2 rounded-2xl hover:bg-gray-50 transition"
+            className="rounded-2xl p-2 transition hover:bg-gray-50"
             onClick={onClose}
             aria-label="Close"
           >
@@ -130,11 +142,10 @@ function Drawer({ open, onClose, log }) {
           </button>
         </div>
 
-        <div className="p-5 space-y-6">
-          {/* Actor */}
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
+        <div className="space-y-6 p-5">
+          <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
             <div className="text-sm font-semibold text-gray-900">Actor</div>
-            <div className="mt-2 text-sm text-gray-700 space-y-1">
+            <div className="mt-3 space-y-1 text-sm text-gray-700">
               <div className="font-medium text-gray-900">{actorName}</div>
               <div className="text-gray-600">
                 {log?.actor?.email ? `Email: ${log.actor.email}` : "Email: —"}
@@ -148,10 +159,9 @@ function Drawer({ open, onClose, log }) {
             </div>
           </div>
 
-          {/* Meta */}
-          <div className="rounded-3xl border bg-white p-5 shadow-sm">
+          <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
             <div className="text-sm font-semibold text-gray-900">Request meta</div>
-            <div className="mt-2 text-sm text-gray-700 space-y-1">
+            <div className="mt-3 space-y-2 text-sm text-gray-700">
               <div className="text-gray-600">
                 <span className="font-medium text-gray-900">IP:</span>{" "}
                 {log?.meta?.ip || "—"}
@@ -160,45 +170,45 @@ function Drawer({ open, onClose, log }) {
                 <span className="font-medium text-gray-900">Method:</span>{" "}
                 {log?.meta?.method || "—"}
               </div>
-              <div className="text-gray-600 break-all">
+              <div className="break-all text-gray-600">
                 <span className="font-medium text-gray-900">Path:</span>{" "}
                 {log?.meta?.path || "—"}
               </div>
-              <div className="text-gray-600 break-all">
+              <div className="break-all text-gray-600">
                 <span className="font-medium text-gray-900">User-Agent:</span>{" "}
                 {log?.meta?.userAgent || "—"}
               </div>
             </div>
           </div>
 
-          {/* Before / After */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-3xl border bg-white shadow-sm overflow-hidden">
-              <div className="p-4 border-b">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-100 p-4">
                 <div className="text-sm font-semibold text-gray-900">Before</div>
               </div>
-              <pre className="p-4 text-xs overflow-auto bg-gray-50 text-gray-900">
+              <pre className="overflow-auto bg-gray-50 p-4 text-xs text-gray-900">
 {safeJson(log?.before)}
               </pre>
             </div>
 
-            <div className="rounded-3xl border bg-white shadow-sm overflow-hidden">
-              <div className="p-4 border-b">
+            <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
+              <div className="border-b border-gray-100 p-4">
                 <div className="text-sm font-semibold text-gray-900">After</div>
               </div>
-              <pre className="p-4 text-xs overflow-auto bg-gray-50 text-gray-900">
+              <pre className="overflow-auto bg-gray-50 p-4 text-xs text-gray-900">
 {safeJson(log?.after)}
               </pre>
             </div>
           </div>
 
-          <div className="rounded-3xl border bg-gray-50 p-5 text-xs text-gray-600">
-            <div className="font-semibold text-gray-800 flex items-center gap-2">
-              <ShieldCheck size={14} /> Enterprise note
+          <div className="rounded-[28px] border border-gray-200 bg-gray-50 p-5 text-xs text-gray-600">
+            <div className="flex items-center gap-2 font-semibold text-gray-800">
+              <ShieldCheck size={14} />
+              Audit note
             </div>
             <div className="mt-1">
-              Audit logs are server-generated. Next: add export (CSV), retention policy,
-              and “hard delete” permission control.
+              Audit logs are generated by the server. Export, retention policy and
+              advanced permission controls can be added later without changing this UI structure.
             </div>
           </div>
         </div>
@@ -214,8 +224,8 @@ export default function AdminAuditLogsPage() {
   const [q, setQ] = useState("");
   const dq = useDeferredValue(q);
 
-  const [dateFrom, setDateFrom] = useState(""); // YYYY-MM-DD
-  const [dateTo, setDateTo] = useState(""); // YYYY-MM-DD
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const [drawerLog, setDrawerLog] = useState(null);
 
@@ -234,12 +244,11 @@ export default function AdminAuditLogsPage() {
 
       const term = String(dq || "").trim();
       if (term) params.q = term;
-
       if (dateFrom) params.dateFrom = dateFrom;
       if (dateTo) params.dateTo = dateTo;
 
       const { data } = await api.get("/audit-logs/admin", { params, signal });
-      return data; // { logs, total, page, pages, ... }
+      return data;
     },
     staleTime: 10_000,
     keepPreviousData: true,
@@ -250,8 +259,8 @@ export default function AdminAuditLogsPage() {
   const total = listQuery.data?.total || 0;
   const pages = listQuery.data?.pages || 1;
 
-  function goPage(p) {
-    const next = clamp(Number(p || 1), 1, Math.max(1, pages));
+  function goPage(nextPage) {
+    const next = clamp(Number(nextPage || 1), 1, Math.max(1, pages));
     setPage(next);
   }
 
@@ -259,61 +268,63 @@ export default function AdminAuditLogsPage() {
     <div className="space-y-6">
       <Drawer open={!!drawerLog} log={drawerLog} onClose={() => setDrawerLog(null)} />
 
-      {/* Header */}
-      <div className="rounded-3xl border bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="min-w-0">
-          <div className="text-sm text-gray-500 flex items-center gap-2">
-            <FileText size={16} />
-            <span>Admin • Audit Logs</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
-            Audit Logs
-          </h1>
-          <div className="text-sm text-gray-600 mt-2">
-            Total logs: <span className="font-semibold text-gray-900">{total}</span>
-          </div>
-        </div>
+      <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">
+              <FileText size={14} />
+              Audit Logs
+            </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
-            onClick={() => listQuery.refetch()}
-            disabled={listQuery.isFetching || badRange}
-          >
-            {listQuery.isFetching ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <RefreshCcw size={16} />
-            )}
-            Refresh
-          </button>
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight text-gray-950 md:text-3xl">
+              Audit Logs
+            </h1>
+
+            <div className="mt-2 text-sm text-gray-600">
+              Total logs: <span className="font-semibold text-gray-900">{total}</span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+              onClick={() => listQuery.refetch()}
+              disabled={listQuery.isFetching || badRange}
+            >
+              {listQuery.isFetching ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <RefreshCcw size={16} />
+              )}
+              Refresh
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="rounded-3xl border bg-white p-5 shadow-sm">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
           <div className="lg:col-span-6">
             <div className="text-sm font-semibold text-gray-900">Search</div>
-            <div className="mt-2 relative">
+            <div className="relative mt-2">
               <Search
                 size={16}
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
               />
               <input
-                className="input input-bordered w-full rounded-2xl bg-white border-gray-200 pl-11 pr-11"
+                className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-11 text-sm text-gray-900 outline-none transition placeholder:text-gray-400 focus:ring-2 focus:ring-black focus:ring-offset-2"
                 value={q}
                 onChange={(e) => {
                   setQ(e.target.value);
                   setPage(1);
                 }}
-                placeholder="Search: action / entity / actor email/phone/name / entityId"
+                placeholder="Search by action, entity, actor, email, phone or entity ID"
               />
               {q ? (
                 <button
                   type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-gray-50"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-xl p-2 transition hover:bg-gray-50"
                   onClick={() => {
                     setQ("");
                     setPage(1);
@@ -325,14 +336,14 @@ export default function AdminAuditLogsPage() {
               ) : null}
             </div>
             <div className="mt-2 text-xs text-gray-500">
-              Server-side search + pagination (enterprise ready).
+              Server-side search and pagination.
             </div>
           </div>
 
           <div className="lg:col-span-2">
             <div className="text-sm font-semibold text-gray-900">Per page</div>
             <select
-              className="select select-bordered w-full rounded-2xl bg-white border-gray-200 mt-2"
+              className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
               value={limit}
               onChange={(e) => {
                 setLimit(Number(e.target.value || 20));
@@ -349,14 +360,14 @@ export default function AdminAuditLogsPage() {
 
           <div className="lg:col-span-2">
             <div className="text-sm font-semibold text-gray-900">Date from</div>
-            <div className="mt-2 relative">
+            <div className="relative mt-2">
               <Calendar
                 size={16}
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
               />
               <input
                 type="date"
-                className="input input-bordered w-full rounded-2xl bg-white border-gray-200 pl-11"
+                className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
                 value={dateFrom}
                 onChange={(e) => {
                   setDateFrom(e.target.value);
@@ -368,14 +379,14 @@ export default function AdminAuditLogsPage() {
 
           <div className="lg:col-span-2">
             <div className="text-sm font-semibold text-gray-900">Date to</div>
-            <div className="mt-2 relative">
+            <div className="relative mt-2">
               <Calendar
                 size={16}
                 className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
               />
               <input
                 type="date"
-                className="input input-bordered w-full rounded-2xl bg-white border-gray-200 pl-11"
+                className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
                 value={dateTo}
                 onChange={(e) => {
                   setDateTo(e.target.value);
@@ -393,8 +404,7 @@ export default function AdminAuditLogsPage() {
         ) : null}
       </div>
 
-      {/* Table */}
-      <div className="rounded-3xl border bg-white shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm">
         {listQuery.isPending ? (
           <Skeleton rows={10} />
         ) : listQuery.isError ? (
@@ -404,7 +414,7 @@ export default function AdminAuditLogsPage() {
               <div className="mt-1">{getErrorMessage(listQuery.error)}</div>
               <button
                 type="button"
-                className="btn btn-sm mt-4 rounded-xl bg-black text-white hover:bg-gray-900 border-0"
+                className="mt-4 rounded-xl bg-black px-4 py-2 text-sm font-semibold text-white transition hover:bg-gray-900"
                 onClick={() => listQuery.refetch()}
               >
                 Try again
@@ -413,79 +423,88 @@ export default function AdminAuditLogsPage() {
           </div>
         ) : logs.length === 0 ? (
           <div className="p-10 text-center">
-            <div className="mx-auto mb-3 w-fit rounded-full border px-3 py-1 text-sm bg-gray-50">
+            <div className="mx-auto mb-3 w-fit rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm text-gray-700">
               No logs
             </div>
-            <div className="text-2xl font-bold text-gray-900">No results found</div>
+            <div className="text-2xl font-semibold text-gray-900">No results found</div>
             <div className="mt-2 text-gray-600">
-              Try changing search term or date range.
+              Try changing the search term or date range.
             </div>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="table w-full">
+            <table className="w-full min-w-[980px]">
               <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Actor</th>
-                  <th>Action</th>
-                  <th>Entity</th>
-                  <th className="text-right">Details</th>
+                <tr className="border-b border-gray-100 bg-gray-50/80 text-left text-xs uppercase tracking-[0.14em] text-gray-500">
+                  <th className="px-4 py-4 font-semibold">Time</th>
+                  <th className="px-4 py-4 font-semibold">Actor</th>
+                  <th className="px-4 py-4 font-semibold">Action</th>
+                  <th className="px-4 py-4 font-semibold">Entity</th>
+                  <th className="px-4 py-4 text-right font-semibold">Details</th>
                 </tr>
               </thead>
 
               <tbody>
-                {logs.map((l) => {
+                {logs.map((log) => {
                   const actorName =
-                    l?.actor?.displayName ||
-                    l?.actor?.email ||
-                    l?.actor?.phone ||
+                    log?.actor?.displayName ||
+                    log?.actor?.email ||
+                    log?.actor?.phone ||
                     "Admin";
 
                   return (
-                    <tr key={l?._id}>
-                      <td>
-                        <div className="text-sm text-gray-700">{formatDate(l?.createdAt)}</div>
-                        <div className="text-xs text-gray-500 font-mono">{String(l?._id || "")}</div>
+                    <tr
+                      key={log?._id}
+                      className="border-b border-gray-100 transition hover:bg-gray-50/70 last:border-b-0"
+                    >
+                      <td className="px-4 py-4">
+                        <div className="text-sm text-gray-700">
+                          {formatDate(log?.createdAt)}
+                        </div>
+                        <div className="font-mono text-xs text-gray-500">
+                          {String(log?._id || "")}
+                        </div>
                       </td>
 
-                      <td>
-                        <div className="font-semibold text-gray-900 truncate max-w-[240px]">
+                      <td className="px-4 py-4">
+                        <div className="max-w-[240px] truncate font-semibold text-gray-900">
                           {actorName}
                         </div>
-                        <div className="text-xs text-gray-500 truncate max-w-[240px]">
-                          {l?.actor?.email || l?.actor?.phone || "—"}
+                        <div className="max-w-[240px] truncate text-xs text-gray-500">
+                          {log?.actor?.email || log?.actor?.phone || "—"}
                         </div>
                       </td>
 
-                      <td>
-                        <div className="font-semibold text-gray-900 truncate max-w-[320px]">
-                          {String(l?.action || "—")}
+                      <td className="px-4 py-4">
+                        <div className="max-w-[320px] truncate font-semibold text-gray-900">
+                          {String(log?.action || "—")}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {l?.meta?.method ? `${l.meta.method} • ` : ""}
-                          {l?.meta?.path || ""}
+                          {log?.meta?.method ? `${log.meta.method} • ` : ""}
+                          {log?.meta?.path || ""}
                         </div>
                       </td>
 
-                      <td>
-                        <div className="inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold bg-gray-50">
-                          {String(l?.entity || "—")}
+                      <td className="px-4 py-4">
+                        <div className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">
+                          {String(log?.entity || "—")}
                         </div>
-                        {l?.entityId ? (
-                          <div className="mt-2 text-xs text-gray-500 font-mono break-all max-w-[280px]">
-                            {String(l.entityId)}
+
+                        {log?.entityId ? (
+                          <div className="mt-2 max-w-[280px] break-all font-mono text-xs text-gray-500">
+                            {String(log.entityId)}
                           </div>
                         ) : null}
                       </td>
 
-                      <td className="text-right">
+                      <td className="px-4 py-4 text-right">
                         <button
                           type="button"
-                          className="btn btn-sm btn-outline rounded-xl bg-white hover:bg-gray-50 border-gray-200"
-                          onClick={() => setDrawerLog(l)}
+                          className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                          onClick={() => setDrawerLog(log)}
                         >
-                          <Eye size={16} /> View
+                          <Eye size={16} />
+                          View
                         </button>
                       </td>
                     </tr>
@@ -494,18 +513,18 @@ export default function AdminAuditLogsPage() {
               </tbody>
             </table>
 
-            <div className="p-4 border-t text-xs text-gray-500 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 p-4 text-xs text-gray-500">
               <div>
                 Showing{" "}
-                <span className="font-semibold text-gray-900">{logs.length}</span>{" "}
-                log(s) on this page • Total:{" "}
+                <span className="font-semibold text-gray-900">{logs.length}</span> log(s)
+                on this page • Total:{" "}
                 <span className="font-semibold text-gray-900">{total}</span>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
                   type="button"
-                  className="btn btn-outline btn-sm rounded-xl bg-white hover:bg-gray-50 border-gray-200"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
                   onClick={() => goPage(page - 1)}
                   disabled={page <= 1 || listQuery.isFetching || badRange}
                 >
@@ -518,7 +537,7 @@ export default function AdminAuditLogsPage() {
 
                 <button
                   type="button"
-                  className="btn btn-outline btn-sm rounded-xl bg-white hover:bg-gray-50 border-gray-200"
+                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
                   onClick={() => goPage(page + 1)}
                   disabled={page >= pages || listQuery.isFetching || badRange}
                 >
@@ -526,8 +545,9 @@ export default function AdminAuditLogsPage() {
                 </button>
 
                 {listQuery.isFetching ? (
-                  <span className="inline-flex items-center gap-2 ml-2">
-                    <Loader2 size={14} className="animate-spin" /> Updating...
+                  <span className="ml-2 inline-flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Updating...
                   </span>
                 ) : null}
               </div>

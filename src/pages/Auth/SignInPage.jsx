@@ -13,6 +13,7 @@ import {
   Home,
   Loader2,
   AlertTriangle,
+  CheckCircle2,
 } from "lucide-react";
 
 import { signInWithEmailAndPassword } from "firebase/auth";
@@ -38,43 +39,32 @@ function getErrorMessage(err) {
   if (code === "auth/user-not-found") return "No account found with this email.";
   if (code === "auth/wrong-password") return "Incorrect password. Please try again.";
   if (code === "auth/invalid-credential") return "Invalid email or password.";
-  if (code === "auth/too-many-requests") return "Too many attempts. Please wait a bit and try again.";
-  if (code === "auth/network-request-failed") return "Network error. Please check your connection and try again.";
+  if (code === "auth/too-many-requests") {
+    return "Too many attempts. Please wait a bit and try again.";
+  }
+  if (code === "auth/network-request-failed") {
+    return "Network error. Please check your connection and try again.";
+  }
 
   return err?.message ? String(err.message) : "Login failed. Please try again.";
 }
 
-/**
- * ✅ FIX: auth payload থেকে শুধু "user" বের করবো
- * - { user }
- * - { data: { user } }
- * - অন্য কিছু হলে null
- */
 function pickUserFromAuthPayload(payload) {
   if (!payload) return null;
   return payload?.user || payload?.data?.user || null;
 }
 
 function roleOf(u) {
-  return String(u?.role || "").toLowerCase();
+  return String(u?.role || "").trim().toLowerCase();
 }
 
 function sanitizeInternalPath(path, fallback = "/") {
   const p = String(path || "").trim();
   if (!p) return fallback;
-
-  // Must be an internal relative path
   if (!p.startsWith("/")) return fallback;
-
-  // Prevent protocol-relative: //evil.com
   if (p.startsWith("//")) return fallback;
-
-  // Prevent schemes inside
   if (p.includes("://")) return fallback;
-
-  // Prevent weird backslash forms
   if (p.startsWith("/\\")) return fallback;
-
   return p;
 }
 
@@ -106,52 +96,91 @@ function isAuthLikePath(p = "") {
 function readReturnToFromQuery(search) {
   const qs = String(search || "");
   if (!qs) return "";
+
   try {
     const sp = new URLSearchParams(qs);
     const v = sp.get("returnTo") || "";
-    const s = sanitizeInternalPath(v, "");
-    return s;
+    return sanitizeInternalPath(v, "");
   } catch {
     return "";
   }
 }
 
-/**
- * Enterprise rule (fixed):
- * - Priority handled outside: query returnTo > state.from > lastPath > default
- * - "/" is valid page (DO NOT treat as auth-like)
- * - Admin default landing: /admin when no explicit returnTo (source: default)
- * - If returnTo is /admin but user isn't admin => /403 (enterprise standard)
- */
 function resolvePostLoginTarget({ user, returnTo, returnToSource }) {
   const r = roleOf(user);
   const isAdmin = r === "admin" || r === "superadmin";
 
   const rt = sanitizeInternalPath(returnTo, "/");
 
-  // If returnTo is actually an auth page, ignore it
   if (isAuthLikePath(rt)) {
     if (isAdmin) return "/admin";
     return "/";
   }
 
   if (isAdmin) {
-    // If no explicit returnTo (user opened sign-in directly)
     if (returnToSource === "default") return "/admin";
-
-    // Admin should not be forced into /account area
     if (rt.startsWith("/account") || rt.startsWith("/settings")) return "/admin";
-
-    // If they were trying to open admin, go there
     if (rt.startsWith("/admin")) return rt;
-
-    // Otherwise allow returning to store pages like /shop, /collections, /
     return rt || "/admin";
   }
 
-  // Normal user
   if (rt.startsWith("/admin")) return "/403";
   return rt || "/";
+}
+
+function AuthFeature({ icon: Icon, title, text }) {
+  return (
+    <div className="rounded-[24px] border border-gray-200 bg-white/80 p-4 shadow-sm">
+      <div className="flex items-start gap-3">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-gray-800">
+          <Icon size={18} />
+        </div>
+        <div>
+          <div className="text-sm font-semibold text-gray-900">{title}</div>
+          <div className="mt-1 text-sm leading-6 text-gray-600">{text}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AuthInput({
+  label,
+  icon: Icon,
+  type = "text",
+  value,
+  onChange,
+  onBlur,
+  placeholder,
+  autoComplete,
+  error,
+  rightSlot,
+}) {
+  return (
+    <label className="block">
+      <div className="text-sm font-medium text-gray-800">{label}</div>
+      <div
+        className={[
+          "mt-2 flex items-center gap-3 rounded-[22px] border bg-white px-4 py-3 shadow-sm transition",
+          "focus-within:border-gray-300 focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2",
+          error ? "border-red-300" : "border-gray-200",
+        ].join(" ")}
+      >
+        <Icon size={18} className="shrink-0 text-gray-500" />
+        <input
+          type={type}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          className="w-full bg-transparent text-gray-900 outline-none placeholder:text-gray-400"
+        />
+        {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
+      </div>
+      {error ? <div className="mt-2 text-xs text-red-600">{error}</div> : null}
+    </label>
+  );
 }
 
 export default function SignInPage() {
@@ -160,7 +189,6 @@ export default function SignInPage() {
 
   const { loginWithGoogle, setUser } = useAuth();
 
-  // ✅ Enterprise: returnTo priority: query.returnTo -> loc.state.from -> sessionStorage last path -> default "/"
   const returnToInfo = useMemo(() => {
     const fromQuery = readReturnToFromQuery(loc.search);
     if (fromQuery && !isAuthLikePath(fromQuery)) {
@@ -170,6 +198,7 @@ export default function SignInPage() {
     const fromStateRaw = loc.state?.from;
     const fromState =
       typeof fromStateRaw === "string" ? sanitizeInternalPath(fromStateRaw, "") : "";
+
     if (fromState && !isAuthLikePath(fromState)) {
       return { value: fromState, source: "state" };
     }
@@ -196,24 +225,26 @@ export default function SignInPage() {
   const isBusy = googleLoading || emailLoading;
 
   const [error, setError] = useState("");
-  const [touched, setTouched] = useState({ email: false, password: false });
+  const [touched, setTouched] = useState({
+    email: false,
+    password: false,
+  });
 
   const emailOk = isValidEmail(email);
   const passOk = String(password || "").length >= 6;
 
   async function onGoogleLogin() {
     setError("");
-    setTouched((s) => ({ ...s }));
 
     try {
       setGoogleLoading(true);
 
-      // ✅ FIX: loginWithGoogle যাই return করুক, user ঠিকমতো বের করি
       const payload = await loginWithGoogle(remember);
       const authedUser = pickUserFromAuthPayload(payload) || payload || null;
 
-      // কন্টেক্সটে user না থাকলে set করে দিই (safe)
-      if (authedUser) setUser(authedUser);
+      if (authedUser) {
+        setUser(authedUser);
+      }
 
       const target = resolvePostLoginTarget({
         user: authedUser,
@@ -221,7 +252,6 @@ export default function SignInPage() {
         returnToSource: returnToInfo.source,
       });
 
-      // Enterprise: if user tried /admin -> 403 with context
       if (target === "/403" && returnTo.startsWith("/admin")) {
         nav("/403", { replace: true, state: { from: returnTo } });
         return;
@@ -236,20 +266,25 @@ export default function SignInPage() {
   }
 
   async function emailPasswordLogin() {
-    const cred = await signInWithEmailAndPassword(auth, email, password);
-    const idToken = await cred.user.getIdToken(true);
+    const cred = await signInWithEmailAndPassword(
+      auth,
+      String(email || "").trim(),
+      password
+    );
 
+    const idToken = await cred.user.getIdToken(true);
     const data = await exchangeFirebaseToken(idToken);
 
     if (data?.accessToken) {
       setAccessToken(data.accessToken, { remember });
     }
 
-    // ✅ FIX: user normalize
     const u = pickUserFromAuthPayload(data);
-    if (u) setUser(u);
+    if (u) {
+      setUser(u);
+    }
 
-    return { ...data, user: u || data?.user };
+    return { ...data, user: u || data?.user || null };
   }
 
   async function onSubmit(e) {
@@ -257,8 +292,15 @@ export default function SignInPage() {
     setError("");
     setTouched({ email: true, password: true });
 
-    if (!emailOk) return setError("Please enter a valid email address.");
-    if (!passOk) return setError("Password must be at least 6 characters.");
+    if (!emailOk) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    if (!passOk) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
 
     try {
       setEmailLoading(true);
@@ -272,7 +314,6 @@ export default function SignInPage() {
         returnToSource: returnToInfo.source,
       });
 
-      // Enterprise: if user tried /admin -> 403 with context
       if (target === "/403" && returnTo.startsWith("/admin")) {
         nav("/403", { replace: true, state: { from: returnTo } });
         return;
@@ -287,75 +328,81 @@ export default function SignInPage() {
   }
 
   return (
-    <div className="min-h-[calc(100vh-64px)] bg-gray-50">
-      <div className="border-b bg-white">
+    <div className="auth-shell min-h-[calc(100vh-64px)]">
+      <div className="border-b border-gray-200 bg-white/80 backdrop-blur-xl">
         <div className="container mx-auto px-6 py-4">
-          <div className="breadcrumbs text-sm">
+          <div className="breadcrumbs text-sm text-gray-600">
             <ul>
               <li>
                 <Home size={16} />
-                <Link to="/">Home</Link>
+                <Link to="/" className="hover:text-gray-900">
+                  Home
+                </Link>
               </li>
-              <li className="font-semibold">Sign in</li>
+              <li className="font-semibold text-gray-900">Sign in</li>
             </ul>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
-          <div className="rounded-2xl border bg-white p-8 md:p-10 shadow-sm">
-            <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 border px-3 py-1 text-sm">
+      <div className="container mx-auto px-6 py-10 md:py-14">
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10">
+          <div className="auth-panel auth-panel-dark rounded-[32px] border border-gray-200 p-8 shadow-sm md:p-10">
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-white/90">
               <Sparkles size={16} />
-              Secure & Smooth Experience
+              Secure account access
             </div>
 
-            <h1 className="mt-4 text-3xl md:text-4xl font-bold tracking-tight">
-              Welcome back 👋
+            <h1 className="mt-5 text-3xl font-bold tracking-tight text-white md:text-4xl">
+              Welcome back
             </h1>
-            <p className="mt-2 text-gray-600 max-w-xl">
-              Sign in to continue shopping with a fast, secure, and user-friendly checkout
-              experience. International standard UI/UX — clean, responsive, and accessible.
+
+            <p className="mt-3 max-w-xl text-sm leading-7 text-gray-300 md:text-base">
+              Sign in to continue with your account, track orders, manage saved details and
+              access a smooth checkout experience across devices.
             </p>
 
-            <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="rounded-2xl border p-4 flex items-start gap-3 bg-white">
-                <ShieldCheck className="text-gray-800 mt-0.5" />
-                <div>
-                  <div className="font-semibold">Secure Login</div>
-                  <div className="text-sm text-gray-600">Protected sessions & best practices</div>
-                </div>
-              </div>
-              <div className="rounded-2xl border p-4 flex items-start gap-3 bg-white">
-                <Lock className="text-gray-800 mt-0.5" />
-                <div>
-                  <div className="font-semibold">Privacy First</div>
-                  <div className="text-sm text-gray-600">We respect your data & security</div>
-                </div>
-              </div>
+            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <AuthFeature
+                icon={ShieldCheck}
+                title="Protected access"
+                text="Secure session handling with production-ready authentication flow."
+              />
+              <AuthFeature
+                icon={CheckCircle2}
+                title="Faster checkout"
+                text="Use saved account information for a quicker purchase experience."
+              />
             </div>
 
-            <div className="mt-8 rounded-2xl border bg-gradient-to-br from-white to-gray-50 p-6">
-              <div className="text-sm font-semibold text-gray-900">Pro tips</div>
-              <ul className="mt-2 text-sm text-gray-600 list-disc pl-5 space-y-1">
-                <li>Use a strong password (8+ chars recommended).</li>
-                <li>Enable “Remember me” only on personal devices.</li>
-                <li>If you forgot your password, reset it securely.</li>
+            <div className="mt-8 rounded-[28px] border border-white/10 bg-white/5 p-6">
+              <div className="text-sm font-semibold text-white">Good sign-in habits</div>
+              <ul className="mt-3 space-y-2 text-sm leading-6 text-gray-300">
+                <li>Use your personal device when enabling “Remember me”.</li>
+                <li>Keep your password private and update it regularly.</li>
+                <li>Use password reset if you are unsure about your credentials.</li>
               </ul>
             </div>
           </div>
 
-          <div className="rounded-2xl border bg-white p-8 md:p-10 shadow-sm">
+          <div className="auth-panel rounded-[32px] border border-gray-200 bg-white p-8 shadow-sm md:p-10">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-2xl font-bold">Sign in</h2>
-              <Link to="/signup" className="text-sm underline text-gray-700 hover:text-gray-900">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight text-gray-900">Sign in</h2>
+                <p className="mt-1 text-sm text-gray-500">Access your account securely.</p>
+              </div>
+
+              <Link
+                to="/signup"
+                className="text-sm font-medium text-gray-700 underline decoration-gray-300 underline-offset-4 transition hover:text-gray-900"
+              >
                 Create account
               </Link>
             </div>
 
             {error ? (
-              <div className="mt-5 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 flex gap-3">
-                <AlertTriangle className="mt-0.5" size={18} />
+              <div className="mt-6 flex gap-3 rounded-[24px] border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                <AlertTriangle className="mt-0.5 shrink-0" size={18} />
                 <div>
                   <div className="font-semibold">Couldn’t sign you in</div>
                   <div className="mt-1">{error}</div>
@@ -368,7 +415,7 @@ export default function SignInPage() {
                 type="button"
                 onClick={onGoogleLogin}
                 disabled={isBusy}
-                className="btn btn-outline w-full rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
+                className="auth-social-btn inline-flex w-full items-center justify-center gap-3 rounded-[22px] border border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-900 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {googleLoading ? (
                   <span className="inline-flex items-center gap-2">
@@ -376,7 +423,7 @@ export default function SignInPage() {
                     Please wait...
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-3">
+                  <>
                     <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
                       <path
                         fill="#FFC107"
@@ -396,100 +443,102 @@ export default function SignInPage() {
                       />
                     </svg>
                     Continue with Google
-                  </span>
+                  </>
                 )}
               </button>
 
-              <div className="divider my-5 text-xs text-gray-500">OR</div>
+              <div className="my-6 flex items-center gap-3">
+                <div className="h-px flex-1 bg-gray-200" />
+                <span className="text-xs font-medium uppercase tracking-[0.16em] text-gray-400">
+                  Or continue with email
+                </span>
+                <div className="h-px flex-1 bg-gray-200" />
+              </div>
             </div>
 
-            <form onSubmit={onSubmit} className={isBusy ? "opacity-90 pointer-events-none" : ""}>
+            <form onSubmit={onSubmit} className={isBusy ? "pointer-events-none opacity-90" : ""}>
               <div className="space-y-4">
-                <label className="form-control w-full">
-                  <div className="label">
-                    <span className="label-text">Email</span>
-                  </div>
+                <AuthInput
+                  label="Email"
+                  icon={Mail}
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  onBlur={() => setTouched((s) => ({ ...s, email: true }))}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  error={touched.email && !emailOk ? "Please enter a valid email address." : ""}
+                />
 
-                  <div className="relative">
-                    <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type="email"
-                      className={[
-                        "input input-bordered w-full pl-11 rounded-2xl",
-                        touched.email && !emailOk ? "input-error" : "",
-                      ].join(" ")}
-                      placeholder="you@example.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onBlur={() => setTouched((s) => ({ ...s, email: true }))}
-                      autoComplete="email"
-                    />
-                  </div>
-                </label>
-
-                <label className="form-control w-full">
-                  <div className="label">
-                    <span className="label-text">Password</span>
-                    <Link to="/forgot-password" className="label-text-alt link link-hover">
-                      Forgot password?
-                    </Link>
-                  </div>
-
-                  <div className="relative">
-                    <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input
-                      type={showPass ? "text" : "password"}
-                      className={[
-                        "input input-bordered w-full pl-11 pr-11 rounded-2xl",
-                        touched.password && !passOk ? "input-error" : "",
-                      ].join(" ")}
-                      placeholder="Your password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onBlur={() => setTouched((s) => ({ ...s, password: true }))}
-                      autoComplete="current-password"
-                    />
-
+                <AuthInput
+                  label="Password"
+                  icon={Lock}
+                  type={showPass ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onBlur={() => setTouched((s) => ({ ...s, password: true }))}
+                  placeholder="Your password"
+                  autoComplete="current-password"
+                  error={
+                    touched.password && !passOk ? "Password must be at least 6 characters." : ""
+                  }
+                  rightSlot={
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-xl hover:bg-gray-100"
+                      className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-800"
                       onClick={() => setShowPass((v) => !v)}
                       aria-label={showPass ? "Hide password" : "Show password"}
                     >
                       {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
-                  </div>
-                </label>
+                  }
+                />
 
-                <div className="flex items-center justify-between">
-                  <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 select-none">
                     <input
                       type="checkbox"
+                      className="checkbox checkbox-sm"
                       checked={remember}
                       onChange={(e) => setRemember(e.target.checked)}
                     />
                     Remember me
                   </label>
+
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm font-medium text-gray-700 underline decoration-gray-300 underline-offset-4 hover:text-gray-900"
+                  >
+                    Forgot password?
+                  </Link>
                 </div>
 
-                <button type="submit" disabled={isBusy} className="btn btn-neutral w-full rounded-2xl">
+                <button
+                  type="submit"
+                  disabled={isBusy}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-[22px] bg-black px-6 py-4 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-70"
+                >
                   {emailLoading ? (
-                    <span className="inline-flex items-center gap-2">
+                    <>
                       <Loader2 className="animate-spin" size={18} />
                       Signing in...
-                    </span>
+                    </>
                   ) : (
-                    <span className="inline-flex items-center gap-2">
-                      Sign in <ArrowRight size={18} />
-                    </span>
+                    <>
+                      Sign in
+                      <ArrowRight size={18} />
+                    </>
                   )}
                 </button>
               </div>
             </form>
 
-            <p className="mt-5 text-sm text-gray-600">
+            <p className="mt-6 text-sm text-gray-600">
               New here?{" "}
-              <Link to="/signup" className="underline font-medium">
+              <Link
+                to="/signup"
+                className="font-medium text-gray-900 underline decoration-gray-300 underline-offset-4"
+              >
                 Create an account
               </Link>
             </p>
