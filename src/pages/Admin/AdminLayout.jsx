@@ -380,7 +380,6 @@ export default function AdminLayout() {
         to: "/admin/promotions",
         icon: Tag,
         label: "Promotions",
-        badge: "Soon",
         requiresAny: ["settings:write"],
       },
     ].filter((it) => canAccessNav(ctx, it));

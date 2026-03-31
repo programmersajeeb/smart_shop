@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import {
+  ArrowLeft,
+  Loader2,
+  ShieldCheck,
+  AlertTriangle,
+  TicketPercent,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import api, { raw } from "../../../services/apiClient";
@@ -67,6 +73,7 @@ function isPhoneValid(value) {
 
 export default function CheckoutPage() {
   const nav = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const isAuthed = !!user;
 
@@ -82,6 +89,23 @@ export default function CheckoutPage() {
   });
 
   const [settingsLoading, setSettingsLoading] = useState(true);
+
+  const saved = useMemo(() => safeLoadAddress(), []);
+  const cartCouponCode = normalizeText(location?.state?.couponCode || "");
+  const cartAppliedCoupon = location?.state?.appliedCoupon || null;
+
+  const [form, setForm] = useState(() => ({
+    name: saved?.name || user?.displayName || "",
+    phone: saved?.phone || user?.phone || "",
+    addressLine: saved?.addressLine || "",
+    city: saved?.city || "",
+    postalCode: saved?.postalCode || "",
+    country: saved?.country || "Bangladesh",
+    note: saved?.note || "",
+    paymentMethod: saved?.paymentMethod || "cod",
+  }));
+
+  const [errors, setErrors] = useState({});
 
   useEffect(() => {
     let alive = true;
@@ -115,22 +139,15 @@ export default function CheckoutPage() {
     };
   }, []);
 
-  const saved = useMemo(() => safeLoadAddress(), []);
-  const [form, setForm] = useState(() => ({
-    name: saved?.name || user?.displayName || "",
-    phone: saved?.phone || user?.phone || "",
-    addressLine: saved?.addressLine || "",
-    city: saved?.city || "",
-    postalCode: saved?.postalCode || "",
-    country: saved?.country || "Bangladesh",
-    note: saved?.note || "",
-    paymentMethod: saved?.paymentMethod || "cod",
-  }));
-
-  const [errors, setErrors] = useState({});
-
   const cartEmpty = items.length === 0;
-  const total = useMemo(() => subtotal, [subtotal]);
+
+  const previewDiscount = useMemo(() => {
+    return Number(cartAppliedCoupon?.discountAmount || 0);
+  }, [cartAppliedCoupon]);
+
+  const total = useMemo(() => {
+    return Math.max(0, Number(subtotal || 0) - previewDiscount);
+  }, [subtotal, previewDiscount]);
 
   useEffect(() => {
     let active = true;
@@ -240,7 +257,10 @@ export default function CheckoutPage() {
       let data = null;
 
       if (isAuthed) {
-        const res = await api.post("/orders/checkout", { shippingAddress });
+        const res = await api.post("/orders/checkout", {
+          shippingAddress,
+          couponCode: cartCouponCode || null,
+        });
         data = res?.data;
       } else {
         const lineItems = (items || [])
@@ -257,6 +277,7 @@ export default function CheckoutPage() {
         const res = await raw.post("/orders/checkout/guest", {
           items: lineItems,
           shippingAddress,
+          couponCode: cartCouponCode || null,
         });
 
         data = res?.data;
@@ -551,6 +572,21 @@ export default function CheckoutPage() {
                 Order summary
               </div>
 
+              {cartCouponCode ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+                    <TicketPercent size={16} />
+                    Coupon applied
+                  </div>
+                  <div className="mt-2 text-sm text-emerald-700">
+                    {cartAppliedCoupon?.promotion?.code || cartCouponCode}
+                  </div>
+                  <div className="mt-1 text-xs text-emerald-700">
+                    {cartAppliedCoupon?.promotion?.name || "Discount will be revalidated during checkout."}
+                  </div>
+                </div>
+              ) : null}
+
               <div className="space-y-3">
                 {items.map((it) => (
                   <div
@@ -599,6 +635,14 @@ export default function CheckoutPage() {
                     {formatMoney(0)}
                   </span>
                 </div>
+
+                <div className="flex items-center justify-between">
+                  <span>Discount</span>
+                  <span className="font-semibold text-emerald-700">
+                    -{formatMoney(previewDiscount)}
+                  </span>
+                </div>
+
                 <div className="h-px bg-gray-100" />
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-gray-900">Total</span>
@@ -624,8 +668,7 @@ export default function CheckoutPage() {
               </button>
 
               <div className="text-xs text-gray-500">
-                Your order will be placed securely via backend (stock checked and
-                cart cleared).
+                Your order will be placed securely via backend with stock validation and coupon re-check at submit time.
               </div>
             </div>
           </div>

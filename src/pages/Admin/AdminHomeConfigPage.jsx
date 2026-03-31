@@ -258,21 +258,39 @@ function defaultHomeConfig() {
       subtitle: "Fresh picks from your most recently updated in-stock catalog.",
       ctaLabel: "View all products",
       ctaHref: "/shop",
+      enabled: true,
+      hideWhenEmpty: true,
+      maxItems: 4,
+      minItems: 1,
+      excludeDuplicates: true,
+      requireInStock: true,
     },
 
     bestSellers: {
       title: "Best Sellers",
-      subtitle:
-        "A curated storefront mix from the newest and most relevant active products.",
+      subtitle: "Top-selling products ranked from completed commerce activity.",
       ctaLabel: "Browse best picks",
       ctaHref: "/shop?sort=latest",
+      enabled: true,
+      hideWhenEmpty: true,
+      maxItems: 8,
+      minItems: 1,
+      excludeDuplicates: true,
+      requireInStock: true,
     },
 
     flashSale: {
       title: "Flash Sale",
-      subtitle: "Value-first picks from the lowest-priced items currently in stock.",
+      subtitle: "Live discounted products with real compare-at pricing.",
       ctaLabel: "Shop deals",
       ctaHref: "",
+      enabled: true,
+      hideWhenEmpty: true,
+      maxItems: 4,
+      minItems: 1,
+      excludeDuplicates: true,
+      requireInStock: true,
+      requireDiscount: true,
     },
 
     whyChooseUs: {
@@ -391,6 +409,22 @@ function normalizeHomeConfig(input) {
     40
   );
   data.trending.ctaHref = normalizeUrl(data.trending.ctaHref || base.trending.ctaHref);
+  data.trending.enabled = data.trending.enabled !== false;
+  data.trending.hideWhenEmpty = data.trending.hideWhenEmpty !== false;
+  data.trending.maxItems = clampInt(
+    data.trending.maxItems,
+    1,
+    12,
+    base.trending.maxItems
+  );
+  data.trending.minItems = clampInt(
+    data.trending.minItems,
+    0,
+    12,
+    base.trending.minItems
+  );
+  data.trending.excludeDuplicates = data.trending.excludeDuplicates !== false;
+  data.trending.requireInStock = data.trending.requireInStock !== false;
 
   data.bestSellers.title = sanitizeText(
     data.bestSellers.title || base.bestSellers.title,
@@ -407,8 +441,27 @@ function normalizeHomeConfig(input) {
   data.bestSellers.ctaHref = normalizeUrl(
     data.bestSellers.ctaHref || base.bestSellers.ctaHref
   );
+  data.bestSellers.enabled = data.bestSellers.enabled !== false;
+  data.bestSellers.hideWhenEmpty = data.bestSellers.hideWhenEmpty !== false;
+  data.bestSellers.maxItems = clampInt(
+    data.bestSellers.maxItems,
+    1,
+    12,
+    base.bestSellers.maxItems
+  );
+  data.bestSellers.minItems = clampInt(
+    data.bestSellers.minItems,
+    0,
+    12,
+    base.bestSellers.minItems
+  );
+  data.bestSellers.excludeDuplicates = data.bestSellers.excludeDuplicates !== false;
+  data.bestSellers.requireInStock = data.bestSellers.requireInStock !== false;
 
-  data.flashSale.title = sanitizeText(data.flashSale.title || base.flashSale.title, 80);
+  data.flashSale.title = sanitizeText(
+    data.flashSale.title || base.flashSale.title,
+    80
+  );
   data.flashSale.subtitle = sanitizeText(
     data.flashSale.subtitle || base.flashSale.subtitle,
     220
@@ -418,6 +471,23 @@ function normalizeHomeConfig(input) {
     40
   );
   data.flashSale.ctaHref = normalizeUrl(data.flashSale.ctaHref);
+  data.flashSale.enabled = data.flashSale.enabled !== false;
+  data.flashSale.hideWhenEmpty = data.flashSale.hideWhenEmpty !== false;
+  data.flashSale.maxItems = clampInt(
+    data.flashSale.maxItems,
+    1,
+    12,
+    base.flashSale.maxItems
+  );
+  data.flashSale.minItems = clampInt(
+    data.flashSale.minItems,
+    0,
+    12,
+    base.flashSale.minItems
+  );
+  data.flashSale.excludeDuplicates = data.flashSale.excludeDuplicates !== false;
+  data.flashSale.requireInStock = data.flashSale.requireInStock !== false;
+  data.flashSale.requireDiscount = data.flashSale.requireDiscount !== false;
 
   data.whyChooseUs.title = sanitizeText(
     data.whyChooseUs.title || base.whyChooseUs.title,
@@ -564,14 +634,23 @@ function collectValidationIssues(config) {
   addRequiredIssue("Hero title", config?.hero?.title);
   addRequiredIssue("Hero description", config?.hero?.description);
   addRequiredIssue("Collections title", config?.collections?.title);
-  addRequiredIssue("Trending title", config?.trending?.title);
-  addRequiredIssue("Best Sellers title", config?.bestSellers?.title);
-  addRequiredIssue("Flash Sale title", config?.flashSale?.title);
   addRequiredIssue("Why Choose Us title", config?.whyChooseUs?.title);
   addRequiredIssue("Testimonials title", config?.testimonials?.title);
   addRequiredIssue("Seasonal banner title", config?.seasonalBanner?.title);
   addRequiredIssue("Brand story title", config?.brandStory?.title);
   addRequiredIssue("Newsletter title", config?.newsletter?.title);
+
+  if (config?.trending?.enabled !== false) {
+    addRequiredIssue("Trending title", config?.trending?.title);
+  }
+
+  if (config?.bestSellers?.enabled !== false) {
+    addRequiredIssue("Best Sellers title", config?.bestSellers?.title);
+  }
+
+  if (config?.flashSale?.enabled !== false) {
+    addRequiredIssue("Flash Sale title", config?.flashSale?.title);
+  }
 
   addUrlIssue("Hero image URL", config?.hero?.image);
   addUrlIssue("Hero primary CTA href", config?.hero?.primaryCtaHref);
@@ -583,6 +662,34 @@ function collectValidationIssues(config) {
   addUrlIssue("Seasonal banner CTA href", config?.seasonalBanner?.ctaHref);
   addUrlIssue("Brand story image URL", config?.brandStory?.image);
   addUrlIssue("Brand story CTA href", config?.brandStory?.ctaHref);
+
+  const merchSections = [
+    { key: "trending", label: "Trending" },
+    { key: "bestSellers", label: "Best Sellers" },
+    { key: "flashSale", label: "Flash Sale" },
+  ];
+
+  for (const section of merchSections) {
+    const current = config?.[section.key] || {};
+    const minItems = Number(current?.minItems);
+    const maxItems = Number(current?.maxItems);
+
+    if (!Number.isFinite(minItems) || minItems < 0 || minItems > 12) {
+      issues.push(`${section.label} minimum items must be between 0 and 12.`);
+    }
+
+    if (!Number.isFinite(maxItems) || maxItems < 1 || maxItems > 12) {
+      issues.push(`${section.label} max items must be between 1 and 12.`);
+    }
+
+    if (
+      Number.isFinite(minItems) &&
+      Number.isFinite(maxItems) &&
+      minItems > maxItems
+    ) {
+      issues.push(`${section.label} minimum items cannot be greater than max items.`);
+    }
+  }
 
   for (const [index, item] of (config?.hero?.stats || []).entries()) {
     if (!String(item?.label || "").trim()) {
@@ -627,7 +734,14 @@ function getDirtySections(initialString, currentString, normalizedForm) {
 
   if (current.hero) sections.push("Hero");
   if (current.collections) sections.push("Collections");
-  if (current.trending || current.bestSellers || current.flashSale || current.shopByPrice || current.shopByStyle || current.instagramFeed) {
+  if (
+    current.trending ||
+    current.bestSellers ||
+    current.flashSale ||
+    current.shopByPrice ||
+    current.shopByStyle ||
+    current.instagramFeed
+  ) {
     sections.push("Merchandising");
   }
   if (current.whyChooseUs || current.testimonials) sections.push("Trust & testimonials");
@@ -759,7 +873,10 @@ export default function AdminHomeConfigPage() {
     userPerms.includes("*");
 
   const canWrite = isSuper;
-  const canRead = isSuper || userPerms.includes("settings:read") || userPerms.includes("settings:write");
+  const canRead =
+    isSuper ||
+    userPerms.includes("settings:read") ||
+    userPerms.includes("settings:write");
   const readOnly = !canWrite;
 
   const sections = useMemo(
@@ -800,13 +917,19 @@ export default function AdminHomeConfigPage() {
 
   const normalizedForm = useMemo(() => normalizeHomeConfig(form), [form]);
 
-  const currentString = useMemo(() => stableStringify(normalizedForm), [normalizedForm]);
+  const currentString = useMemo(
+    () => stableStringify(normalizedForm),
+    [normalizedForm]
+  );
 
   const isDirty = useMemo(() => {
     return currentString !== initialRef.current;
   }, [currentString]);
 
-  const validationIssues = useMemo(() => collectValidationIssues(normalizedForm), [normalizedForm]);
+  const validationIssues = useMemo(
+    () => collectValidationIssues(normalizedForm),
+    [normalizedForm]
+  );
   const hasValidationIssues = validationIssues.length > 0;
 
   const dirtySections = useMemo(() => {
@@ -839,7 +962,7 @@ export default function AdminHomeConfigPage() {
       queryClient.invalidateQueries({ queryKey: ["home-page"] });
 
       toast.success("Home page config saved", {
-        description: "Homepage content settings have been updated.",
+        description: "Homepage settings and merchandising rules have been updated.",
       });
     },
     onError: async (error) => {
@@ -989,8 +1112,8 @@ export default function AdminHomeConfigPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              Control homepage copy, CTAs and storytelling blocks without editing
-              product controller logic.
+              Manage homepage copy, CTAs, storytelling blocks, and merchandising
+              rules from one place without touching storefront code.
             </p>
 
             {readOnly ? (
@@ -1001,7 +1124,9 @@ export default function AdminHomeConfigPage() {
                   </div>
 
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-gray-900">Read-only mode</div>
+                    <div className="text-sm font-semibold text-gray-900">
+                      Read-only mode
+                    </div>
                     <div className="mt-1 text-xs text-gray-600">
                       You can review content settings, but only admin-level roles can publish updates.
                     </div>
@@ -1051,7 +1176,9 @@ export default function AdminHomeConfigPage() {
                 </div>
 
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-gray-900">Validation issues</div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    Validation issues
+                  </div>
                   <div className="mt-1 text-xs text-gray-600">
                     Fix these before publishing changes.
                   </div>
@@ -1074,7 +1201,9 @@ export default function AdminHomeConfigPage() {
                 </div>
 
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold text-gray-900">Pending changes</div>
+                  <div className="text-sm font-semibold text-gray-900">
+                    Pending changes
+                  </div>
                   <div className="mt-1 text-xs text-gray-600">
                     Current form has unpublished updates.
                   </div>
@@ -1101,7 +1230,9 @@ export default function AdminHomeConfigPage() {
           <div className="sticky top-6">
             <div className="rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm">
               <div className="text-sm font-semibold text-gray-900">Sections</div>
-              <div className="mt-1 text-xs text-gray-500">Jump between content blocks</div>
+              <div className="mt-1 text-xs text-gray-500">
+                Jump between content blocks
+              </div>
 
               <div className="mt-4 space-y-2">
                 {sections.map((section) => (
@@ -1144,7 +1275,9 @@ export default function AdminHomeConfigPage() {
               <Input
                 label="Eyebrow"
                 value={form?.hero?.eyebrow}
-                onChange={(e) => setForm((prev) => setDeep(prev, ["hero", "eyebrow"], e.target.value))}
+                onChange={(e) =>
+                  setForm((prev) => setDeep(prev, ["hero", "eyebrow"], e.target.value))
+                }
                 placeholder="New arrivals"
                 disabled={inputDisabled}
               />
@@ -1152,18 +1285,25 @@ export default function AdminHomeConfigPage() {
               <Input
                 label="Hero image URL"
                 value={form?.hero?.image}
-                onChange={(e) => setForm((prev) => setDeep(prev, ["hero", "image"], e.target.value))}
+                onChange={(e) =>
+                  setForm((prev) => setDeep(prev, ["hero", "image"], e.target.value))
+                }
                 placeholder="https://... or /path"
                 helper="Leave empty to let the storefront use a dynamic catalog image."
                 disabled={inputDisabled}
-                invalid={Boolean(String(form?.hero?.image || "").trim()) && !isSafeUrl(form?.hero?.image)}
+                invalid={
+                  Boolean(String(form?.hero?.image || "").trim()) &&
+                  !isSafeUrl(form?.hero?.image)
+                }
               />
 
               <div className="md:col-span-2">
                 <Input
                   label="Title"
                   value={form?.hero?.title}
-                  onChange={(e) => setForm((prev) => setDeep(prev, ["hero", "title"], e.target.value))}
+                  onChange={(e) =>
+                    setForm((prev) => setDeep(prev, ["hero", "title"], e.target.value))
+                  }
                   placeholder="Hero title"
                   disabled={inputDisabled}
                   invalid={!String(form?.hero?.title || "").trim()}
@@ -1175,7 +1315,9 @@ export default function AdminHomeConfigPage() {
                   label="Description"
                   value={form?.hero?.description}
                   onChange={(e) =>
-                    setForm((prev) => setDeep(prev, ["hero", "description"], e.target.value))
+                    setForm((prev) =>
+                      setDeep(prev, ["hero", "description"], e.target.value)
+                    )
                   }
                   placeholder="Hero description"
                   disabled={inputDisabled}
@@ -1205,7 +1347,10 @@ export default function AdminHomeConfigPage() {
                 }
                 placeholder="/shop?category=Women"
                 disabled={inputDisabled}
-                invalid={Boolean(String(form?.hero?.primaryCtaHref || "").trim()) && !isSafeUrl(form?.hero?.primaryCtaHref)}
+                invalid={
+                  Boolean(String(form?.hero?.primaryCtaHref || "").trim()) &&
+                  !isSafeUrl(form?.hero?.primaryCtaHref)
+                }
               />
 
               <Input
@@ -1230,7 +1375,10 @@ export default function AdminHomeConfigPage() {
                 }
                 placeholder="/shop?sort=latest"
                 disabled={inputDisabled}
-                invalid={Boolean(String(form?.hero?.secondaryCtaHref || "").trim()) && !isSafeUrl(form?.hero?.secondaryCtaHref)}
+                invalid={
+                  Boolean(String(form?.hero?.secondaryCtaHref || "").trim()) &&
+                  !isSafeUrl(form?.hero?.secondaryCtaHref)
+                }
               />
 
               <div className="md:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
@@ -1309,7 +1457,7 @@ export default function AdminHomeConfigPage() {
             id="merchandising"
             icon={Tag}
             title="Merchandising sections"
-            description="Section headings and CTA labels for product-led homepage blocks."
+            description="Control section headings, CTA labels, visibility rules and merchandising behavior for product-led homepage blocks."
           >
             <div className="grid grid-cols-1 gap-6">
               {[
@@ -1319,78 +1467,238 @@ export default function AdminHomeConfigPage() {
                 { key: "shopByPrice", label: "Shop by Price" },
                 { key: "shopByStyle", label: "Shop by Style" },
                 { key: "instagramFeed", label: "Inspired by the Feed" },
-              ].map((section) => (
-                <div
-                  key={section.key}
-                  className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
-                >
-                  <div className="text-sm font-semibold text-gray-900">{section.label}</div>
+              ].map((section) => {
+                const isMerchSection =
+                  section.key === "trending" ||
+                  section.key === "bestSellers" ||
+                  section.key === "flashSale";
 
-                  <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <Input
-                      label="Title"
-                      value={form?.[section.key]?.title}
-                      onChange={(e) =>
-                        setForm((prev) =>
-                          setDeep(prev, [section.key, "title"], e.target.value)
-                        )
-                      }
-                      placeholder={`${section.label} title`}
-                      disabled={inputDisabled}
-                      invalid={!String(form?.[section.key]?.title || "").trim()}
-                    />
-
-                    {"ctaLabel" in (form?.[section.key] || {}) ? (
-                      <Input
-                        label="CTA label"
-                        value={form?.[section.key]?.ctaLabel}
-                        onChange={(e) =>
-                          setForm((prev) =>
-                            setDeep(prev, [section.key, "ctaLabel"], e.target.value)
-                          )
-                        }
-                        placeholder="View all"
-                        disabled={inputDisabled}
-                      />
-                    ) : null}
-
-                    <div className="md:col-span-2">
-                      <Textarea
-                        label="Subtitle"
-                        value={form?.[section.key]?.subtitle}
-                        onChange={(e) =>
-                          setForm((prev) =>
-                            setDeep(prev, [section.key, "subtitle"], e.target.value)
-                          )
-                        }
-                        placeholder={`${section.label} subtitle`}
-                        disabled={inputDisabled}
-                        rows={3}
-                      />
+                return (
+                  <div
+                    key={section.key}
+                    className="rounded-2xl border border-gray-200 bg-gray-50 p-4"
+                  >
+                    <div className="text-sm font-semibold text-gray-900">
+                      {section.label}
                     </div>
 
-                    {"ctaHref" in (form?.[section.key] || {}) ? (
-                      <div className="md:col-span-2">
+                    <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+                      <Input
+                        label="Title"
+                        value={form?.[section.key]?.title}
+                        onChange={(e) =>
+                          setForm((prev) =>
+                            setDeep(prev, [section.key, "title"], e.target.value)
+                          )
+                        }
+                        placeholder={`${section.label} title`}
+                        disabled={inputDisabled}
+                        invalid={!String(form?.[section.key]?.title || "").trim()}
+                      />
+
+                      {"ctaLabel" in (form?.[section.key] || {}) ? (
                         <Input
-                          label="CTA href"
-                          value={form?.[section.key]?.ctaHref}
+                          label="CTA label"
+                          value={form?.[section.key]?.ctaLabel}
                           onChange={(e) =>
                             setForm((prev) =>
-                              setDeep(prev, [section.key, "ctaHref"], e.target.value)
+                              setDeep(prev, [section.key, "ctaLabel"], e.target.value)
                             )
                           }
-                          placeholder="/shop"
+                          placeholder="View all"
                           disabled={inputDisabled}
-                          invalid={Boolean(String(form?.[section.key]?.ctaHref || "").trim()) && !isSafeUrl(form?.[section.key]?.ctaHref)}
+                        />
+                      ) : null}
+
+                      <div className="md:col-span-2">
+                        <Textarea
+                          label="Subtitle"
+                          value={form?.[section.key]?.subtitle}
+                          onChange={(e) =>
+                            setForm((prev) =>
+                              setDeep(prev, [section.key, "subtitle"], e.target.value)
+                            )
+                          }
+                          placeholder={`${section.label} subtitle`}
+                          disabled={inputDisabled}
+                          rows={3}
                         />
                       </div>
-                    ) : null}
+
+                      {"ctaHref" in (form?.[section.key] || {}) ? (
+                        <div className="md:col-span-2">
+                          <Input
+                            label="CTA href"
+                            value={form?.[section.key]?.ctaHref}
+                            onChange={(e) =>
+                              setForm((prev) =>
+                                setDeep(prev, [section.key, "ctaHref"], e.target.value)
+                              )
+                            }
+                            placeholder="/shop"
+                            disabled={inputDisabled}
+                            invalid={
+                              Boolean(String(form?.[section.key]?.ctaHref || "").trim()) &&
+                              !isSafeUrl(form?.[section.key]?.ctaHref)
+                            }
+                          />
+                        </div>
+                      ) : null}
+
+                      {isMerchSection ? (
+                        <>
+                          <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(form?.[section.key]?.enabled)}
+                              onChange={(e) =>
+                                setForm((prev) =>
+                                  setDeep(prev, [section.key, "enabled"], e.target.checked)
+                                )
+                              }
+                              disabled={inputDisabled}
+                            />
+                            <span className="text-sm font-medium text-gray-800">
+                              Enabled
+                            </span>
+                          </label>
+
+                          <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(form?.[section.key]?.hideWhenEmpty)}
+                              onChange={(e) =>
+                                setForm((prev) =>
+                                  setDeep(
+                                    prev,
+                                    [section.key, "hideWhenEmpty"],
+                                    e.target.checked
+                                  )
+                                )
+                              }
+                              disabled={inputDisabled}
+                            />
+                            <span className="text-sm font-medium text-gray-800">
+                              Hide when empty
+                            </span>
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-medium text-gray-800">
+                              Max items
+                            </span>
+                            <input
+                              type="number"
+                              min={1}
+                              max={12}
+                              value={String(form?.[section.key]?.maxItems ?? "")}
+                              onChange={(e) =>
+                                setForm((prev) =>
+                                  setDeep(prev, [section.key, "maxItems"], e.target.value)
+                                )
+                              }
+                              className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+                              disabled={inputDisabled}
+                            />
+                          </label>
+
+                          <label className="block">
+                            <span className="text-sm font-medium text-gray-800">
+                              Minimum items
+                            </span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={12}
+                              value={String(form?.[section.key]?.minItems ?? "")}
+                              onChange={(e) =>
+                                setForm((prev) =>
+                                  setDeep(prev, [section.key, "minItems"], e.target.value)
+                                )
+                              }
+                              className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+                              disabled={inputDisabled}
+                            />
+                          </label>
+
+                          <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(form?.[section.key]?.excludeDuplicates)}
+                              onChange={(e) =>
+                                setForm((prev) =>
+                                  setDeep(
+                                    prev,
+                                    [section.key, "excludeDuplicates"],
+                                    e.target.checked
+                                  )
+                                )
+                              }
+                              disabled={inputDisabled}
+                            />
+                            <span className="text-sm font-medium text-gray-800">
+                              Exclude duplicates
+                            </span>
+                          </label>
+
+                          <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(form?.[section.key]?.requireInStock)}
+                              onChange={(e) =>
+                                setForm((prev) =>
+                                  setDeep(
+                                    prev,
+                                    [section.key, "requireInStock"],
+                                    e.target.checked
+                                  )
+                                )
+                              }
+                              disabled={inputDisabled}
+                            />
+                            <span className="text-sm font-medium text-gray-800">
+                              Require in stock
+                            </span>
+                          </label>
+
+                          {section.key === "flashSale" ? (
+                            <div className="md:col-span-2 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                              <label className="flex items-center gap-3">
+                                <input
+                                  type="checkbox"
+                                  checked={Boolean(form?.flashSale?.requireDiscount)}
+                                  onChange={(e) =>
+                                    setForm((prev) =>
+                                      setDeep(
+                                        prev,
+                                        ["flashSale", "requireDiscount"],
+                                        e.target.checked
+                                      )
+                                    )
+                                  }
+                                  disabled={inputDisabled}
+                                />
+                                <span className="text-sm font-medium text-gray-800">
+                                  Require real discount
+                                </span>
+                              </label>
+                              <div className="mt-2 text-xs text-gray-500">
+                                This section will only use products where compare price is
+                                greater than regular price.
+                              </div>
+                            </div>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <div className="text-sm font-semibold text-gray-900">Shop by Price items</div>
+                <div className="text-sm font-semibold text-gray-900">
+                  Shop by Price items
+                </div>
                 <div className="mt-1 text-xs text-gray-500">
                   Optional manual labels and links. Leave href empty to let defaults apply.
                 </div>
@@ -1424,7 +1732,10 @@ export default function AdminHomeConfigPage() {
                         }}
                         placeholder="/shop?priceMax=50"
                         disabled={inputDisabled}
-                        invalid={Boolean(String(item?.href || "").trim()) && !isSafeUrl(item?.href)}
+                        invalid={
+                          Boolean(String(item?.href || "").trim()) &&
+                          !isSafeUrl(item?.href)
+                        }
                       />
                     </div>
                   ))}
@@ -1454,7 +1765,10 @@ export default function AdminHomeConfigPage() {
 
                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                   {(form?.whyChooseUs?.items || []).slice(0, 3).map((item, index) => (
-                    <div key={`feature-${index}`} className="rounded-2xl border border-gray-200 bg-white p-4">
+                    <div
+                      key={`feature-${index}`}
+                      className="rounded-2xl border border-gray-200 bg-white p-4"
+                    >
                       <Input
                         label="Title"
                         value={item?.title || ""}
@@ -1504,7 +1818,10 @@ export default function AdminHomeConfigPage() {
 
                 <div className="mt-4 grid grid-cols-1 gap-4">
                   {(form?.testimonials?.items || []).slice(0, 3).map((item, index) => (
-                    <div key={`testimonial-${index}`} className="rounded-2xl border border-gray-200 bg-white p-4">
+                    <div
+                      key={`testimonial-${index}`}
+                      className="rounded-2xl border border-gray-200 bg-white p-4"
+                    >
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                         <Input
                           label="Name"
@@ -1591,7 +1908,10 @@ export default function AdminHomeConfigPage() {
                 placeholder="https://... or /path"
                 helper="Leave empty to allow a dynamic product-driven banner image."
                 disabled={inputDisabled}
-                invalid={Boolean(String(form?.seasonalBanner?.image || "").trim()) && !isSafeUrl(form?.seasonalBanner?.image)}
+                invalid={
+                  Boolean(String(form?.seasonalBanner?.image || "").trim()) &&
+                  !isSafeUrl(form?.seasonalBanner?.image)
+                }
               />
 
               <div className="md:col-span-2">
@@ -1645,7 +1965,10 @@ export default function AdminHomeConfigPage() {
                 }
                 placeholder="/shop?sort=latest"
                 disabled={inputDisabled}
-                invalid={Boolean(String(form?.seasonalBanner?.ctaHref || "").trim()) && !isSafeUrl(form?.seasonalBanner?.ctaHref)}
+                invalid={
+                  Boolean(String(form?.seasonalBanner?.ctaHref || "").trim()) &&
+                  !isSafeUrl(form?.seasonalBanner?.ctaHref)
+                }
               />
             </div>
           </SectionCard>
@@ -1676,7 +1999,10 @@ export default function AdminHomeConfigPage() {
                 placeholder="https://... or /path"
                 helper="Leave empty to use a dynamic catalog image fallback."
                 disabled={inputDisabled}
-                invalid={Boolean(String(form?.brandStory?.image || "").trim()) && !isSafeUrl(form?.brandStory?.image)}
+                invalid={
+                  Boolean(String(form?.brandStory?.image || "").trim()) &&
+                  !isSafeUrl(form?.brandStory?.image)
+                }
               />
 
               <div className="md:col-span-2">
@@ -1728,7 +2054,10 @@ export default function AdminHomeConfigPage() {
                 }
                 placeholder="/shop"
                 disabled={inputDisabled}
-                invalid={Boolean(String(form?.brandStory?.ctaHref || "").trim()) && !isSafeUrl(form?.brandStory?.ctaHref)}
+                invalid={
+                  Boolean(String(form?.brandStory?.ctaHref || "").trim()) &&
+                  !isSafeUrl(form?.brandStory?.ctaHref)
+                }
               />
             </div>
           </SectionCard>
@@ -1846,7 +2175,9 @@ export default function AdminHomeConfigPage() {
                         <div className="text-sm font-semibold text-gray-900">
                           All changes saved
                         </div>
-                        <div className="text-xs text-gray-600">Home config is up to date.</div>
+                        <div className="text-xs text-gray-600">
+                          Home config is up to date.
+                        </div>
                       </div>
                     </>
                   )}

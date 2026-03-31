@@ -33,35 +33,21 @@ export default function HomePage() {
   const loading = q.isPending && !homeData;
   const error = q.isError ? q.error : null;
 
-  const trendingData = {
-    products: homeData?.trending?.products || [],
-  };
-
-  const bestSellerData = {
-    products: homeData?.bestSellers?.products || [],
-  };
-
   return (
     <div>
       <HeroBanner data={homeData?.hero} loading={loading} error={error} />
       <Collections data={homeData?.collections} loading={loading} error={error} />
 
       <Trending
-        trend={trendingData}
+        data={homeData?.trending}
         loading={loading}
         error={error}
-        sectionTitle={homeData?.trending?.title}
-        sectionSubtitle={homeData?.trending?.subtitle}
-        cta={homeData?.trending?.cta}
       />
 
       <Products
-        product={bestSellerData}
+        data={homeData?.bestSellers}
         loading={loading}
         error={error}
-        sectionTitle={homeData?.bestSellers?.title}
-        sectionSubtitle={homeData?.bestSellers?.subtitle}
-        cta={homeData?.bestSellers?.cta}
       />
 
       <FlashSale data={homeData?.flashSale} loading={loading} error={error} />

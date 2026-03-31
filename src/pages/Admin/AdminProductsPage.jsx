@@ -173,7 +173,9 @@ function useLockBodyScroll(active) {
 
 function ImageFallback({ className = "", iconSize = 24 }) {
   return (
-    <div className={`flex h-full w-full items-center justify-center text-gray-400 ${className}`}>
+    <div
+      className={`flex h-full w-full items-center justify-center text-gray-400 ${className}`}
+    >
       <ImageIcon size={iconSize} />
     </div>
   );
@@ -193,7 +195,12 @@ function SmartImage({
   }, [src]);
 
   if (!src || failed) {
-    return <ImageFallback className={fallbackClassName} iconSize={fallbackIconSize} />;
+    return (
+      <ImageFallback
+        className={fallbackClassName}
+        iconSize={fallbackIconSize}
+      />
+    );
   }
 
   return (
@@ -245,9 +252,13 @@ function ConfirmModal({
         <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-2xl">
           <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-5">
             <div className="min-w-0">
-              <div className="text-base font-semibold text-gray-950 sm:text-lg">{title}</div>
+              <div className="text-base font-semibold text-gray-950 sm:text-lg">
+                {title}
+              </div>
               {description ? (
-                <div className="mt-1 text-sm leading-6 text-gray-600">{description}</div>
+                <div className="mt-1 text-sm leading-6 text-gray-600">
+                  {description}
+                </div>
               ) : null}
             </div>
 
@@ -308,6 +319,7 @@ function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
   const [existingImages, setExistingImages] = useState([]);
   const [newFiles, setNewFiles] = useState([]);
   const [previewUrls, setPreviewUrls] = useState([]);
+  const [compareAtPrice, setCompareAtPrice] = useState("");
 
   useLockBodyScroll(open);
 
@@ -323,6 +335,11 @@ function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
     setBrand(product.brand || "");
     setExistingImages(normalizeExistingImages(product));
     setNewFiles([]);
+    setCompareAtPrice(
+      product.compareAtPrice != null && Number(product.compareAtPrice) > 0
+        ? String(product.compareAtPrice)
+        : ""
+    );
   }, [open, initial]);
 
   useEffect(() => {
@@ -351,39 +368,43 @@ function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
     ...previewUrls,
   ];
 
-function onPickFiles(event) {
-  const files = Array.from(event.target.files || []);
-  if (!files.length) return;
+  function onPickFiles(event) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
 
-  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
-  const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    const allowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
 
-  const validFiles = [];
-  const invalidFiles = [];
+    const validFiles = [];
+    const invalidFiles = [];
 
-  for (const file of files) {
-    const type = String(file.type || "").toLowerCase().trim();
-    const name = String(file.name || "").toLowerCase().trim();
-    const hasValidExtension = allowedExtensions.some((ext) => name.endsWith(ext));
+    for (const file of files) {
+      const type = String(file.type || "").toLowerCase().trim();
+      const name = String(file.name || "").toLowerCase().trim();
+      const hasValidExtension = allowedExtensions.some((ext) =>
+        name.endsWith(ext)
+      );
 
-    if (allowedTypes.includes(type) || hasValidExtension) {
-      validFiles.push(file);
-    } else {
-      invalidFiles.push(file.name || "Unknown file");
+      if (allowedTypes.includes(type) || hasValidExtension) {
+        validFiles.push(file);
+      } else {
+        invalidFiles.push(file.name || "Unknown file");
+      }
     }
+
+    if (invalidFiles.length) {
+      toast.error("Some files were skipped", {
+        description: `Only JPG, PNG, and WEBP are allowed. Skipped: ${invalidFiles.join(
+          ", "
+        )}`,
+      });
+    }
+
+    if (!validFiles.length) return;
+
+    setNewFiles((prev) => [...prev, ...validFiles].slice(0, 10));
+    event.target.value = "";
   }
-
-  if (invalidFiles.length) {
-    toast.error("Some files were skipped", {
-      description: `Only JPG, PNG, and WEBP are allowed. Skipped: ${invalidFiles.join(", ")}`,
-    });
-  }
-
-  if (!validFiles.length) return;
-
-  setNewFiles((prev) => [...prev, ...validFiles].slice(0, 10));
-  event.target.value = "";
-}
 
   function removeExistingImage(index) {
     setExistingImages((prev) => prev.filter((_, i) => i !== index));
@@ -396,11 +417,26 @@ function onPickFiles(event) {
   function validateAndSubmit() {
     const cleanTitle = String(title || "").trim();
     const parsedPrice = price === "" ? 0 : Number(price);
+    const parsedCompareAtPrice =
+      compareAtPrice === "" ? null : Number(compareAtPrice);
     const parsedStock = stock === "" ? 0 : Number(stock);
 
     if (!cleanTitle) return toast.error("Title is required.");
     if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
       return toast.error("Price must be 0 or greater.");
+    }
+    if (
+      parsedCompareAtPrice != null &&
+      (!Number.isFinite(parsedCompareAtPrice) || parsedCompareAtPrice < 0)
+    ) {
+      return toast.error("Compare price must be 0 or greater.");
+    }
+    if (
+      parsedCompareAtPrice != null &&
+      parsedCompareAtPrice > 0 &&
+      parsedCompareAtPrice <= parsedPrice
+    ) {
+      return toast.error("Compare price must be greater than price for a sale.");
     }
     if (!Number.isFinite(parsedStock) || parsedStock < 0) {
       return toast.error("Stock must be 0 or greater.");
@@ -410,6 +446,7 @@ function onPickFiles(event) {
       title: cleanTitle,
       description: String(description || ""),
       price: parsedPrice,
+      compareAtPrice: parsedCompareAtPrice,
       stock: parsedStock,
       category: String(category || "").trim() || null,
       brand: String(brand || "").trim() || null,
@@ -471,7 +508,7 @@ function onPickFiles(event) {
                   />
                 </label>
 
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                   <label className="block">
                     <div className="text-sm font-medium text-gray-800">Price *</div>
                     <input
@@ -479,6 +516,20 @@ function onPickFiles(event) {
                       min={0}
                       value={price}
                       onChange={(e) => setPrice(e.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 outline-none shadow-sm transition focus:border-gray-300 focus:ring-2 focus:ring-black focus:ring-offset-2"
+                    />
+                  </label>
+
+                  <label className="block">
+                    <div className="text-sm font-medium text-gray-800">
+                      Compare at price
+                    </div>
+                    <input
+                      type="number"
+                      min={0}
+                      value={compareAtPrice}
+                      onChange={(e) => setCompareAtPrice(e.target.value)}
+                      placeholder="Optional sale strike price"
                       className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 outline-none shadow-sm transition focus:border-gray-300 focus:ring-2 focus:ring-black focus:ring-offset-2"
                     />
                   </label>
@@ -630,7 +681,8 @@ function onPickFiles(event) {
                   ) : null}
 
                   <div className="mt-2 text-xs text-gray-500">
-                    Existing images remain unless removed. New images are uploaded when you save.
+                    Existing images remain unless removed. New images are uploaded when you
+                    save.
                   </div>
                 </div>
               </div>
@@ -662,18 +714,40 @@ function onPickFiles(event) {
                       </div>
 
                       <div className="text-xs leading-5 text-gray-500">
-                        {description.trim() || "Short description preview will appear here."}
+                        {description.trim() ||
+                          "Short description preview will appear here."}
                       </div>
 
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="rounded-2xl bg-gray-50 px-3 py-2">
                           <div className="text-gray-500">Price</div>
-                          <div className="mt-1 font-semibold text-gray-900">৳{money(price)}</div>
+                          <div className="mt-1 font-semibold text-gray-900">
+                            ৳{money(price)}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl bg-gray-50 px-3 py-2">
+                          <div className="text-gray-500">Compare</div>
+                          <div className="mt-1 font-semibold text-gray-900">
+                            {compareAtPrice ? `৳${money(compareAtPrice)}` : "-"}
+                          </div>
                         </div>
 
                         <div className="rounded-2xl bg-gray-50 px-3 py-2">
                           <div className="text-gray-500">Stock</div>
-                          <div className="mt-1 font-semibold text-gray-900">{money(stock)}</div>
+                          <div className="mt-1 font-semibold text-gray-900">
+                            {money(stock)}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl bg-gray-50 px-3 py-2">
+                          <div className="text-gray-500">Sale status</div>
+                          <div className="mt-1 truncate font-semibold text-gray-900">
+                            {compareAtPrice &&
+                            Number(compareAtPrice) > Number(price || 0)
+                              ? "Flash sale eligible"
+                              : "Regular price"}
+                          </div>
                         </div>
 
                         <div className="rounded-2xl bg-gray-50 px-3 py-2">
@@ -768,6 +842,9 @@ function TableSkeleton({ rows = 8 }) {
             <div className="skeleton h-4 w-24 rounded-lg" />
           </td>
           <td className="px-4 py-4">
+            <div className="skeleton h-4 w-24 rounded-lg" />
+          </td>
+          <td className="px-4 py-4">
             <div className="skeleton h-6 w-20 rounded-full" />
           </td>
           <td className="px-4 py-4 text-right">
@@ -786,7 +863,10 @@ function MobileCardSkeleton({ rows = 5 }) {
   return (
     <div className="space-y-3 md:hidden">
       {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+        <div
+          key={i}
+          className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm"
+        >
           <div className="flex gap-3">
             <div className="skeleton h-20 w-20 shrink-0 rounded-2xl" />
             <div className="min-w-0 flex-1">
@@ -813,7 +893,9 @@ function EmptyState({ q }) {
         <Package2 size={28} />
       </div>
 
-      <h3 className="mt-4 text-lg font-semibold text-gray-900">No products found</h3>
+      <h3 className="mt-4 text-lg font-semibold text-gray-900">
+        No products found
+      </h3>
 
       <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-gray-500">
         {q
@@ -850,8 +932,12 @@ function ProductCard({ product, onEdit, onDelete, onToggle, busy }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="line-clamp-2 text-sm font-semibold text-gray-950">{label}</h3>
-              <p className="mt-1 text-xs text-gray-500">#{String(product._id).slice(-6)}</p>
+              <h3 className="line-clamp-2 text-sm font-semibold text-gray-950">
+                {label}
+              </h3>
+              <p className="mt-1 text-xs text-gray-500">
+                #{String(product._id).slice(-6)}
+              </p>
             </div>
 
             <button
@@ -872,12 +958,16 @@ function ProductCard({ product, onEdit, onDelete, onToggle, busy }) {
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="rounded-2xl bg-gray-50 px-3 py-2">
               <div className="text-[11px] text-gray-500">Price</div>
-              <div className="mt-1 text-sm font-semibold text-gray-900">৳{money(product.price)}</div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                ৳{money(product.price)}
+              </div>
             </div>
 
             <div className="rounded-2xl bg-gray-50 px-3 py-2">
               <div className="text-[11px] text-gray-500">Stock</div>
-              <div className="mt-1 text-sm font-semibold text-gray-900">{money(product.stock)}</div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">
+                {money(product.stock)}
+              </div>
             </div>
 
             <div className="rounded-2xl bg-gray-50 px-3 py-2">
@@ -891,6 +981,15 @@ function ProductCard({ product, onEdit, onDelete, onToggle, busy }) {
               <div className="text-[11px] text-gray-500">Brand</div>
               <div className="mt-1 truncate text-sm font-semibold text-gray-900">
                 {product.brand || "-"}
+              </div>
+            </div>
+
+            <div className="rounded-2xl bg-gray-50 px-3 py-2">
+              <div className="text-[11px] text-gray-500">Sale</div>
+              <div className="mt-1 truncate text-sm font-semibold text-gray-900">
+                {Number(product?.compareAtPrice || 0) > Number(product?.price || 0)
+                  ? `৳${money(product.compareAtPrice)}`
+                  : "-"}
               </div>
             </div>
           </div>
@@ -1057,6 +1156,7 @@ export default function AdminProductsPage() {
         title: payload.title,
         description: payload.description,
         price: payload.price,
+        compareAtPrice: payload.compareAtPrice,
         stock: payload.stock,
         category: payload.category,
         brand: payload.brand,
@@ -1073,7 +1173,9 @@ export default function AdminProductsPage() {
     onError: (err) => {
       toast.error("Create failed", {
         description:
-          err?.response?.data?.message || err?.message || "Failed to create product.",
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to create product.",
       });
     },
   });
@@ -1085,6 +1187,7 @@ export default function AdminProductsPage() {
         title: payload.title,
         description: payload.description,
         price: payload.price,
+        compareAtPrice: payload.compareAtPrice,
         stock: payload.stock,
         category: payload.category,
         brand: payload.brand,
@@ -1101,7 +1204,9 @@ export default function AdminProductsPage() {
     onError: (err) => {
       toast.error("Update failed", {
         description:
-          err?.response?.data?.message || err?.message || "Failed to update product.",
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to update product.",
       });
     },
   });
@@ -1117,7 +1222,8 @@ export default function AdminProductsPage() {
         products: Array.isArray(old.products)
           ? old.products.filter((product) => product._id !== id)
           : old.products,
-        total: Number(old.total || 0) > 0 ? Number(old.total || 0) - 1 : old.total,
+        total:
+          Number(old.total || 0) > 0 ? Number(old.total || 0) - 1 : old.total,
       }));
 
       return { snapshot };
@@ -1131,7 +1237,9 @@ export default function AdminProductsPage() {
 
       toast.error("Deactivate failed", {
         description:
-          err?.response?.data?.message || err?.message || "Failed to deactivate product.",
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to deactivate product.",
       });
     },
     onSuccess: () => {
@@ -1210,7 +1318,8 @@ export default function AdminProductsPage() {
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-            Create, update, activate or deactivate products displayed in your store catalog.
+            Create, update, activate or deactivate products displayed in your
+            store catalog.
           </p>
         </div>
 
@@ -1273,7 +1382,9 @@ export default function AdminProductsPage() {
             </div>
             <div>
               <div className="text-xs text-gray-500">All products</div>
-              <div className="mt-1 text-lg font-semibold text-gray-950">{total}</div>
+              <div className="mt-1 text-lg font-semibold text-gray-950">
+                {total}
+              </div>
             </div>
           </div>
         </div>
@@ -1300,7 +1411,11 @@ export default function AdminProductsPage() {
             <div>
               <div className="text-xs text-gray-500">Filter</div>
               <div className="mt-1 text-lg font-semibold text-gray-950">
-                {isActive === "" ? "All status" : isActive === "true" ? "Active" : "Inactive"}
+                {isActive === ""
+                  ? "All status"
+                  : isActive === "true"
+                  ? "Active"
+                  : "Inactive"}
               </div>
             </div>
           </div>
@@ -1311,7 +1426,9 @@ export default function AdminProductsPage() {
         <div className="mt-4 rounded-[24px] border border-red-200 bg-red-50 p-4 text-sm text-red-900">
           <div className="font-semibold">Couldn’t load products</div>
           <div className="mt-1 opacity-90">
-            {error?.response?.data?.message || error?.message || "Failed to load products."}
+            {error?.response?.data?.message ||
+              error?.message ||
+              "Failed to load products."}
           </div>
         </div>
       ) : null}
@@ -1342,7 +1459,7 @@ export default function AdminProductsPage() {
 
       <div className="mt-5 hidden overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[860px]">
+          <table className="w-full min-w-[960px]">
             <thead className="border-b border-gray-100 bg-gray-50/80">
               <tr className="text-left text-xs uppercase tracking-[0.14em] text-gray-500">
                 <th className="px-4 py-4 font-semibold">Product</th>
@@ -1350,6 +1467,7 @@ export default function AdminProductsPage() {
                 <th className="px-4 py-4 font-semibold">Stock</th>
                 <th className="px-4 py-4 font-semibold">Category</th>
                 <th className="px-4 py-4 font-semibold">Brand</th>
+                <th className="px-4 py-4 font-semibold">Sale</th>
                 <th className="px-4 py-4 font-semibold">Status</th>
                 <th className="px-4 py-4 text-right font-semibold">Actions</th>
               </tr>
@@ -1360,7 +1478,7 @@ export default function AdminProductsPage() {
 
               {!isPending && items.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10">
+                  <td colSpan={8} className="px-4 py-10">
                     <EmptyState q={q} />
                   </td>
                 </tr>
@@ -1394,7 +1512,9 @@ export default function AdminProductsPage() {
                         </div>
 
                         <div className="max-w-[360px] min-w-0">
-                          <div className="line-clamp-2 font-medium text-gray-900">{label}</div>
+                          <div className="line-clamp-2 font-medium text-gray-900">
+                            {label}
+                          </div>
                           <div className="mt-1 text-xs text-gray-500">
                             #{String(product._id).slice(-6)}
                           </div>
@@ -1402,10 +1522,24 @@ export default function AdminProductsPage() {
                       </div>
                     </td>
 
-                    <td className="px-4 py-4 font-medium text-gray-900">৳{money(product.price)}</td>
-                    <td className="px-4 py-4 font-medium text-gray-900">{money(product.stock)}</td>
-                    <td className="px-4 py-4 text-gray-700">{product.category || "-"}</td>
-                    <td className="px-4 py-4 text-gray-700">{product.brand || "-"}</td>
+                    <td className="px-4 py-4 font-medium text-gray-900">
+                      ৳{money(product.price)}
+                    </td>
+                    <td className="px-4 py-4 font-medium text-gray-900">
+                      {money(product.stock)}
+                    </td>
+                    <td className="px-4 py-4 text-gray-700">
+                      {product.category || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-gray-700">
+                      {product.brand || "-"}
+                    </td>
+                    <td className="px-4 py-4 text-gray-700">
+                      {Number(product.compareAtPrice || 0) >
+                      Number(product.price || 0)
+                        ? `৳${money(product.compareAtPrice)}`
+                        : "-"}
+                    </td>
 
                     <td className="px-4 py-4">
                       <button
@@ -1506,7 +1640,9 @@ export default function AdminProductsPage() {
         title="Deactivate product?"
         description={
           confirmTarget
-            ? `This will deactivate "${confirmTarget.title || confirmTarget.name || "this product"}".`
+            ? `This will deactivate "${
+                confirmTarget.title || confirmTarget.name || "this product"
+              }".`
             : "This action will hide the product from the active catalog."
         }
         confirmText="Deactivate"

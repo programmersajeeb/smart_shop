@@ -71,12 +71,6 @@ function formatMoney(value) {
   return `৳${amount.toFixed(0)}`;
 }
 
-function buildComparePrice(price) {
-  const amount = Number(price || 0);
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-  return Math.round(amount * 1.25);
-}
-
 function normalizeText(value, fallback = "") {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text || fallback;
@@ -87,11 +81,116 @@ function normalizeHref(value, fallback = "/shop") {
   return href || fallback;
 }
 
+function parseDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isFinite(date.getTime()) ? date : null;
+}
+
+function getCountdownParts(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+
+  return { days, hours, minutes, seconds };
+}
+
+function pad(num) {
+  return String(num || 0).padStart(2, "0");
+}
+
+function FlashTimer({ startAt, endAt }) {
+  const [now, setNow] = useState(Date.now());
+
+  const start = useMemo(() => parseDate(startAt), [startAt]);
+  const end = useMemo(() => parseDate(endAt), [endAt]);
+
+  useEffect(() => {
+    if (!start && !end) return;
+
+    const id = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(id);
+  }, [start, end]);
+
+  if (!start && !end) return null;
+
+  const nowDate = new Date(now);
+
+  if (start && nowDate < start) {
+    const diff = start.getTime() - now;
+    const t = getCountdownParts(diff);
+
+    return (
+      <div className="rounded-[24px] border border-blue-200 bg-blue-50 p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+          Starts soon
+        </div>
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {[
+            { label: "Days", value: t.days },
+            { label: "Hours", value: pad(t.hours) },
+            { label: "Minutes", value: pad(t.minutes) },
+            { label: "Seconds", value: pad(t.seconds) },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-blue-100 bg-white px-3 py-3 text-center"
+            >
+              <div className="text-lg font-semibold text-gray-950">{item.value}</div>
+              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-gray-500">
+                {item.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (end && nowDate <= end) {
+    const diff = end.getTime() - now;
+    const t = getCountdownParts(diff);
+
+    return (
+      <div className="rounded-[24px] border border-red-200 bg-red-50 p-4">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-red-700">
+          Offer ends in
+        </div>
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {[
+            { label: "Days", value: t.days },
+            { label: "Hours", value: pad(t.hours) },
+            { label: "Minutes", value: pad(t.minutes) },
+            { label: "Seconds", value: pad(t.seconds) },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className="rounded-2xl border border-red-100 bg-white px-3 py-3 text-center"
+            >
+              <div className="text-lg font-semibold text-gray-950">{item.value}</div>
+              <div className="mt-1 text-[10px] uppercase tracking-[0.16em] text-gray-500">
+                {item.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 function FlashDealCard({ item }) {
   const price = Number(item?.price || 0);
-  const comparePrice = buildComparePrice(price);
+  const comparePrice = Number(item?.compareAtPrice || 0);
   const discount =
-    comparePrice && comparePrice > price
+    comparePrice > price
       ? Math.max(1, Math.round(((comparePrice - price) / comparePrice) * 100))
       : null;
 
@@ -169,7 +268,7 @@ function FlashDealCard({ item }) {
               <span className="text-xl font-semibold text-red-600">
                 {formatMoney(price)}
               </span>
-              {comparePrice ? (
+              {discount ? (
                 <span className="text-sm text-gray-400 line-through">
                   {formatMoney(comparePrice)}
                 </span>
@@ -187,50 +286,10 @@ function FlashDealCard({ item }) {
 }
 
 function FlashSale({ data, loading, error }) {
-  const saleEnd = useMemo(() => {
-    const d = new Date();
-    d.setHours(23, 59, 59, 999);
-    return d;
-  }, []);
-
-  const [timeLeft, setTimeLeft] = useState({
-    hours: 0,
-    minutes: 0,
-    seconds: 0,
-  });
-
-  useEffect(() => {
-    const updateCountdown = () => {
-      const now = new Date();
-      const diff = saleEnd - now;
-
-      if (diff <= 0) {
-        setTimeLeft({ hours: 0, minutes: 0, seconds: 0 });
-        return false;
-      }
-
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((diff / (1000 * 60)) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
-
-      setTimeLeft({ hours, minutes, seconds });
-      return true;
-    };
-
-    updateCountdown();
-
-    const timer = setInterval(() => {
-      const active = updateCountdown();
-      if (!active) clearInterval(timer);
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [saleEnd]);
-
   const sectionTitle = normalizeText(data?.title, "Flash Sale");
   const sectionSubtitle = normalizeText(
     data?.subtitle,
-    "Limited-time picks from your value-focused in-stock catalog."
+    "Live discounted products with real compare-at pricing."
   );
 
   const cta = {
@@ -238,7 +297,17 @@ function FlashSale({ data, loading, error }) {
     href: normalizeHref(data?.cta?.href, "/shop"),
   };
 
-  const items = Array.isArray(data?.products) ? data.products.slice(0, 4) : [];
+  const items = Array.isArray(data?.products) ? data.products : [];
+  const startAt = data?.startAt || data?.campaign?.startAt || null;
+  const endAt = data?.endAt || data?.campaign?.endAt || null;
+
+  if (
+    !loading &&
+    !error &&
+    (data?.enabled === false || data?.visible === false || items.length === 0)
+  ) {
+    return null;
+  }
 
   return (
     <section className="container mx-auto mt-20 px-4" aria-label="Flash sale">
@@ -257,33 +326,19 @@ function FlashSale({ data, loading, error }) {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {[
-            { label: "Hours", value: timeLeft.hours },
-            { label: "Minutes", value: timeLeft.minutes },
-            { label: "Seconds", value: timeLeft.seconds },
-          ].map((item) => (
-            <div
-              key={item.label}
-              className="min-w-[82px] rounded-2xl border border-black/10 bg-white px-4 py-3 text-center shadow-sm"
-            >
-              <p className="text-xl font-semibold text-gray-950">
-                {String(item.value).padStart(2, "0")}
-              </p>
-              <span className="text-[11px] uppercase tracking-[0.18em] text-gray-500">
-                {item.label}
-              </span>
-            </div>
-          ))}
-
-          <Link
-            to={cta.href}
-            className="inline-flex items-center justify-center rounded-full bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
-          >
-            {cta.label}
-          </Link>
-        </div>
+        <Link
+          to={cta.href}
+          className="inline-flex items-center justify-center rounded-full bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-800"
+        >
+          {cta.label}
+        </Link>
       </div>
+
+      {(startAt || endAt) && !loading && !error ? (
+        <div className="mb-6">
+          <FlashTimer startAt={startAt} endAt={endAt} />
+        </div>
+      ) : null}
 
       {loading ? (
         <ProductGridSkeleton
@@ -299,23 +354,9 @@ function FlashSale({ data, loading, error }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {items.length === 0 ? (
-            <div className="col-span-full rounded-2xl border border-dashed border-black/10 px-6 py-12 text-center">
-              <p className="text-base font-medium text-gray-800">
-                No flash sale items available right now.
-              </p>
-              <p className="mt-2 text-sm text-gray-500">
-                Check the shop for the latest in-stock offers.
-              </p>
-            </div>
-          ) : (
-            items.map((item, idx) => (
-              <FlashDealCard
-                key={item?._id || item?.id || idx}
-                item={item}
-              />
-            ))
-          )}
+          {items.map((item, idx) => (
+            <FlashDealCard key={item?._id || item?.id || idx} item={item} />
+          ))}
         </div>
       )}
     </section>

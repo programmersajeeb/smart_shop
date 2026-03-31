@@ -1,14 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Trash2, Plus, Minus, Loader2, RefreshCcw, ShieldCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  Trash2,
+  Plus,
+  Minus,
+  Loader2,
+  RefreshCcw,
+  ShieldCheck,
+  TicketPercent,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { useCart } from "../../../shared/hooks/useCart";
 import { useAuth } from "../../../shared/hooks/useAuth";
 import CartPageSkeleton from "../../../shared/components/ui/skeletons/CartPageSkeleton";
 import ConfirmDialog from "../../../shared/ui/ConfirmDialog";
-
-// ✅ NEW: read public settings (safe, silent if endpoint missing)
 import { raw } from "../../../services/apiClient";
 
 function formatMoney(n) {
@@ -17,9 +25,13 @@ function formatMoney(n) {
   return `৳${v.toFixed(0)}`;
 }
 
+function normalizeText(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
 export default function CartPage() {
   const nav = useNavigate();
-  const { isAuthed } = useAuth();
+  const { isAuthed, user } = useAuth();
 
   const {
     hydrated,
@@ -29,18 +41,21 @@ export default function CartPage() {
     setQty,
     removeItem,
     clearCart,
-    refresh, // (optional) from updated CartProvider
+    refresh,
   } = useCart();
 
-  const [busyQty, setBusyQty] = useState({}); // { [productId]: true }
-  const [busyRemove, setBusyRemove] = useState({}); // { [productId]: true }
+  const [busyQty, setBusyQty] = useState({});
+  const [busyRemove, setBusyRemove] = useState({});
   const [busyClear, setBusyClear] = useState(false);
   const [busyRefresh, setBusyRefresh] = useState(false);
 
-  // ✅ NEW: commerce flags from public settings (enterprise wiring)
   const [commerceFlags, setCommerceFlags] = useState({
     allowGuestCheckout: false,
   });
+
+  const [couponCode, setCouponCode] = useState("");
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
 
   useEffect(() => {
     let alive = true;
@@ -49,8 +64,6 @@ export default function CartPage() {
       try {
         const res = await raw.get("/settings/public");
         const payload = res?.data;
-
-        // supports both shapes: {data:{...}} or {...}
         const d = payload?.data || payload || {};
         const allowGuestCheckout = Boolean(d?.commerce?.allowGuestCheckout);
 
@@ -58,7 +71,7 @@ export default function CartPage() {
           setCommerceFlags({ allowGuestCheckout });
         }
       } catch {
-        // ✅ Silent fail (if endpoint missing/404), fallback remains false
+        // ignore
       }
     }
 
@@ -70,7 +83,7 @@ export default function CartPage() {
 
   const [confirm, setConfirm] = useState({
     open: false,
-    mode: null, // "remove" | "clear"
+    mode: null,
     id: null,
     title: "",
     description: "",
@@ -78,10 +91,20 @@ export default function CartPage() {
 
   const isEmpty = items.length === 0;
 
+  const discountAmount = useMemo(() => {
+    return Number(appliedCoupon?.discountAmount || 0);
+  }, [appliedCoupon]);
+
   const total = useMemo(() => {
-    // future: add shipping/tax rules here
-    return subtotal;
-  }, [subtotal]);
+    return Math.max(0, Number(subtotal || 0) - discountAmount);
+  }, [subtotal, discountAmount]);
+
+  useEffect(() => {
+    if (isEmpty && appliedCoupon) {
+      setAppliedCoupon(null);
+      setCouponCode("");
+    }
+  }, [isEmpty, appliedCoupon]);
 
   if (!hydrated) return <CartPageSkeleton />;
 
@@ -91,6 +114,12 @@ export default function CartPage() {
     setBusyQty((s) => ({ ...s, [id]: true }));
     try {
       await setQty(id, (it.qty || 1) - 1);
+      if (appliedCoupon) {
+        setAppliedCoupon(null);
+        toast.message("Coupon removed", {
+          description: "Cart changed. Please re-apply the coupon.",
+        });
+      }
     } finally {
       setBusyQty((s) => {
         const n = { ...s };
@@ -106,6 +135,12 @@ export default function CartPage() {
     setBusyQty((s) => ({ ...s, [id]: true }));
     try {
       await setQty(id, (it.qty || 1) + 1);
+      if (appliedCoupon) {
+        setAppliedCoupon(null);
+        toast.message("Coupon removed", {
+          description: "Cart changed. Please re-apply the coupon.",
+        });
+      }
     } finally {
       setBusyQty((s) => {
         const n = { ...s };
@@ -145,6 +180,12 @@ export default function CartPage() {
 
       try {
         await removeItem(id);
+        if (appliedCoupon) {
+          setAppliedCoupon(null);
+          toast.message("Coupon removed", {
+            description: "Cart changed. Please re-apply the coupon.",
+          });
+        }
       } finally {
         setBusyRemove((s) => {
           const n = { ...s };
@@ -162,6 +203,8 @@ export default function CartPage() {
 
       try {
         await clearCart();
+        setAppliedCoupon(null);
+        setCouponCode("");
       } finally {
         setBusyClear(false);
         setConfirm((c) => ({ ...c, open: false }));
@@ -182,12 +225,68 @@ export default function CartPage() {
     setBusyRefresh(true);
     try {
       await refresh();
+      if (appliedCoupon) {
+        setAppliedCoupon(null);
+      }
       toast.success("Cart refreshed");
     } catch {
       toast.error("Failed to refresh cart");
     } finally {
       setBusyRefresh(false);
     }
+  }
+
+  async function handleApplyCoupon() {
+    const code = normalizeText(couponCode).toUpperCase();
+    if (!code) {
+      return toast.error("Enter a coupon code");
+    }
+
+    if (isEmpty) {
+      return toast.error("Your cart is empty");
+    }
+
+    setCouponBusy(true);
+
+    try {
+      const productIds = items
+        .map((it) => String(it.id || "").trim())
+        .filter(Boolean);
+
+      const res = await raw.post("/orders/validate-coupon", {
+        code,
+        subtotal,
+        productIds,
+        phone: user?.phone || null,
+      });
+
+      const payload = res?.data || {};
+      setAppliedCoupon({
+        code,
+        discountAmount: Number(payload?.discountAmount || 0),
+        shippingDiscount: Number(payload?.shippingDiscount || 0),
+        promotion: payload?.promotion || null,
+      });
+
+      setCouponCode(code);
+      toast.success("Coupon applied");
+    } catch (error) {
+      setAppliedCoupon(null);
+      toast.error(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "Failed to apply coupon"
+      );
+    } finally {
+      setCouponBusy(false);
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponCode("");
+    toast.message("Coupon removed");
   }
 
   function handleCheckout() {
@@ -203,9 +302,13 @@ export default function CartPage() {
       return;
     }
 
-    // ✅ If guest checkout is enabled (via settings), allow navigation.
-    // Checkout page will create order securely via backend.
-    nav("/checkout", { state: { guest: !isAuthed } });
+    nav("/checkout", {
+      state: {
+        guest: !isAuthed,
+        couponCode: appliedCoupon?.code || "",
+        appliedCoupon: appliedCoupon || null,
+      },
+    });
   }
 
   const guestAllowed = Boolean(commerceFlags.allowGuestCheckout);
@@ -254,7 +357,11 @@ export default function CartPage() {
                 onClick={handleRefresh}
                 disabled={busyRefresh}
               >
-                {busyRefresh ? <Loader2 size={16} className="animate-spin" /> : <RefreshCcw size={16} />}
+                {busyRefresh ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <RefreshCcw size={16} />
+                )}
                 Refresh
               </button>
             ) : null}
@@ -294,7 +401,6 @@ export default function CartPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Items */}
             <div className="lg:col-span-8 rounded-2xl border bg-white p-6 shadow-sm space-y-4">
               {items.map((it) => {
                 const qtyBusy = !!busyQty[it.id];
@@ -369,7 +475,11 @@ export default function CartPage() {
                       aria-label="Remove item"
                       disabled={rmBusy}
                     >
-                      {rmBusy ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
+                      {rmBusy ? (
+                        <Loader2 size={18} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={18} />
+                      )}
                     </button>
                   </div>
                 );
@@ -388,20 +498,94 @@ export default function CartPage() {
               </div>
             </div>
 
-            {/* Summary */}
             <div className="lg:col-span-4 rounded-2xl border bg-white p-6 shadow-sm space-y-4">
               <div className="text-lg font-semibold text-gray-900">Order summary</div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+                <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
+                  <TicketPercent size={16} />
+                  Apply coupon
+                </div>
+
+                {!appliedCoupon ? (
+                  <>
+                    <div className="flex gap-2">
+                      <input
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        placeholder="Enter coupon code"
+                        className="input input-bordered w-full rounded-2xl border-gray-200 bg-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={couponBusy}
+                        className="btn rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
+                      >
+                        {couponBusy ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          "Apply"
+                        )}
+                      </button>
+                    </div>
+
+                    <div className="text-xs text-gray-500">
+                      Apply a valid promotion code to preview your discount before checkout.
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-emerald-800">
+                          {appliedCoupon?.promotion?.code || appliedCoupon?.code}
+                        </div>
+                        <div className="mt-1 text-xs text-emerald-700">
+                          {appliedCoupon?.promotion?.name || "Coupon applied"}
+                        </div>
+                        <div className="mt-1 text-xs text-emerald-700">
+                          Discount: {formatMoney(appliedCoupon?.discountAmount || 0)}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="rounded-xl p-1.5 text-emerald-700 transition hover:bg-white/70"
+                        aria-label="Remove coupon"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <div className="text-sm text-gray-600 space-y-2">
                 <div className="flex items-center justify-between">
                   <span>Subtotal</span>
-                  <span className="font-semibold text-gray-900">{formatMoney(subtotal)}</span>
+                  <span className="font-semibold text-gray-900">
+                    {formatMoney(subtotal)}
+                  </span>
                 </div>
+
                 <div className="flex items-center justify-between">
                   <span>Shipping</span>
-                  <span className="font-semibold text-gray-900">{formatMoney(0)}</span>
+                  <span className="font-semibold text-gray-900">
+                    {formatMoney(0)}
+                  </span>
                 </div>
+
+                <div className="flex items-center justify-between">
+                  <span>Discount</span>
+                  <span className="font-semibold text-emerald-700">
+                    -{formatMoney(discountAmount)}
+                  </span>
+                </div>
+
                 <div className="h-px bg-gray-100" />
+
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-gray-900">Total</span>
                   <span className="font-bold text-gray-900">{formatMoney(total)}</span>
@@ -414,16 +598,26 @@ export default function CartPage() {
                 onClick={handleCheckout}
                 disabled={isEmpty}
               >
-                {isAuthed ? "Checkout" : guestAllowed ? "Checkout as guest" : "Sign in to checkout"}
+                {isAuthed
+                  ? "Checkout"
+                  : guestAllowed
+                  ? "Checkout as guest"
+                  : "Sign in to checkout"}
               </button>
 
               <div className="text-xs text-gray-500">
                 {isAuthed ? (
-                  <>Your cart syncs to your account. Checkout will create an order securely via backend.</>
+                  <>
+                    Your cart syncs to your account. Checkout will create an order securely via backend.
+                  </>
                 ) : guestAllowed ? (
-                  <>Guest checkout is enabled by store settings. You can continue without signing in.</>
+                  <>
+                    Guest checkout is enabled by store settings. You can continue without signing in.
+                  </>
                 ) : (
-                  <>Guest cart is saved locally. Sign in to sync your cart and checkout securely.</>
+                  <>
+                    Guest cart is saved locally. Sign in to sync your cart and checkout securely.
+                  </>
                 )}
               </div>
             </div>

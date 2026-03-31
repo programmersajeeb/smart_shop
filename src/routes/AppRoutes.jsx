@@ -56,6 +56,7 @@ import AdminCategoriesPage from "../pages/Admin/AdminCategoriesPage";
 import AdminInventoryPage from "../pages/Admin/AdminInventoryPage";
 import AdminSettingsPage from "../pages/Admin/AdminSettingsPage";
 import AdminHomeConfigPage from "../pages/Admin/AdminHomeConfigPage";
+import AdminPromotionsPage from "../pages/Admin/AdminPromotionsPage";
 
 import { useAuth } from "../shared/hooks/useAuth";
 import api, { raw } from "../services/apiClient";
@@ -704,10 +705,7 @@ export const AppRoutes = createBrowserRouter([
         path: "promotions",
         element: (
           <AdminPermissionRoute requiresAny={["settings:write"]}>
-            <AdminComingSoonPage
-              title="Promotions"
-              description="Coupons, discounts, campaign tools and pricing rules will be managed here."
-            />
+            <AdminPromotionsPage />
           </AdminPermissionRoute>
         ),
       },

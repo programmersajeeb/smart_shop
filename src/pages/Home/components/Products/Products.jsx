@@ -121,22 +121,17 @@ function ProductCard({ product }) {
   );
 }
 
-export default function Products({
-  product,
-  loading,
-  error,
-  sectionTitle,
-  sectionSubtitle,
-  cta,
-}) {
-  const items = Array.isArray(product?.products)
-    ? product.products.slice(0, 8)
-    : [];
-
-  const title = sectionTitle || "Best Sellers";
+export default function Products({ data, loading, error }) {
+  const items = Array.isArray(data?.products) ? data.products : [];
+  const title = data?.title || "Best Sellers";
   const subtitle =
-    sectionSubtitle ||
+    data?.subtitle ||
     "A curated selection of standout products from your active catalog.";
+  const cta = data?.cta || null;
+
+  if (!loading && !error && (data?.enabled === false || data?.visible === false || items.length === 0)) {
+    return null;
+  }
 
   return (
     <section
@@ -180,22 +175,11 @@ export default function Products({
         </div>
       )}
 
-      {!loading && !error && (
+      {!loading && !error && items.length > 0 && (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:gap-6 lg:grid-cols-4">
-          {items.length === 0 ? (
-            <div className="col-span-full rounded-2xl border border-dashed border-black/10 bg-white px-6 py-12 text-center">
-              <p className="text-base font-medium text-gray-800">
-                No products found.
-              </p>
-              <p className="mt-2 text-sm text-gray-500">
-                Try exploring the full shop catalog.
-              </p>
-            </div>
-          ) : (
-            items.map((p, idx) => (
-              <ProductCard key={p?._id || p?.id || idx} product={p} />
-            ))
-          )}
+          {items.map((p, idx) => (
+            <ProductCard key={p?._id || p?.id || idx} product={p} />
+          ))}
         </div>
       )}
     </section>
