@@ -16,6 +16,12 @@ import {
   Tag,
   Boxes,
   Upload,
+  Copy,
+  Hash,
+  Check,
+  AlertTriangle,
+  RotateCcw,
+  EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "../../services/apiClient";
@@ -171,6 +177,18 @@ function useLockBodyScroll(active) {
   }, [active]);
 }
 
+async function copyText(value, successMessage = "Copied") {
+  const text = String(value || "").trim();
+  if (!text) return;
+
+  try {
+    await navigator.clipboard.writeText(text);
+    toast.success(successMessage);
+  } catch {
+    toast.error("Copy failed");
+  }
+}
+
 function ImageFallback({ className = "", iconSize = 24 }) {
   return (
     <div
@@ -213,15 +231,38 @@ function SmartImage({
   );
 }
 
-function ConfirmModal({
+function ProductIdBadge({ id, compact = false }) {
+  const text = String(id || "").trim();
+  if (!text) return null;
+
+  return (
+    <div
+      className={[
+        "inline-flex max-w-full items-center gap-2 rounded-full border border-gray-200 bg-gray-50",
+        compact ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs",
+      ].join(" ")}
+    >
+      <Hash size={compact ? 12 : 14} className="text-gray-500" />
+      <span className="truncate font-mono text-gray-700">{text}</span>
+      <button
+        type="button"
+        onClick={() => copyText(text, "Product ID copied")}
+        className="rounded-full p-1 text-gray-500 transition hover:bg-white hover:text-gray-800"
+        title="Copy Product ID"
+      >
+        <Copy size={compact ? 11 : 12} />
+      </button>
+    </div>
+  );
+}
+
+function ProductActionModal({
   open,
-  title = "Confirm action",
-  description,
-  confirmText = "Confirm",
-  tone = "danger",
-  onClose,
-  onConfirm,
+  product,
   busy,
+  onClose,
+  onPrimaryAction,
+  onPermanentDelete,
 }) {
   useLockBodyScroll(open);
 
@@ -236,71 +277,113 @@ function ConfirmModal({
 
   if (!open) return null;
 
-  const confirmClass =
-    tone === "danger"
-      ? "bg-red-600 text-white hover:bg-red-700"
-      : "bg-black text-white hover:bg-gray-900";
+  const title = product?.title || product?.name || "this product";
+  const productId = String(product?._id || "").trim();
+  const isInactive = product?.isActive === false;
+
+  const primaryTitle = isInactive ? "Make active again" : "Hide from store";
+  const primaryDescription = isInactive
+    ? "This will make the product visible in active lists again so it can be managed and sold normally."
+    : "This keeps the product in your database but removes it from active catalog views. This is the safer option for products already used in orders or promotions.";
+  const primaryButtonLabel = isInactive
+    ? "Restore product"
+    : "Deactivate product";
+  const PrimaryIcon = isInactive ? RotateCcw : EyeOff;
+  const primaryButtonClass = isInactive
+    ? "border-emerald-200 bg-emerald-600 text-white hover:bg-emerald-700"
+    : "border-gray-900 bg-gray-900 text-white hover:bg-black";
 
   return (
     <div
-      className="fixed inset-0 z-[70] bg-black/50 p-3 backdrop-blur-[2px] sm:p-4"
+      className="fixed inset-0 z-[72] bg-black/55 p-3 backdrop-blur-[2px] sm:p-4"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose?.();
       }}
     >
       <div className="flex min-h-full items-center justify-center">
-        <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-2xl">
-          <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-4 py-4 sm:px-5">
-            <div className="min-w-0">
-              <div className="text-base font-semibold text-gray-950 sm:text-lg">
-                {title}
+        <div className="w-full max-w-xl overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-2xl">
+          <div className="border-b border-gray-100 px-4 py-5 sm:px-6">
+            <div className="flex items-start gap-3">
+              <div
+                className={[
+                  "rounded-2xl p-3",
+                  isInactive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600",
+                ].join(" ")}
+              >
+                {isInactive ? <RotateCcw size={20} /> : <AlertTriangle size={20} />}
               </div>
-              {description ? (
+
+              <div className="min-w-0">
+                <div className="text-lg font-semibold text-gray-950">
+                  {isInactive ? "Manage inactive product" : "Manage product visibility"}
+                </div>
                 <div className="mt-1 text-sm leading-6 text-gray-600">
-                  {description}
+                  {isInactive
+                    ? "This product is currently inactive. You can restore it or remove it permanently."
+                    : "Choose whether you want to hide this product from the storefront or remove it permanently."}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 px-4 py-5 sm:px-6">
+            <div className="rounded-[24px] border border-gray-200 bg-gray-50 p-4">
+              <div className="text-base font-semibold text-gray-900">{title}</div>
+              {productId ? (
+                <div className="mt-3">
+                  <ProductIdBadge id={productId} />
                 </div>
               ) : null}
             </div>
 
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={busy}
-              aria-label="Close"
-              className="shrink-0 rounded-2xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
-            >
-              <X size={18} />
-            </button>
+            <div className="rounded-[24px] border border-gray-200 bg-white p-4">
+              <div className="text-sm font-semibold text-gray-900">{primaryTitle}</div>
+              <div className="mt-1 text-sm leading-6 text-gray-600">
+                {primaryDescription}
+              </div>
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onPrimaryAction}
+                className={[
+                  "mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-semibold transition",
+                  primaryButtonClass,
+                ].join(" ")}
+              >
+                <PrimaryIcon size={18} />
+                {primaryButtonLabel}
+              </button>
+            </div>
+
+            <div className="rounded-[24px] border border-red-200 bg-red-50 p-4">
+              <div className="text-sm font-semibold text-red-800">
+                Delete permanently
+              </div>
+              <div className="mt-1 text-sm leading-6 text-red-700">
+                This removes the product completely. If the product is already linked to orders or promotions, permanent deletion will be blocked automatically.
+              </div>
+
+              <button
+                type="button"
+                disabled={busy}
+                onClick={onPermanentDelete}
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-white px-4 py-3 text-sm font-semibold text-red-700 transition hover:bg-red-100"
+              >
+                <Trash2 size={18} />
+                Delete permanently
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center justify-end gap-3 px-4 py-4 sm:px-5">
+          <div className="border-t border-gray-100 px-4 py-4 sm:px-6">
             <button
               type="button"
               onClick={onClose}
               disabled={busy}
-              className="rounded-2xl border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+              className="w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
-              Cancel
-            </button>
-
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={busy}
-              className={[
-                "rounded-2xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
-                confirmClass,
-                busy ? "cursor-not-allowed opacity-70" : "",
-              ].join(" ")}
-            >
-              {busy ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="animate-spin" size={16} />
-                  Working...
-                </span>
-              ) : (
-                confirmText
-              )}
+              Close
             </button>
           </div>
         </div>
@@ -363,6 +446,8 @@ function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
   if (!open) return null;
 
   const isCreate = mode === "create";
+  const productId = String(initial?._id || "").trim();
+
   const allPreviewImages = [
     ...existingImages.map((image) => toAbsoluteMediaUrl(image?.url)).filter(Boolean),
     ...previewUrls,
@@ -488,6 +573,33 @@ function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
           <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
               <div className="space-y-4 lg:col-span-2">
+                {!isCreate && productId ? (
+                  <div className="rounded-[24px] border border-blue-200 bg-blue-50 p-4">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-blue-900">
+                      <Hash size={16} />
+                      Product ID
+                    </div>
+                    <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 rounded-2xl bg-white px-4 py-3 font-mono text-sm text-gray-800 shadow-sm">
+                        <div className="truncate">{productId}</div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => copyText(productId, "Product ID copied")}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl border border-blue-200 bg-white px-4 py-3 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+                      >
+                        <Copy size={16} />
+                        Copy ID
+                      </button>
+                    </div>
+
+                    <div className="mt-2 text-xs text-blue-800/80">
+                      Use this Product ID directly in promotion targeting when needed.
+                    </div>
+                  </div>
+                ) : null}
+
                 <label className="block">
                   <div className="text-sm font-medium text-gray-800">Title *</div>
                   <input
@@ -718,6 +830,12 @@ function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
                           "Short description preview will appear here."}
                       </div>
 
+                      {!isCreate && productId ? (
+                        <div>
+                          <ProductIdBadge id={productId} />
+                        </div>
+                      ) : null}
+
                       <div className="grid grid-cols-2 gap-2 text-xs">
                         <div className="rounded-2xl bg-gray-50 px-3 py-2">
                           <div className="text-gray-500">Price</div>
@@ -773,6 +891,18 @@ function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
                       </div>
                     </div>
                   </div>
+
+                  {!isCreate ? (
+                    <div className="mt-4 rounded-[24px] border border-emerald-200 bg-emerald-50 p-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-emerald-900">
+                        <Check size={16} />
+                        Promotion ready
+                      </div>
+                      <div className="mt-1 text-xs leading-5 text-emerald-800/90">
+                        This Product ID can now be copied directly from here and used inside the Promotions page.
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -827,7 +957,7 @@ function TableSkeleton({ rows = 8 }) {
         <tr key={i} className="border-b border-gray-100 last:border-b-0">
           <td className="px-4 py-4">
             <div className="skeleton h-4 w-56 rounded-lg" />
-            <div className="mt-2 skeleton h-3 w-20 rounded-lg" />
+            <div className="mt-2 skeleton h-3 w-36 rounded-lg" />
           </td>
           <td className="px-4 py-4">
             <div className="skeleton h-4 w-16 rounded-lg" />
@@ -849,8 +979,9 @@ function TableSkeleton({ rows = 8 }) {
           </td>
           <td className="px-4 py-4 text-right">
             <div className="inline-flex gap-2">
-              <div className="skeleton h-9 w-10 rounded-2xl" />
-              <div className="skeleton h-9 w-10 rounded-2xl" />
+              <div className="skeleton h-11 w-11 rounded-2xl" />
+              <div className="skeleton h-11 w-11 rounded-2xl" />
+              <div className="skeleton h-11 w-11 rounded-2xl" />
             </div>
           </td>
         </tr>
@@ -868,10 +999,10 @@ function MobileCardSkeleton({ rows = 5 }) {
           className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm"
         >
           <div className="flex gap-3">
-            <div className="skeleton h-20 w-20 shrink-0 rounded-2xl" />
+            <div className="skeleton h-24 w-24 shrink-0 rounded-2xl" />
             <div className="min-w-0 flex-1">
               <div className="skeleton h-4 w-3/4 rounded-lg" />
-              <div className="mt-2 skeleton h-3 w-20 rounded-lg" />
+              <div className="mt-2 skeleton h-4 w-40 rounded-lg" />
               <div className="mt-4 grid grid-cols-2 gap-2">
                 <div className="skeleton h-12 rounded-2xl" />
                 <div className="skeleton h-12 rounded-2xl" />
@@ -909,22 +1040,24 @@ function EmptyState({ q }) {
 function ProductCard({ product, onEdit, onDelete, onToggle, busy }) {
   const image = getImageSrc(product);
   const label = productLabel(product);
+  const productId = String(product?._id || "").trim();
+  const isInactive = product?.isActive === false;
 
   return (
-    <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md md:hidden">
-      <div className="flex items-start gap-3">
-        <div className="h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
+    <div className="rounded-[26px] border border-gray-200 bg-white p-4 shadow-sm transition hover:shadow-md md:hidden">
+      <div className="flex items-start gap-4">
+        <div className="h-24 w-24 shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
           {image ? (
             <SmartImage
               src={image}
               alt={label}
               className="h-full w-full object-cover"
               fallbackClassName="bg-gray-100"
-              fallbackIconSize={24}
+              fallbackIconSize={28}
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-gray-400">
-              <Package2 size={24} />
+              <Package2 size={28} />
             </div>
           )}
         </div>
@@ -932,12 +1065,12 @@ function ProductCard({ product, onEdit, onDelete, onToggle, busy }) {
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <h3 className="line-clamp-2 text-sm font-semibold text-gray-950">
+              <h3 className="line-clamp-2 text-base font-semibold text-gray-950">
                 {label}
               </h3>
-              <p className="mt-1 text-xs text-gray-500">
-                #{String(product._id).slice(-6)}
-              </p>
+              <div className="mt-2">
+                <ProductIdBadge id={productId} compact />
+              </div>
             </div>
 
             <button
@@ -945,7 +1078,7 @@ function ProductCard({ product, onEdit, onDelete, onToggle, busy }) {
               onClick={() => onToggle({ id: product._id, isActive: !product.isActive })}
               disabled={busy}
               className={[
-                "shrink-0 rounded-full border px-3 py-1 text-[11px] font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
+                "shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
                 product.isActive
                   ? "border-green-200 bg-green-50 text-green-800 hover:bg-green-100"
                   : "border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100",
@@ -956,63 +1089,66 @@ function ProductCard({ product, onEdit, onDelete, onToggle, busy }) {
           </div>
 
           <div className="mt-4 grid grid-cols-2 gap-2">
-            <div className="rounded-2xl bg-gray-50 px-3 py-2">
+            <div className="rounded-2xl bg-gray-50 px-3 py-2.5">
               <div className="text-[11px] text-gray-500">Price</div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 ৳{money(product.price)}
               </div>
             </div>
 
-            <div className="rounded-2xl bg-gray-50 px-3 py-2">
+            <div className="rounded-2xl bg-gray-50 px-3 py-2.5">
               <div className="text-[11px] text-gray-500">Stock</div>
               <div className="mt-1 text-sm font-semibold text-gray-900">
                 {money(product.stock)}
               </div>
             </div>
 
-            <div className="rounded-2xl bg-gray-50 px-3 py-2">
+            <div className="rounded-2xl bg-gray-50 px-3 py-2.5">
               <div className="text-[11px] text-gray-500">Category</div>
               <div className="mt-1 truncate text-sm font-semibold text-gray-900">
                 {product.category || "-"}
               </div>
             </div>
 
-            <div className="rounded-2xl bg-gray-50 px-3 py-2">
+            <div className="rounded-2xl bg-gray-50 px-3 py-2.5">
               <div className="text-[11px] text-gray-500">Brand</div>
               <div className="mt-1 truncate text-sm font-semibold text-gray-900">
                 {product.brand || "-"}
               </div>
             </div>
-
-            <div className="rounded-2xl bg-gray-50 px-3 py-2">
-              <div className="text-[11px] text-gray-500">Sale</div>
-              <div className="mt-1 truncate text-sm font-semibold text-gray-900">
-                {Number(product?.compareAtPrice || 0) > Number(product?.price || 0)
-                  ? `৳${money(product.compareAtPrice)}`
-                  : "-"}
-              </div>
-            </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => copyText(productId, "Product ID copied")}
+              disabled={busy}
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+            >
+              <Copy size={18} />
+            </button>
+
             <button
               type="button"
               onClick={() => onEdit(product)}
               disabled={busy}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 px-3 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
-              <Pencil size={16} />
-              Edit
+              <Pencil size={18} />
             </button>
 
             <button
               type="button"
               onClick={() => onDelete(product)}
               disabled={busy}
-              className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl border border-red-200 px-3 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+              className={[
+                "inline-flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-sm font-semibold transition",
+                isInactive
+                  ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  : "border-red-200 text-red-600 hover:bg-red-50",
+              ].join(" ")}
             >
-              <Trash2 size={16} />
-              Deactivate
+              {isInactive ? <RotateCcw size={18} /> : <Trash2 size={18} />}
             </button>
           </div>
         </div>
@@ -1122,8 +1258,7 @@ export default function AdminProductsPage() {
         (await api.get("/products/admin", { params: nextParams, signal })).data,
       staleTime: 30_000,
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, pages, q, isActive]);
+  }, [page, pages, params, queryClient]);
 
   function openCreate() {
     setModalMode("create");
@@ -1235,16 +1370,54 @@ export default function AdminProductsPage() {
         }
       }
 
-      toast.error("Deactivate failed", {
+      toast.error("Hide failed", {
         description:
           err?.response?.data?.message ||
           err?.message ||
-          "Failed to deactivate product.",
+          "Could not update product visibility.",
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-      toast.success("Product deactivated");
+      toast.success("Product moved to inactive");
+    },
+  });
+
+  const permanentDeleteMutation = useMutation({
+    mutationFn: async (id) =>
+      (await api.delete(`/products/admin/${id}/permanent`)).data,
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: ["admin-products"] });
+      const snapshot = queryClient.getQueriesData({ queryKey: ["admin-products"] });
+
+      patchAdminProductsCache((old) => ({
+        ...old,
+        products: Array.isArray(old.products)
+          ? old.products.filter((product) => product._id !== id)
+          : old.products,
+        total:
+          Number(old.total || 0) > 0 ? Number(old.total || 0) - 1 : old.total,
+      }));
+
+      return { snapshot };
+    },
+    onError: (err, _id, context) => {
+      if (context?.snapshot) {
+        for (const [key, value] of context.snapshot) {
+          queryClient.setQueryData(key, value);
+        }
+      }
+
+      toast.error("Permanent delete failed", {
+        description:
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to permanently delete product.",
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      toast.success("Product permanently deleted");
     },
   });
 
@@ -1274,14 +1447,15 @@ export default function AdminProductsPage() {
       }
 
       toast.error("Status update failed", {
-        description: err?.response?.data?.message || err?.message || "Update failed.",
+        description:
+          err?.response?.data?.message || err?.message || "Update failed.",
       });
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
       toast.message("Status updated", {
         description: variables?.isActive
-          ? "Product is now active."
+          ? "Product is active again."
           : "Product is now inactive.",
       });
     },
@@ -1302,6 +1476,7 @@ export default function AdminProductsPage() {
     createMutation.isPending ||
     updateMutation.isPending ||
     deleteMutation.isPending ||
+    permanentDeleteMutation.isPending ||
     toggleActiveMutation.isPending;
 
   return (
@@ -1318,8 +1493,7 @@ export default function AdminProductsPage() {
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-            Create, update, activate or deactivate products displayed in your
-            store catalog.
+            Manage your catalog, keep products up to date, and control what stays visible in the storefront.
           </p>
         </div>
 
@@ -1409,13 +1583,13 @@ export default function AdminProductsPage() {
               <Tag size={18} />
             </div>
             <div>
-              <div className="text-xs text-gray-500">Filter</div>
+              <div className="text-xs text-gray-500">View</div>
               <div className="mt-1 text-lg font-semibold text-gray-950">
                 {isActive === ""
-                  ? "All status"
+                  ? "All products"
                   : isActive === "true"
-                  ? "Active"
-                  : "Inactive"}
+                  ? "Active only"
+                  : "Inactive only"}
               </div>
             </div>
           </div>
@@ -1459,7 +1633,7 @@ export default function AdminProductsPage() {
 
       <div className="mt-5 hidden overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-sm md:block">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px]">
+          <table className="w-full min-w-[1080px]">
             <thead className="border-b border-gray-100 bg-gray-50/80">
               <tr className="text-left text-xs uppercase tracking-[0.14em] text-gray-500">
                 <th className="px-4 py-4 font-semibold">Product</th>
@@ -1487,6 +1661,8 @@ export default function AdminProductsPage() {
               {items.map((product) => {
                 const label = productLabel(product);
                 const image = getImageSrc(product);
+                const productId = String(product?._id || "").trim();
+                const isInactive = product?.isActive === false;
 
                 return (
                   <tr
@@ -1511,12 +1687,12 @@ export default function AdminProductsPage() {
                           )}
                         </div>
 
-                        <div className="max-w-[360px] min-w-0">
+                        <div className="max-w-[420px] min-w-0">
                           <div className="line-clamp-2 font-medium text-gray-900">
                             {label}
                           </div>
-                          <div className="mt-1 text-xs text-gray-500">
-                            #{String(product._id).slice(-6)}
+                          <div className="mt-2">
+                            <ProductIdBadge id={productId} compact />
                           </div>
                         </div>
                       </div>
@@ -1567,25 +1743,44 @@ export default function AdminProductsPage() {
                       <div className="inline-flex justify-end gap-2">
                         <button
                           type="button"
-                          title="Edit"
+                          title="Copy Product ID"
                           disabled={busy}
-                          onClick={() => openEdit(product)}
-                          className="inline-flex items-center justify-center rounded-2xl border border-gray-200 px-3 py-2 text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+                          onClick={() => copyText(productId, "Product ID copied")}
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
                         >
-                          <Pencil size={18} />
+                          <Copy size={20} strokeWidth={2.2} />
                         </button>
 
                         <button
                           type="button"
-                          title="Deactivate"
+                          title="Edit"
+                          disabled={busy}
+                          onClick={() => openEdit(product)}
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+                        >
+                          <Pencil size={20} strokeWidth={2.2} />
+                        </button>
+
+                        <button
+                          type="button"
+                          title={isInactive ? "Restore or delete" : "Hide or delete"}
                           disabled={busy}
                           onClick={() => {
                             setConfirmTarget(product);
                             setConfirmOpen(true);
                           }}
-                          className="inline-flex items-center justify-center rounded-2xl border border-red-200 px-3 py-2 text-red-600 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+                          className={[
+                            "inline-flex h-11 w-11 items-center justify-center rounded-2xl border bg-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
+                            isInactive
+                              ? "border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                              : "border-red-200 text-red-600 hover:bg-red-50",
+                          ].join(" ")}
                         >
-                          <Trash2 size={18} />
+                          {isInactive ? (
+                            <RotateCcw size={20} strokeWidth={2.2} />
+                          ) : (
+                            <Trash2 size={20} strokeWidth={2.2} />
+                          )}
                         </button>
                       </div>
                     </td>
@@ -1635,28 +1830,48 @@ export default function AdminProductsPage() {
         busy={createMutation.isPending || updateMutation.isPending}
       />
 
-      <ConfirmModal
+      <ProductActionModal
         open={confirmOpen}
-        title="Deactivate product?"
-        description={
-          confirmTarget
-            ? `This will deactivate "${
-                confirmTarget.title || confirmTarget.name || "this product"
-              }".`
-            : "This action will hide the product from the active catalog."
-        }
-        confirmText="Deactivate"
-        tone="danger"
-        busy={deleteMutation.isPending}
+        product={confirmTarget}
+        busy={deleteMutation.isPending || permanentDeleteMutation.isPending || toggleActiveMutation.isPending}
         onClose={() => {
-          if (deleteMutation.isPending) return;
+          if (
+            deleteMutation.isPending ||
+            permanentDeleteMutation.isPending ||
+            toggleActiveMutation.isPending
+          ) {
+            return;
+          }
           setConfirmOpen(false);
           setConfirmTarget(null);
         }}
-        onConfirm={() => {
+        onPrimaryAction={() => {
           if (!confirmTarget?._id) return;
 
+          if (confirmTarget.isActive === false) {
+            toggleActiveMutation.mutate(
+              { id: confirmTarget._id, isActive: true },
+              {
+                onSettled: () => {
+                  setConfirmOpen(false);
+                  setConfirmTarget(null);
+                },
+              }
+            );
+            return;
+          }
+
           deleteMutation.mutate(confirmTarget._id, {
+            onSettled: () => {
+              setConfirmOpen(false);
+              setConfirmTarget(null);
+            },
+          });
+        }}
+        onPermanentDelete={() => {
+          if (!confirmTarget?._id) return;
+
+          permanentDeleteMutation.mutate(confirmTarget._id, {
             onSettled: () => {
               setConfirmOpen(false);
               setConfirmTarget(null);
