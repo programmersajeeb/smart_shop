@@ -21,6 +21,15 @@ import {
   Shield,
   AlertTriangle,
   Trash2,
+  Lock,
+  UserCog,
+  Sparkles,
+  BadgeCheck,
+  User2,
+  Mail,
+  Phone,
+  Clock3,
+  SlidersHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "../../services/apiClient";
@@ -223,7 +232,7 @@ function getDiffSummary(originalUser, next) {
   if (prevBlocked !== Boolean(next?.blocked)) {
     changes.push({
       type: "status",
-      label: prevBlocked ? "User will be unblocked" : "User will be blocked",
+      label: prevBlocked ? "User access will be restored" : "User access will be suspended",
     });
   }
 
@@ -231,7 +240,7 @@ function getDiffSummary(originalUser, next) {
   const removed = prevPerms.filter((p) => !nextPerms.includes(p));
 
   for (const p of added) {
-    changes.push({ type: "permission-add", label: `Add permission: ${p}` });
+    changes.push({ type: "permission-add", label: `Grant permission: ${p}` });
   }
 
   for (const p of removed) {
@@ -250,33 +259,88 @@ function getRoleLevel(user) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function getVisibleRoleOptions(actorUser, targetUser) {
+function getActorId(actorUser) {
+  return String(actorUser?._id || actorUser?.id || actorUser?.sub || "");
+}
+
+function isSelfTarget(actorUser, targetUser) {
+  const actorId = getActorId(actorUser);
+  const targetId = String(targetUser?._id || "");
+  return Boolean(actorId && targetId && actorId === targetId);
+}
+
+function isSuperAdminLike(user) {
+  return normalizeRole(user?.role) === "superadmin" || getRoleLevel(user) >= 100;
+}
+
+function canManageTargetOnClient(actorUser, targetUser) {
+  if (!actorUser || !targetUser) return false;
+  if (Boolean(targetUser?.isDeleted)) return false;
+  if (isSelfTarget(actorUser, targetUser)) return false;
+
+  const actorLevel = getRoleLevel(actorUser);
+  const targetLevel = getRoleLevel(targetUser);
+  const actorIsSuper = isSuperAdminLike(actorUser);
+  const targetIsSuper = isSuperAdminLike(targetUser);
+
+  if (!actorIsSuper && targetIsSuper) return false;
+  return actorLevel > targetLevel;
+}
+
+function getVisibleRoleOptions(actorUser) {
   const actorRole = normalizeRole(actorUser?.role);
   const actorLevel = getRoleLevel(actorUser);
-  const targetId = String(targetUser?._id || "");
-  const actorId = String(actorUser?._id || actorUser?.id || "");
-  const isSelfEdit = actorId && targetId && actorId === targetId;
   const actorIsSuper = actorRole === "superadmin" || actorLevel >= 100;
-
-  if (isSelfEdit) {
-    return ROLE_OPTIONS.filter((opt) => {
-      const v = normalizeRole(opt.value);
-
-      if (actorIsSuper) return v === "superadmin";
-      if (actorRole === "admin") return v === "admin";
-
-      return opt.defaultLevel >= actorLevel && opt.defaultLevel <= actorLevel;
-    });
-  }
 
   return ROLE_OPTIONS.filter((opt) => {
     const v = normalizeRole(opt.value);
-
     if (v === "superadmin" && !actorIsSuper) return false;
     if (opt.defaultLevel >= actorLevel) return false;
-
     return true;
   });
+}
+
+function getRestrictionSummary(actorUser, targetUser) {
+  if (!targetUser) {
+    return {
+      locked: false,
+      reasonTitle: "",
+      reasonText: "",
+    };
+  }
+
+  if (Boolean(targetUser?.isDeleted)) {
+    return {
+      locked: true,
+      reasonTitle: "Archived account",
+      reasonText:
+        "This account has already been removed from active access management. Its access settings are preserved for audit continuity and can no longer be edited from this page.",
+    };
+  }
+
+  if (isSelfTarget(actorUser, targetUser)) {
+    return {
+      locked: true,
+      reasonTitle: "Your own access is protected",
+      reasonText:
+        "For governance and separation-of-duties reasons, you cannot change your own role, permissions, status, or delete your own account from this workspace. You may review your current access, but any administrative change to your own account must be handled by another authorized administrator.",
+    };
+  }
+
+  if (!canManageTargetOnClient(actorUser, targetUser)) {
+    return {
+      locked: true,
+      reasonTitle: "Protected administrative account",
+      reasonText:
+        "This account is protected because its access level is equal to or higher than your current administrative authority. You may review the profile details shown here, but role changes, permission updates, status changes, and deletion are not available.",
+    };
+  }
+
+  return {
+    locked: false,
+    reasonTitle: "",
+    reasonText: "",
+  };
 }
 
 function HeaderSortButton({ label, value, sortBy, sortDir, onChange }) {
@@ -305,7 +369,33 @@ function TableSkeleton({ rows = 10 }) {
   );
 }
 
-function Drawer({ open, onClose, user, catalog, onSave, saving, actorUser }) {
+function StatCard({ icon, label, value }) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
+      <div className="flex items-center gap-3">
+        <div className="rounded-2xl bg-white p-2 text-slate-600 shadow-sm">{icon}</div>
+        <div className="min-w-0">
+          <div className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
+            {label}
+          </div>
+          <div className="mt-1 truncate text-sm font-semibold text-slate-900">{value}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Drawer({
+  open,
+  onClose,
+  user,
+  catalog,
+  onSave,
+  saving,
+  actorUser,
+  onDelete,
+  deleting,
+}) {
   const [role, setRole] = useState(user?.role || "user");
   const [roleLevel, setRoleLevel] = useState(Number(user?.roleLevel || 0));
   const [blocked, setBlocked] = useState(Boolean(user?.isBlocked));
@@ -327,9 +417,16 @@ function Drawer({ open, onClose, user, catalog, onSave, saving, actorUser }) {
   const templateMap = useMemo(() => buildTemplates(catalog), [catalog]);
   const flat = Array.isArray(catalog?.permissions) ? catalog.permissions : [];
   const visibleRoleOptions = useMemo(
-    () => getVisibleRoleOptions(actorUser, user),
+    () => getVisibleRoleOptions(actorUser),
+    [actorUser]
+  );
+
+  const restriction = useMemo(
+    () => getRestrictionSummary(actorUser, user),
     [actorUser, user]
   );
+
+  const isReadOnly = restriction.locked;
 
   useMemo(() => {
     if (!groups.length) return normalizePermissions(flat);
@@ -343,6 +440,7 @@ function Drawer({ open, onClose, user, catalog, onSave, saving, actorUser }) {
   const has = (p) => perms.includes(p);
 
   function toggle(p) {
+    if (isReadOnly) return;
     const key = String(p || "").trim();
     if (!key) return;
 
@@ -354,6 +452,7 @@ function Drawer({ open, onClose, user, catalog, onSave, saving, actorUser }) {
   }
 
   function setGroupItems(items, mode) {
+    if (isReadOnly) return;
     const normalized = normalizePermissions(items);
 
     if (mode === "add") {
@@ -367,12 +466,14 @@ function Drawer({ open, onClose, user, catalog, onSave, saving, actorUser }) {
   }
 
   function applyTemplate(name) {
+    if (isReadOnly) return;
     const template = templateMap[name] || [];
     setTemplateApplied(name);
     setPerms(withPermissionDependencies(template));
   }
 
   function handleRoleChange(nextRole) {
+    if (isReadOnly) return;
     setRole(nextRole);
     const found = ROLE_OPTIONS.find((x) => x.value === nextRole);
 
@@ -414,7 +515,7 @@ function Drawer({ open, onClose, user, catalog, onSave, saving, actorUser }) {
   );
 
   React.useEffect(() => {
-    if (!visibleRoleOptions.length) return;
+    if (!visibleRoleOptions.length || isReadOnly) return;
 
     const exists = visibleRoleOptions.some((opt) => opt.value === role);
     if (!exists) {
@@ -422,388 +523,509 @@ function Drawer({ open, onClose, user, catalog, onSave, saving, actorUser }) {
       setRole(fallback.value);
       setRoleLevel(Number(fallback.defaultLevel || 0));
     }
-  }, [visibleRoleOptions, role]);
+  }, [visibleRoleOptions, role, isReadOnly]);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999]">
+    <div className="fixed inset-0 z-[10000]">
       <button
         type="button"
-        className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-950/55 backdrop-blur-[2px]"
         onClick={onClose}
         aria-label="Close overlay"
       />
 
-      <div className="absolute right-0 top-0 h-full w-full max-w-3xl overflow-auto border-l bg-white shadow-2xl">
-        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b bg-white p-5">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500">
-              <ShieldCheck size={14} />
-              Roles & Permissions
-            </div>
-
-            <div className="mt-1 truncate text-lg font-semibold text-gray-900">
-              {user?.displayName || user?.email || user?.phone || "User"}
-            </div>
-
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="break-all font-mono text-xs text-gray-500">
-                {String(user?._id || "")}
-              </span>
-
-              <span
-                className={[
-                  "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-                  blocked
-                    ? "border-rose-200 bg-rose-50 text-rose-800"
-                    : "border-emerald-200 bg-emerald-50 text-emerald-800",
-                ].join(" ")}
-              >
-                {blocked ? <Ban size={12} /> : <CheckCircle2 size={12} />}
-                {blocked ? "Blocked" : "Active"}
-              </span>
-
-              <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-semibold text-indigo-800">
-                <Shield size={12} />
-                {role} • L{roleLevel}
-              </span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            className="rounded-2xl p-2 transition hover:bg-gray-50"
-            onClick={onClose}
-            aria-label="Close"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        <div className="space-y-6 p-5">
-          <div className="rounded-[28px] border bg-white p-5 shadow-sm">
-            <div className="text-sm font-semibold text-gray-900">Profile</div>
-
-            <div className="mt-3 grid grid-cols-1 gap-3 text-sm text-gray-700 md:grid-cols-2">
-              <div className="rounded-2xl border bg-gray-50 p-3">
-                <div className="text-xs text-gray-500">Email</div>
-                <div className="break-all font-medium text-gray-900">{user?.email || "—"}</div>
-              </div>
-
-              <div className="rounded-2xl border bg-gray-50 p-3">
-                <div className="text-xs text-gray-500">Phone</div>
-                <div className="font-medium text-gray-900">{user?.phone || "—"}</div>
-              </div>
-
-              <div className="rounded-2xl border bg-gray-50 p-3">
-                <div className="text-xs text-gray-500">Last login</div>
-                <div className="font-medium text-gray-900">
-                  {user?.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "—"}
+      <aside className="absolute right-0 top-0 h-full w-full max-w-[960px] overflow-hidden border-l border-slate-200 bg-gradient-to-b from-white to-slate-50 shadow-[0_28px_100px_rgba(15,23,42,0.22)]">
+        <div className="flex h-full flex-col">
+          <div className="border-b border-slate-200 bg-white/95 px-6 py-5 backdrop-blur">
+            <div className="flex items-start justify-between gap-5">
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-600">
+                  <ShieldCheck size={14} />
+                  Roles & Permissions
                 </div>
-              </div>
 
-              <div className="rounded-2xl border bg-gray-50 p-3">
-                <div className="text-xs text-gray-500">Current permissions</div>
-                <div className="font-medium text-gray-900">
-                  {Array.isArray(user?.permissions) ? user.permissions.length : 0}
-                </div>
-              </div>
-            </div>
-          </div>
+                <h2 className="mt-4 truncate text-3xl font-semibold tracking-tight text-slate-950">
+                  {user?.displayName || user?.email || user?.phone || "User"}
+                </h2>
 
-          <div className="space-y-4 rounded-[28px] border bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-sm font-semibold text-gray-900">RBAC Settings</div>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <span className="break-all rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-mono text-slate-600">
+                    {String(user?._id || "")}
+                  </span>
 
-              <div
-                className={[
-                  "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
-                  blocked
-                    ? "border-rose-200 bg-rose-50 text-rose-800"
-                    : "border-emerald-200 bg-emerald-50 text-emerald-800",
-                ].join(" ")}
-              >
-                {blocked ? <Ban size={14} /> : <CheckCircle2 size={14} />}
-                {blocked ? "Blocked" : "Active"}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-12">
-              <div className="md:col-span-4">
-                <div className="text-sm font-semibold text-gray-900">Role</div>
-                <select
-                  className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black"
-                  value={role}
-                  onChange={(e) => handleRoleChange(e.target.value)}
-                >
-                  {visibleRoleOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="mt-2 text-xs text-gray-500">
-                  Only assignable roles are shown here.
-                </div>
-              </div>
-
-              <div className="md:col-span-4">
-                <div className="text-sm font-semibold text-gray-900">Role Level</div>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-black"
-                  type="number"
-                  value={roleLevel}
-                  onChange={(e) => setRoleLevel(Number(e.target.value || 0))}
-                  min={0}
-                  max={100}
-                />
-                <div className="mt-2 text-xs text-gray-500">
-                  100 = Super Admin • 50 = Admin • 40 = Manager • 0 = User
-                </div>
-              </div>
-
-              <div className="md:col-span-4">
-                <div className="text-sm font-semibold text-gray-900">Block user</div>
-                <button
-                  type="button"
-                  className={[
-                    "mt-2 w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition",
-                    blocked
-                      ? "bg-emerald-600 hover:bg-emerald-700"
-                      : "bg-rose-600 hover:bg-rose-700",
-                  ].join(" ")}
-                  onClick={() => setBlocked((prev) => !prev)}
-                >
-                  {blocked ? "Unblock" : "Block"}
-                </button>
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
-              <div className="flex items-center gap-2 font-semibold">
-                <AlertTriangle size={14} />
-                Permission safety notes
-              </div>
-              <div className="mt-1">
-                Write permissions automatically include their matching read permissions.
-                Wildcard permission should only be used for true super admin accounts.
-              </div>
-            </div>
-
-            <div className="rounded-2xl border bg-gray-50 p-4">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                <KeyRound size={16} />
-                Permission Templates
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                {Object.keys(templateMap).map((template) => (
-                  <button
-                    key={template}
-                    type="button"
+                  <span
                     className={[
-                      "rounded-xl border px-3 py-2 text-xs font-semibold transition",
-                      templateApplied === template
-                        ? "bg-black text-white"
-                        : "border-gray-200 bg-white hover:bg-gray-50",
+                      "inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold",
+                      blocked
+                        ? "border-rose-200 bg-rose-50 text-rose-800"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-800",
                     ].join(" ")}
-                    onClick={() => applyTemplate(template)}
                   >
-                    {template}
-                  </button>
-                ))}
+                    {blocked ? <Ban size={13} /> : <CheckCircle2 size={13} />}
+                    {blocked ? "Blocked" : "Active"}
+                  </span>
 
-                <button
-                  type="button"
-                  className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs font-semibold transition hover:bg-gray-50"
-                  onClick={() => {
-                    setTemplateApplied("");
-                    setPerms([]);
-                  }}
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
+                  <span className="inline-flex items-center gap-1 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800">
+                    <Shield size={13} />
+                    {role} • L{roleLevel}
+                  </span>
 
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <div className="text-sm font-semibold text-gray-900">Permissions</div>
-                <div className="text-xs text-gray-500">
-                  Search, select by group and review changes before saving.
+                  {isReadOnly ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+                      <Lock size={13} />
+                      Protected
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-sky-200 bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-800">
+                      <Sparkles size={13} />
+                      Editable scope
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <div className="relative w-full sm:w-80">
-                <Search
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-                />
-                <input
-                  className="w-full rounded-2xl border border-gray-200 bg-white py-3 pl-11 pr-4 text-sm outline-none focus:ring-2 focus:ring-black"
-                  value={permSearch}
-                  onChange={(e) => setPermSearch(e.target.value)}
-                  placeholder="Search permissions"
-                />
-              </div>
+              <button
+                type="button"
+                className="rounded-2xl p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
+                onClick={onClose}
+                aria-label="Close"
+              >
+                <X size={20} />
+              </button>
             </div>
+          </div>
 
-            <div className="space-y-4">
-              {filteredGroups.length ? (
-                filteredGroups.map((group) => {
-                  const name = String(group?.name || "Group");
-                  const items = normalizePermissions(group?.items || []);
-                  const selectedCount = items.filter((p) => has(p)).length;
-                  const isCollapsed = Boolean(collapsed[name]);
+          <div className="flex-1 overflow-y-auto px-6 py-6">
+            <div className="space-y-6">
+              {isReadOnly ? (
+                <section className="rounded-[30px] border border-amber-200 bg-amber-50 p-5">
+                  <div className="flex items-start gap-4">
+                    <div className="rounded-2xl bg-white p-3 text-amber-700 shadow-sm">
+                      <Lock size={18} />
+                    </div>
 
-                  return (
-                    <div key={name} className="rounded-2xl border p-4">
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <button
-                          type="button"
-                          className="flex items-center gap-2 text-left"
-                          onClick={() =>
-                            setCollapsed((prev) => ({ ...prev, [name]: !prev[name] }))
-                          }
-                        >
-                          {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                    <div className="min-w-0">
+                      <div className="text-base font-semibold text-amber-950">
+                        {restriction.reasonTitle}
+                      </div>
+                      <p className="mt-2 text-sm leading-7 text-amber-900/90">
+                        {restriction.reasonText}
+                      </p>
 
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900">{name}</div>
-                            <div className="text-xs text-gray-500">
-                              {selectedCount}/{items.length} selected
-                            </div>
+                      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+                        <div className="rounded-3xl border border-amber-200 bg-white/80 p-4">
+                          <div className="text-sm font-semibold text-amber-950">
+                            What you can do
                           </div>
-                        </button>
+                          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-amber-900">
+                            <li>Review the current role, level, status, and permission scope.</li>
+                            <li>Inspect identity details and recent access context.</li>
+                            <li>Use this view as a governance reference before escalation.</li>
+                          </ul>
+                        </div>
 
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            type="button"
-                            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold transition hover:bg-gray-50"
-                            onClick={() => setGroupItems(items, "add")}
-                          >
-                            Select all
-                          </button>
-
-                          <button
-                            type="button"
-                            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold transition hover:bg-gray-50"
-                            onClick={() => setGroupItems(items, "remove")}
-                          >
-                            Clear group
-                          </button>
+                        <div className="rounded-3xl border border-amber-200 bg-white/80 p-4">
+                          <div className="text-sm font-semibold text-amber-950">
+                            What is restricted
+                          </div>
+                          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm leading-6 text-amber-900">
+                            <li>Role reassignment and role level updates.</li>
+                            <li>Permission grants, removals, and template application.</li>
+                            <li>Blocking, unblocking, and account deletion.</li>
+                          </ul>
                         </div>
                       </div>
-
-                      {!isCollapsed ? (
-                        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                          {items.map((permission) => (
-                            <label
-                              key={permission}
-                              className="flex items-center gap-2 rounded-xl border bg-gray-50 px-3 py-2 text-sm"
-                            >
-                              <input
-                                type="checkbox"
-                                className="checkbox checkbox-sm"
-                                checked={has(permission)}
-                                onChange={() => toggle(permission)}
-                              />
-                              <span className="font-mono text-[13px]">{permission}</span>
-                            </label>
-                          ))}
-                        </div>
-                      ) : null}
                     </div>
-                  );
-                })
-              ) : (
-                <div className="rounded-2xl border bg-gray-50 p-4 text-sm text-gray-600">
-                  No matching permissions found.
-                </div>
-              )}
-            </div>
+                  </div>
+                </section>
+              ) : null}
 
-            <div className="rounded-2xl border bg-gray-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-gray-900">Selected</div>
-                <div className="text-xs text-gray-500">
-                  {perms.length} permission(s) selected
-                </div>
-              </div>
+              <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                  icon={<User2 size={16} />}
+                  label="Display name"
+                  value={user?.displayName || "—"}
+                />
+                <StatCard
+                  icon={<Mail size={16} />}
+                  label="Email"
+                  value={user?.email || "—"}
+                />
+                <StatCard
+                  icon={<Phone size={16} />}
+                  label="Phone"
+                  value={user?.phone || "—"}
+                />
+                <StatCard
+                  icon={<Clock3 size={16} />}
+                  label="Last login"
+                  value={user?.lastLoginAt ? new Date(user.lastLoginAt).toLocaleString() : "—"}
+                />
+              </section>
 
-              <div className="mt-3 flex flex-wrap gap-2">
-                {perms.length ? (
-                  perms.map((permission) => (
-                    <span
-                      key={permission}
-                      className="inline-flex items-center gap-2 rounded-full border bg-white px-3 py-1 text-xs font-mono"
+              <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+                      <SlidersHorizontal size={14} />
+                      Access governance
+                    </div>
+                    <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">
+                      Administrative controls
+                    </h3>
+                    <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-600">
+                      Review administrative scope, account state, and effective permissions before
+                      submitting any changes. High-impact actions should be confirmed only after the
+                      intended access model has been validated.
+                    </p>
+                  </div>
+
+                  <div
+                    className={[
+                      "inline-flex items-center gap-2 self-start rounded-full border px-3 py-1 text-xs font-semibold",
+                      blocked
+                        ? "border-rose-200 bg-rose-50 text-rose-800"
+                        : "border-emerald-200 bg-emerald-50 text-emerald-800",
+                    ].join(" ")}
+                  >
+                    {blocked ? <Ban size={14} /> : <BadgeCheck size={14} />}
+                    {blocked ? "Blocked" : "Active"}
+                  </div>
+                </div>
+
+                <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-900">Role</label>
+                    <select
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                      value={role}
+                      onChange={(e) => handleRoleChange(e.target.value)}
+                      disabled={isReadOnly}
                     >
-                      {permission}
+                      {visibleRoleOptions.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      Only roles within your delegated authority are available.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold text-slate-900">Role level</label>
+                    <input
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                      type="number"
+                      value={roleLevel}
+                      onChange={(e) => setRoleLevel(Number(e.target.value || 0))}
+                      min={0}
+                      max={100}
+                      disabled={isReadOnly}
+                    />
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      100 = Super Admin • 50 = Admin • 40 = Manager • 0 = User
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="text-sm font-semibold text-slate-900">Account status</label>
+                    <button
+                      type="button"
+                      className={[
+                        "mt-2 w-full rounded-2xl px-4 py-3 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60",
+                        blocked
+                          ? "bg-emerald-600 hover:bg-emerald-700"
+                          : "bg-rose-600 hover:bg-rose-700",
+                      ].join(" ")}
+                      onClick={() => setBlocked((prev) => !prev)}
+                      disabled={isReadOnly}
+                    >
+                      {blocked ? "Restore access" : "Suspend access"}
+                    </button>
+                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                      Suspended accounts cannot sign in until access is restored.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-3xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                    <AlertTriangle size={15} />
+                    Permission governance guidance
+                  </div>
+                  <p className="mt-2 text-sm leading-7 text-amber-900/90">
+                    Write permissions automatically include their corresponding read permissions.
+                    Wildcard access should only be granted to fully authorized super administrator
+                    accounts with a documented operational requirement.
+                  </p>
+                </div>
+              </section>
+
+              <section className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+                  <div>
+                    <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+                      <KeyRound size={14} />
+                      Permission operations
+                    </div>
+                    <h3 className="mt-3 text-xl font-semibold tracking-tight text-slate-950">
+                      Templates and permission catalog
+                    </h3>
+                    <p className="mt-2 text-sm leading-7 text-slate-600">
+                      Apply a template, refine the permission set by group, and inspect the
+                      effective result before saving.
+                    </p>
+                  </div>
+
+                  <div className="relative w-full xl:w-80">
+                    <Search
+                      size={16}
+                      className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                    />
+                    <input
+                      className="w-full rounded-2xl border border-slate-200 bg-white py-3 pl-11 pr-4 text-sm outline-none transition focus:ring-2 focus:ring-slate-900 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-500"
+                      value={permSearch}
+                      onChange={(e) => setPermSearch(e.target.value)}
+                      placeholder="Search permissions"
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="text-sm font-semibold text-slate-900">Permission templates</div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {Object.keys(templateMap).map((template) => (
                       <button
+                        key={template}
                         type="button"
-                        className="opacity-70 transition hover:opacity-100"
-                        onClick={() => toggle(permission)}
+                        className={[
+                          "rounded-2xl border px-3.5 py-2.5 text-xs font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
+                          templateApplied === template
+                            ? "border-slate-950 bg-slate-950 text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
+                        ].join(" ")}
+                        onClick={() => applyTemplate(template)}
+                        disabled={isReadOnly}
                       >
-                        <X size={12} />
+                        {template}
                       </button>
-                    </span>
-                  ))
-                ) : (
-                  <span className="text-xs text-gray-500">No permissions selected</span>
-                )}
-              </div>
-            </div>
+                    ))}
 
-            <div className="rounded-2xl border bg-white p-4">
-              <div className="text-sm font-semibold text-gray-900">Change summary</div>
-
-              {diff.changes.length ? (
-                <div className="mt-3 space-y-2">
-                  {diff.changes.map((item, index) => (
-                    <div
-                      key={`${item.type}-${index}`}
-                      className="rounded-xl border bg-gray-50 px-3 py-2 text-sm text-gray-700"
+                    <button
+                      type="button"
+                      className="rounded-2xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      onClick={() => {
+                        if (isReadOnly) return;
+                        setTemplateApplied("");
+                        setPerms([]);
+                      }}
+                      disabled={isReadOnly}
                     >
-                      {item.label}
-                    </div>
-                  ))}
+                      Clear
+                    </button>
+                  </div>
                 </div>
-              ) : (
-                <div className="mt-2 text-xs text-gray-500">No changes yet</div>
-              )}
-            </div>
 
-            <button
-              type="button"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:opacity-60"
-              disabled={saving}
-              onClick={() =>
-                onSave?.({
-                  role,
-                  roleLevel,
-                  blocked,
-                  permissions: withPermissionDependencies(perms),
-                })
-              }
-            >
-              {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-              Save changes
-            </button>
+                <div className="mt-6 space-y-4">
+                  {filteredGroups.length ? (
+                    filteredGroups.map((group) => {
+                      const name = String(group?.name || "Group");
+                      const items = normalizePermissions(group?.items || []);
+                      const selectedCount = items.filter((p) => has(p)).length;
+                      const isCollapsed = Boolean(collapsed[name]);
+
+                      return (
+                        <div key={name} className="rounded-3xl border border-slate-200 bg-white p-5">
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <button
+                              type="button"
+                              className="flex items-center gap-3 text-left"
+                              onClick={() =>
+                                setCollapsed((prev) => ({ ...prev, [name]: !prev[name] }))
+                              }
+                            >
+                              <div className="rounded-xl bg-slate-50 p-2 text-slate-600">
+                                {isCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                              </div>
+
+                              <div>
+                                <div className="text-sm font-semibold text-slate-900">{name}</div>
+                                <div className="text-xs text-slate-500">
+                                  {selectedCount}/{items.length} selected
+                                </div>
+                              </div>
+                            </button>
+
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                onClick={() => setGroupItems(items, "add")}
+                                disabled={isReadOnly}
+                              >
+                                Select all
+                              </button>
+
+                              <button
+                                type="button"
+                                className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                onClick={() => setGroupItems(items, "remove")}
+                                disabled={isReadOnly}
+                              >
+                                Clear group
+                              </button>
+                            </div>
+                          </div>
+
+                          {!isCollapsed ? (
+                            <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
+                              {items.map((permission) => (
+                                <label
+                                  key={permission}
+                                  className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    className="checkbox checkbox-sm"
+                                    checked={has(permission)}
+                                    onChange={() => toggle(permission)}
+                                    disabled={isReadOnly}
+                                  />
+                                  <span className="font-mono text-[13px] text-slate-800">
+                                    {permission}
+                                  </span>
+                                </label>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  ) : (
+                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                      No matching permissions were found for the current search.
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+                <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-base font-semibold text-slate-900">
+                      Selected permissions
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {perms.length} permission(s) selected
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {perms.length ? (
+                      perms.map((permission) => (
+                        <span
+                          key={permission}
+                          className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-mono text-slate-800"
+                        >
+                          {permission}
+                          {!isReadOnly ? (
+                            <button
+                              type="button"
+                              className="opacity-70 transition hover:opacity-100"
+                              onClick={() => toggle(permission)}
+                            >
+                              <X size={12} />
+                            </button>
+                          ) : null}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-sm text-slate-500">No permissions selected</span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-[30px] border border-slate-200 bg-white p-6 shadow-sm">
+                  <div className="text-base font-semibold text-slate-900">Change summary</div>
+
+                  {diff.changes.length && !isReadOnly ? (
+                    <div className="mt-4 space-y-2">
+                      {diff.changes.map((item, index) => (
+                        <div
+                          key={`${item.type}-${index}`}
+                          className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700"
+                        >
+                          {item.label}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-3 text-sm leading-7 text-slate-500">
+                      {isReadOnly
+                        ? "This view is presented in read-only mode."
+                        : "No changes have been prepared yet."}
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <section className="rounded-[30px] border border-slate-200 bg-slate-50 p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
+                  <ShieldCheck size={15} />
+                  Enforcement note
+                </div>
+                <p className="mt-2 text-sm leading-7 text-slate-600">
+                  Final role and permission enforcement is validated on the server using the
+                  persisted role, role level, and permission set associated with the target account.
+                  This administrative surface is designed to prepare safe updates and present
+                  governance context before submission.
+                </p>
+              </section>
+            </div>
           </div>
 
-          <div className="rounded-[28px] border bg-gray-50 p-5 text-xs text-gray-600">
-            <div className="flex items-center gap-2 font-semibold text-gray-800">
-              <ShieldCheck size={14} />
-              Access note
-            </div>
-            <div className="mt-1">
-              Final RBAC enforcement happens on the server using DB-loaded role, role level
-              and permissions. This UI only manages the configuration safely.
+          <div className="border-t border-slate-200 bg-white/95 px-6 py-5 backdrop-blur">
+            <div className="grid grid-cols-1 gap-3 lg:grid-cols-[1fr_1fr]">
+              <button
+                type="button"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-950 px-4 py-3.5 text-sm font-semibold text-white transition hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={saving || isReadOnly}
+                onClick={() =>
+                  onSave?.({
+                    role,
+                    roleLevel,
+                    blocked,
+                    permissions: withPermissionDependencies(perms),
+                  })
+                }
+              >
+                {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                Save changes
+              </button>
+
+              <button
+                type="button"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={deleting || saving || isReadOnly}
+                onClick={() => onDelete?.(user)}
+              >
+                {deleting ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Trash2 size={16} />
+                )}
+                Delete user
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }
@@ -925,6 +1147,10 @@ export default function AdminRolesPage() {
   function toggleSelect(id) {
     const key = String(id || "");
     if (!key) return;
+    if (String(key) === getActorId(actorUser)) {
+      toast.error("Your own account cannot be included in bulk administrative actions.");
+      return;
+    }
 
     setSelectedIds((prev) =>
       prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]
@@ -932,7 +1158,11 @@ export default function AdminRolesPage() {
   }
 
   function toggleSelectAllOnPage() {
-    const pageIds = users.map((u) => String(u?._id || "")).filter(Boolean);
+    const pageIds = users
+      .map((u) => String(u?._id || ""))
+      .filter(Boolean)
+      .filter((id) => id !== getActorId(actorUser));
+
     const allSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.includes(id));
 
     if (allSelected) {
@@ -973,6 +1203,24 @@ export default function AdminRolesPage() {
           }
         : prev;
     });
+  }
+
+  function removeUserFromCaches(userId) {
+    const key = String(userId || "");
+    if (!key) return;
+
+    qc.setQueriesData({ queryKey: ["admin-users"] }, (old) => {
+      if (!old?.users) return old;
+      const nextUsers = old.users.filter((u) => String(u?._id || "") !== key);
+      return {
+        ...old,
+        users: nextUsers,
+        total: Math.max(0, Number(old?.total || 0) - 1),
+      };
+    });
+
+    setSelectedIds((prev) => prev.filter((id) => id !== key));
+    setDrawerUser((prev) => (String(prev?._id || "") === key ? null : prev));
   }
 
   React.useEffect(() => {
@@ -1045,8 +1293,25 @@ export default function AdminRolesPage() {
           };
 
       mergeUpdatedUserIntoCaches(updatedUser);
-      toast.success("RBAC updated");
+      toast.success("Access settings updated successfully.");
       setDrawerUser(null);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const { data } = await api.delete(`/users/admin/${id}`);
+      return { data, id };
+    },
+    onError: (err) => {
+      toast.error(getErrorMessage(err));
+    },
+    onSuccess: ({ data, id }) => {
+      removeUserFromCaches(data?.deletedUserId || id);
+      toast.success(data?.message || "User account deleted successfully.");
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ["admin-users"] });
@@ -1090,10 +1355,12 @@ export default function AdminRolesPage() {
       const failed = Number(data?.failedCount || 0);
 
       if (failed > 0) {
-        toast.success(`Bulk update completed: ${count} success, ${failed} failed`);
+        toast.success(
+          `Bulk update completed: ${count} succeeded, ${failed} could not be processed.`
+        );
       } else {
         const totalChanged = Array.isArray(vars?.userIds) ? vars.userIds.length : count;
-        toast.success(`Bulk update completed for ${totalChanged} user(s)`);
+        toast.success(`Bulk update completed for ${totalChanged} user account(s).`);
       }
 
       setSelectedIds([]);
@@ -1110,6 +1377,20 @@ export default function AdminRolesPage() {
     const id = user?._id;
     if (!id) return;
 
+    if (isSelfTarget(actorUser, user)) {
+      toast.error(
+        "Your own access cannot be changed from this workspace. Ask another authorized administrator to review your account."
+      );
+      return;
+    }
+
+    if (!canManageTargetOnClient(actorUser, user)) {
+      toast.error(
+        "This account is protected. You can only manage accounts below your current access level."
+      );
+      return;
+    }
+
     const isBlock = Boolean(next.blocked) && !Boolean(user?.isBlocked);
     const demote =
       String(user?.role || "") === "admin" &&
@@ -1118,10 +1399,10 @@ export default function AdminRolesPage() {
     if (isBlock || demote) {
       setConfirm({
         open: true,
-        title: isBlock ? "Block this user?" : "Demote admin access?",
+        title: isBlock ? "Suspend access for this account?" : "Reduce privileged access?",
         description: isBlock
-          ? "This will prevent the user from accessing the system."
-          : "This change may remove privileged access from this account.",
+          ? "This action will prevent the user from signing in until access is restored by an authorized administrator."
+          : "This action may remove elevated administrative capability from the selected account. Please confirm that the revised access scope is correct before continuing.",
         payload: { type: "single-save", id, next },
       });
       return;
@@ -1130,9 +1411,48 @@ export default function AdminRolesPage() {
     saveMutation.mutate({ id, next });
   }
 
+  function requestDelete(user) {
+    const id = String(user?._id || "");
+    if (!id) return;
+
+    if (isSelfTarget(actorUser, user)) {
+      toast.error(
+        "Your own account cannot be deleted from this interface. A separate authorized administrator must handle that request."
+      );
+      return;
+    }
+
+    if (!canManageTargetOnClient(actorUser, user)) {
+      toast.error(
+        "This account is protected. You can only delete accounts below your current access level."
+      );
+      return;
+    }
+
+    setConfirm({
+      open: true,
+      title: "Delete this user account?",
+      description:
+        "This action removes the account from active access management, immediately blocks sign-in, and preserves an audit record of the deletion event. This action should only be used when the account is no longer required.",
+      note:
+        "Deletion from this workspace is designed as a governed administrative action. Please confirm that the account is no longer needed for operational access before continuing.",
+      payload: {
+        type: "delete-user",
+        id,
+      },
+    });
+  }
+
   function requestBulkAction() {
     if (!selectedIds.length || !bulkAction) {
-      toast.error("Select user(s) and a bulk action first.");
+      toast.error("Select one or more user accounts and choose a bulk action first.");
+      return;
+    }
+
+    const sanitizedIds = selectedIds.filter((id) => id !== getActorId(actorUser));
+
+    if (!sanitizedIds.length) {
+      toast.error("Your own account cannot be included in bulk administrative actions.");
       return;
     }
 
@@ -1142,40 +1462,44 @@ export default function AdminRolesPage() {
       bulkAction === "clear-permissions";
 
     const labelMap = {
-      block: "Block selected users?",
-      unblock: "Unblock selected users?",
-      "make-admin": "Promote selected users to admin?",
-      "make-user": "Demote selected users to user?",
-      "clear-permissions": "Clear permissions for selected users?",
-      "apply-template": "Apply permission template to selected users?",
-      "grant-admin-readonly": "Grant read-only admin access to selected users?",
+      block: "Suspend access for selected users?",
+      unblock: "Restore access for selected users?",
+      "make-admin": "Grant admin role to selected users?",
+      "make-user": "Remove elevated role access from selected users?",
+      "clear-permissions": "Clear explicit permissions for selected users?",
+      "apply-template": "Apply the selected permission template?",
+      "grant-admin-readonly": "Grant read-only admin access?",
     };
 
     const descMap = {
-      block: "Selected accounts will be blocked from accessing the system.",
-      unblock: "Selected accounts will regain access to the system.",
-      "make-admin": "Selected accounts will get admin role and elevated access.",
-      "make-user": "Selected accounts will lose admin-style role access.",
-      "clear-permissions": "Selected accounts will lose all explicit permissions.",
-      "apply-template": `Template "${bulkTemplate || "—"}" will be applied to selected users.`,
+      block: "Selected accounts will be prevented from signing in until access is restored.",
+      unblock:
+        "Selected accounts will be allowed to sign in again if no other restriction applies.",
+      "make-admin":
+        "Selected accounts will receive administrative role assignment and elevated operational access.",
+      "make-user":
+        "Selected accounts will be returned to a standard user role and will lose elevated role access.",
+      "clear-permissions":
+        "Selected accounts will lose all explicit permission assignments that are currently stored.",
+      "apply-template": `The template "${bulkTemplate || "—"}" will be applied to the selected accounts.`,
       "grant-admin-readonly":
-        "Selected accounts will receive a read-only admin permission set.",
+        "Selected accounts will receive a restricted, read-oriented administrative access set.",
     };
 
     if (bulkAction === "apply-template" && !bulkTemplate) {
-      toast.error("Choose a template first.");
+      toast.error("Choose a permission template before applying this bulk action.");
       return;
     }
 
     if (danger) {
       setConfirm({
         open: true,
-        title: labelMap[bulkAction] || "Run bulk action?",
-        description: descMap[bulkAction] || "This will update selected users.",
+        title: labelMap[bulkAction] || "Apply bulk action?",
+        description: descMap[bulkAction] || "This action will update the selected user accounts.",
         payload: {
           type: "bulk-action",
           action: bulkAction,
-          userIds: selectedIds,
+          userIds: sanitizedIds,
           templateName: bulkTemplate,
         },
       });
@@ -1184,7 +1508,7 @@ export default function AdminRolesPage() {
 
     bulkMutation.mutate({
       action: bulkAction,
-      userIds: selectedIds,
+      userIds: sanitizedIds,
       templateName: bulkTemplate,
     });
   }
@@ -1194,6 +1518,10 @@ export default function AdminRolesPage() {
 
     if (payload?.type === "single-save" && payload?.id && payload?.next) {
       saveMutation.mutate({ id: payload.id, next: payload.next });
+    }
+
+    if (payload?.type === "delete-user" && payload?.id) {
+      deleteMutation.mutate(payload.id);
     }
 
     if (payload?.type === "bulk-action" && payload?.action && Array.isArray(payload?.userIds)) {
@@ -1208,12 +1536,15 @@ export default function AdminRolesPage() {
   }
 
   function onCloseConfirm() {
-    if (saveMutation.isPending || bulkMutation.isPending) return;
+    if (saveMutation.isPending || bulkMutation.isPending || deleteMutation.isPending) return;
     setConfirm({ open: false, title: "", description: "", payload: null });
   }
 
   const allPageSelected =
-    users.length > 0 && users.every((u) => selectedIds.includes(String(u?._id || "")));
+    users.filter((u) => String(u?._id || "") !== getActorId(actorUser)).length > 0 &&
+    users
+      .filter((u) => String(u?._id || "") !== getActorId(actorUser))
+      .every((u) => selectedIds.includes(String(u?._id || "")));
 
   return (
     <div className="space-y-6">
@@ -1221,10 +1552,11 @@ export default function AdminRolesPage() {
         open={confirm.open}
         title={confirm.title}
         description={confirm.description}
+        note={confirm.note}
         confirmText="Yes, continue"
         cancelText="Cancel"
         tone="danger"
-        busy={saveMutation.isPending || bulkMutation.isPending}
+        busy={saveMutation.isPending || bulkMutation.isPending || deleteMutation.isPending}
         onConfirm={onConfirm}
         onClose={onCloseConfirm}
       />
@@ -1234,12 +1566,14 @@ export default function AdminRolesPage() {
         user={drawerUser}
         catalog={catalogQuery.data}
         saving={saveMutation.isPending}
+        deleting={deleteMutation.isPending}
         actorUser={actorUser}
         onClose={() => {
-          if (saveMutation.isPending) return;
+          if (saveMutation.isPending || deleteMutation.isPending) return;
           setDrawerUser(null);
         }}
         onSave={(next) => requestSave(drawerUser, next)}
+        onDelete={(user) => requestDelete(user)}
       />
 
       <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm">
@@ -1261,6 +1595,12 @@ export default function AdminRolesPage() {
               <span>
                 Selected: <span className="font-semibold text-gray-900">{selectedIds.length}</span>
               </span>
+            </div>
+
+            <div className="mt-3 rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-600">
+              This workspace applies separation-of-duties safeguards. Administrators cannot change
+              their own access from this page, and protected accounts remain read-only when they are
+              outside the current operator’s authority.
             </div>
           </div>
 
@@ -1428,7 +1768,7 @@ export default function AdminRolesPage() {
           <div>
             <div className="text-sm font-semibold text-gray-900">Bulk actions</div>
             <div className="mt-1 text-xs text-gray-500">
-              Select users from the table and apply an action.
+              Select eligible user accounts from the table and apply a governed bulk action.
             </div>
           </div>
 
@@ -1516,7 +1856,7 @@ export default function AdminRolesPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px]">
+            <table className="w-full min-w-[1260px]">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/80 text-left text-xs uppercase tracking-[0.14em] text-gray-500">
                   <th className="px-4 py-4 font-semibold">
@@ -1595,77 +1935,105 @@ export default function AdminRolesPage() {
               </thead>
 
               <tbody>
-                {users.map((u) => (
-                  <tr
-                    key={u?._id}
-                    className="border-b border-gray-100 transition hover:bg-gray-50/70 last:border-b-0"
-                  >
-                    <td className="px-4 py-4">
-                      <button
-                        type="button"
-                        className="inline-flex items-center justify-center"
-                        onClick={() => toggleSelect(u?._id)}
-                        aria-label="Select row"
-                      >
-                        {isSelected(u?._id) ? <CheckSquare size={18} /> : <Square size={18} />}
-                      </button>
-                    </td>
+                {users.map((u) => {
+                  const selfRow = isSelfTarget(actorUser, u);
+                  const canManage = canManageTargetOnClient(actorUser, u);
+                  const protectedRow = selfRow || !canManage;
 
-                    <td className="px-4 py-4">
-                      <div className="max-w-[260px] truncate font-semibold text-gray-900">
-                        {u?.displayName || "—"}
-                      </div>
-                      <div className="max-w-[260px] truncate text-sm text-gray-500">
-                        {u?.email || u?.phone || "—"}
-                      </div>
-                      <div className="max-w-[260px] truncate font-mono text-xs text-gray-500">
-                        {String(u?._id || "")}
-                      </div>
-                    </td>
+                  return (
+                    <tr
+                      key={u?._id}
+                      className="border-b border-gray-100 transition hover:bg-gray-50/70 last:border-b-0"
+                    >
+                      <td className="px-4 py-4">
+                        <button
+                          type="button"
+                          className="inline-flex items-center justify-center disabled:cursor-not-allowed disabled:opacity-40"
+                          onClick={() => toggleSelect(u?._id)}
+                          aria-label="Select row"
+                          disabled={selfRow}
+                        >
+                          {isSelected(u?._id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                        </button>
+                      </td>
 
-                    <td className="px-4 py-4 font-semibold text-gray-900">
-                      {String(u?.role || "user")}
-                    </td>
+                      <td className="px-4 py-4">
+                        <div className="max-w-[260px] truncate font-semibold text-gray-900">
+                          {u?.displayName || "—"}
+                        </div>
+                        <div className="max-w-[260px] truncate text-sm text-gray-500">
+                          {u?.email || u?.phone || "—"}
+                        </div>
+                        <div className="max-w-[260px] truncate font-mono text-xs text-gray-500">
+                          {String(u?._id || "")}
+                        </div>
+                      </td>
 
-                    <td className="px-4 py-4 font-semibold text-gray-900">
-                      {Number(u?.roleLevel || 0)}
-                    </td>
+                      <td className="px-4 py-4 font-semibold text-gray-900">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span>{String(u?.role || "user")}</span>
+                          {selfRow ? (
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-800">
+                              <UserCog size={12} />
+                              You
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
 
-                    <td className="px-4 py-4 text-sm text-gray-700">
-                      {Array.isArray(u?.permissions) && u.permissions.length
-                        ? `${u.permissions.length} permission(s)`
-                        : "—"}
-                    </td>
+                      <td className="px-4 py-4 font-semibold text-gray-900">
+                        {Number(u?.roleLevel || 0)}
+                      </td>
 
-                    <td className="px-4 py-4">
-                      <span
-                        className={[
-                          "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
-                          u?.isBlocked
-                            ? "border-rose-200 bg-rose-50 text-rose-800"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-800",
-                        ].join(" ")}
-                      >
-                        {u?.isBlocked ? "BLOCKED" : "ACTIVE"}
-                      </span>
-                    </td>
+                      <td className="px-4 py-4 text-sm text-gray-700">
+                        {Array.isArray(u?.permissions) && u.permissions.length
+                          ? `${u.permissions.length} permission(s)`
+                          : "—"}
+                      </td>
 
-                    <td className="px-4 py-4 text-sm text-gray-600">
-                      {u?.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "—"}
-                    </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={[
+                              "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold",
+                              u?.isBlocked
+                                ? "border-rose-200 bg-rose-50 text-rose-800"
+                                : "border-emerald-200 bg-emerald-50 text-emerald-800",
+                            ].join(" ")}
+                          >
+                            {u?.isBlocked ? "BLOCKED" : "ACTIVE"}
+                          </span>
 
-                    <td className="px-4 py-4 text-right">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                        onClick={() => setDrawerUser(u)}
-                      >
-                        <Eye size={16} />
-                        Manage
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                          {protectedRow ? (
+                            <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">
+                              PROTECTED
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+
+                      <td className="px-4 py-4 text-sm text-gray-600">
+                        {u?.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "—"}
+                      </td>
+
+                      <td className="px-4 py-4 text-right">
+                        <button
+                          type="button"
+                          className={[
+                            "inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition",
+                            protectedRow
+                              ? "border-amber-200 bg-amber-50 text-amber-800 hover:bg-amber-100"
+                              : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                          ].join(" ")}
+                          onClick={() => setDrawerUser(u)}
+                        >
+                          {protectedRow ? <Lock size={16} /> : <Eye size={16} />}
+                          {protectedRow ? "View policy" : "Manage"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
