@@ -78,7 +78,7 @@ function prettyStatus(status) {
 function OrderSkeleton() {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50">
-      <div className="container mx-auto px-6 py-8 space-y-6">
+      <div className="site-shell space-y-6 py-8">
         <div className="rounded-2xl border bg-white p-6 shadow-sm">
           <div className="skeleton h-4 w-40 rounded-lg" />
           <div className="mt-3 skeleton h-8 w-72 rounded-lg" />
@@ -88,8 +88,8 @@ function OrderSkeleton() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 rounded-2xl border bg-white p-6 shadow-sm">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+          <div className="rounded-2xl border bg-white p-6 shadow-sm lg:col-span-8">
             <div className="skeleton h-5 w-36 rounded-lg" />
             <div className="mt-4 space-y-3">
               <div className="skeleton h-20 w-full rounded-2xl" />
@@ -98,7 +98,7 @@ function OrderSkeleton() {
             </div>
           </div>
 
-          <div className="lg:col-span-4 rounded-2xl border bg-white p-6 shadow-sm space-y-4">
+          <div className="space-y-4 rounded-2xl border bg-white p-6 shadow-sm lg:col-span-4">
             <div className="skeleton h-5 w-32 rounded-lg" />
             <div className="skeleton h-4 w-full rounded-lg" />
             <div className="skeleton h-4 w-5/6 rounded-lg" />
@@ -132,7 +132,7 @@ function EmptyLookupCard({ phone, setPhone }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="01XXXXXXXXX"
-              className="input input-bordered w-full rounded-2xl bg-white border-gray-200 mt-2"
+              className="input input-bordered mt-2 w-full rounded-2xl border-gray-200 bg-white"
               autoComplete="tel"
             />
           </div>
@@ -162,7 +162,7 @@ function InfoRow({ icon, label, value }) {
         <div className="text-xs uppercase tracking-wide text-gray-500">
           {label}
         </div>
-        <div className="mt-1 text-sm font-medium text-gray-900 break-words">
+        <div className="mt-1 break-words text-sm font-medium text-gray-900">
           {value || "-"}
         </div>
       </div>
@@ -298,24 +298,24 @@ export default function OrderConfirmationPage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50">
-      <div className="container mx-auto px-6 py-8 space-y-6">
+      <div className="site-shell space-y-6 py-8">
         <div className="rounded-2xl border bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <div className="text-sm text-gray-500 flex items-center gap-2">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
                 <span>Order confirmation</span>
                 <span className="inline-flex items-center gap-1 rounded-full border bg-gray-50 px-3 py-1 text-xs text-gray-700">
                   <ShieldCheck size={14} /> Secure
                 </span>
               </div>
 
-              <h1 className="mt-2 text-2xl md:text-3xl font-bold tracking-tight text-gray-900">
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">
                 {order?._id
                   ? "Thank you! Your order has been placed."
                   : "Track your order"}
               </h1>
 
-              <p className="mt-2 text-gray-600 max-w-2xl">
+              <p className="mt-2 max-w-2xl text-gray-600">
                 {order?._id
                   ? "Your order is recorded successfully. You can review item details, shipping information, and order summary below."
                   : "Use this page to review your order details after checkout."}
@@ -343,14 +343,14 @@ export default function OrderConfirmationPage() {
             <div className="flex flex-wrap gap-3">
               <Link
                 to="/shop"
-                className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
+                className="btn btn-outline rounded-2xl border-gray-200 bg-white hover:bg-gray-50"
               >
                 <ArrowLeft size={16} /> Continue shopping
               </Link>
 
               <Link
                 to={isAuthed ? "/account/orders" : "/cart"}
-                className="btn rounded-2xl bg-black text-white hover:bg-gray-900 border-0"
+                className="btn rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
               >
                 {isAuthed ? "My orders" : "View cart"}
               </Link>
@@ -366,7 +366,7 @@ export default function OrderConfirmationPage() {
               <button
                 type="submit"
                 disabled={!sanitizePhone(phoneInput) || submittingLookup}
-                className="btn rounded-2xl bg-black text-white hover:bg-gray-900 border-0"
+                className="btn rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
               >
                 {submittingLookup ? (
                   <span className="inline-flex items-center gap-2">
@@ -381,7 +381,7 @@ export default function OrderConfirmationPage() {
               <Link
                 to="/signin"
                 state={{ from: `/order-confirmation/${id}` }}
-                className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
+                className="btn btn-outline rounded-2xl border-gray-200 bg-white hover:bg-gray-50"
               >
                 Sign in instead
               </Link>
@@ -392,8 +392,8 @@ export default function OrderConfirmationPage() {
         {error && !order ? <ErrorCard message={error} /> : null}
 
         {order?._id ? (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-8 space-y-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div className="space-y-6 lg:col-span-8">
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
                 <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
                   <ShoppingBag size={18} />
@@ -423,19 +423,19 @@ export default function OrderConfirmationPage() {
                           key={`${title}-${idx}`}
                           className="flex items-center gap-3 rounded-2xl border p-3"
                         >
-                          <div className="w-14 h-14 rounded-2xl bg-gray-100 border overflow-hidden flex-shrink-0">
+                          <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl border bg-gray-100">
                             {image ? (
                               <img
                                 src={image}
                                 alt={title}
-                                className="w-full h-full object-cover"
+                                className="h-full w-full object-cover"
                                 loading="lazy"
                               />
                             ) : null}
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="text-sm font-semibold text-gray-900 truncate">
+                            <div className="truncate text-sm font-semibold text-gray-900">
                               {title}
                             </div>
                             <div className="text-xs text-gray-500">
@@ -463,7 +463,7 @@ export default function OrderConfirmationPage() {
                   Shipping details
                 </div>
 
-                <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
                   <InfoRow icon={User} label="Recipient" value={shipping?.name} />
                   <InfoRow icon={Phone} label="Phone" value={shipping?.phone} />
                   <InfoRow
@@ -497,7 +497,7 @@ export default function OrderConfirmationPage() {
               </div>
             </div>
 
-            <div className="lg:col-span-4 space-y-6">
+            <div className="space-y-6 lg:col-span-4">
               <div className="rounded-2xl border bg-white p-6 shadow-sm">
                 <div className="text-lg font-semibold text-gray-900">
                   Order summary
@@ -565,7 +565,7 @@ export default function OrderConfirmationPage() {
                           : ""
                       }`,
                     }}
-                    className="btn mt-4 w-full rounded-2xl bg-black text-white hover:bg-gray-900 border-0"
+                    className="btn mt-4 w-full rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
                   >
                     Sign in now
                   </Link>

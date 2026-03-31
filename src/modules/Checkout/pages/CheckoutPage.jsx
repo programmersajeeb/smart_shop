@@ -335,7 +335,7 @@ export default function CheckoutPage() {
         onClose={() => (busy ? null : setConfirm(false))}
       />
 
-      <div className="container mx-auto space-y-6 px-6 py-8">
+      <div className="site-shell space-y-6 py-8">
         <div className="flex flex-col gap-4 rounded-2xl border bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
             <div className="flex items-center gap-2 text-sm text-gray-500">

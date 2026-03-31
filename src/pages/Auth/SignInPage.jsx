@@ -330,7 +330,7 @@ export default function SignInPage() {
   return (
     <div className="auth-shell min-h-[calc(100vh-64px)]">
       <div className="border-b border-gray-200 bg-white/80 backdrop-blur-xl">
-        <div className="container mx-auto px-6 py-4">
+        <div className="site-shell py-4">
           <div className="breadcrumbs text-sm text-gray-600">
             <ul>
               <li>
@@ -345,7 +345,7 @@ export default function SignInPage() {
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-10 md:py-14">
+      <div className="site-shell py-10 md:py-14">
         <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10">
           <div className="auth-panel auth-panel-dark rounded-[32px] border border-gray-200 p-8 shadow-sm md:p-10">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-white/90">

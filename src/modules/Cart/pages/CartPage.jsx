@@ -327,10 +327,10 @@ export default function CartPage() {
         onClose={closeConfirm}
       />
 
-      <div className="container mx-auto px-6 py-8 space-y-6">
-        <div className="rounded-2xl border bg-white p-6 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="site-shell space-y-6 py-8">
+        <div className="flex flex-col gap-4 rounded-2xl border bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
           <div>
-            <div className="text-sm text-gray-500 flex items-center gap-2">
+            <div className="flex items-center gap-2 text-sm text-gray-500">
               <span>Shopping cart</span>
 
               {isAuthed ? (
@@ -344,7 +344,7 @@ export default function CartPage() {
               )}
             </div>
 
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mt-1">
+            <h1 className="mt-1 text-2xl font-bold text-gray-900 md:text-3xl">
               Your Cart ({count})
             </h1>
           </div>
@@ -353,7 +353,7 @@ export default function CartPage() {
             {isAuthed && typeof refresh === "function" ? (
               <button
                 type="button"
-                className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
+                className="btn btn-outline rounded-2xl border-gray-200 bg-white hover:bg-gray-50"
                 onClick={handleRefresh}
                 disabled={busyRefresh}
               >
@@ -370,7 +370,7 @@ export default function CartPage() {
               <Link
                 to="/signin"
                 state={{ from: "/cart" }}
-                className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
+                className="btn btn-outline rounded-2xl border-gray-200 bg-white hover:bg-gray-50"
               >
                 Sign in
               </Link>
@@ -378,7 +378,7 @@ export default function CartPage() {
 
             <Link
               to="/shop"
-              className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200"
+              className="btn btn-outline rounded-2xl border-gray-200 bg-white hover:bg-gray-50"
             >
               <ArrowLeft size={16} /> Continue shopping
             </Link>
@@ -386,22 +386,22 @@ export default function CartPage() {
         </div>
 
         {isEmpty ? (
-          <div className="rounded-2xl border bg-white p-10 shadow-sm text-center">
-            <div className="mx-auto mb-3 w-fit rounded-full border px-3 py-1 text-sm bg-gray-50">
+          <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
+            <div className="mx-auto mb-3 w-fit rounded-full border bg-gray-50 px-3 py-1 text-sm">
               Empty cart
             </div>
             <h2 className="text-2xl font-bold">Your cart is empty</h2>
             <p className="mt-2 text-gray-600">Browse products and add items to your cart.</p>
             <Link
               to="/shop"
-              className="btn mt-6 rounded-2xl bg-black text-white hover:bg-gray-900 border-0"
+              className="btn mt-6 rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
             >
               Go to shop
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <div className="lg:col-span-8 rounded-2xl border bg-white p-6 shadow-sm space-y-4">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div className="space-y-4 rounded-2xl border bg-white p-6 shadow-sm lg:col-span-8">
               {items.map((it) => {
                 const qtyBusy = !!busyQty[it.id];
                 const rmBusy = !!busyRemove[it.id];
@@ -411,20 +411,20 @@ export default function CartPage() {
                     key={`${it.id}${it.cartItemId ? `-${it.cartItemId}` : ""}`}
                     className="flex items-center gap-4 rounded-2xl border p-4"
                   >
-                    <div className="w-16 h-16 rounded-2xl bg-gray-100 border overflow-hidden flex-shrink-0">
+                    <div className="h-16 w-16 flex-shrink-0 overflow-hidden rounded-2xl border bg-gray-100">
                       {it.image ? (
                         <img
                           src={it.image}
                           alt={it.title}
-                          className="w-full h-full object-cover"
+                          className="h-full w-full object-cover"
                           loading="lazy"
                         />
                       ) : null}
                     </div>
 
                     <div className="min-w-0 flex-1">
-                      <div className="font-semibold text-gray-900 truncate">{it.title}</div>
-                      <div className="text-sm text-gray-500 mt-1">
+                      <div className="truncate font-semibold text-gray-900">{it.title}</div>
+                      <div className="mt-1 text-sm text-gray-500">
                         Price:{" "}
                         <span className="font-medium text-gray-900">
                           {formatMoney(it.price)}
@@ -435,7 +435,7 @@ export default function CartPage() {
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
-                        className="btn btn-sm btn-outline rounded-xl bg-white hover:bg-gray-50 border-gray-200"
+                        className="btn btn-sm btn-outline rounded-xl border-gray-200 bg-white hover:bg-gray-50"
                         onClick={() => handleDec(it)}
                         aria-label="Decrease quantity"
                         disabled={qtyBusy}
@@ -451,7 +451,7 @@ export default function CartPage() {
 
                       <button
                         type="button"
-                        className="btn btn-sm btn-outline rounded-xl bg-white hover:bg-gray-50 border-gray-200"
+                        className="btn btn-sm btn-outline rounded-xl border-gray-200 bg-white hover:bg-gray-50"
                         onClick={() => handleInc(it)}
                         aria-label="Increase quantity"
                         disabled={qtyBusy}
@@ -464,7 +464,7 @@ export default function CartPage() {
                       </button>
                     </div>
 
-                    <div className="text-right font-bold text-gray-900 min-w-[90px]">
+                    <div className="min-w-[90px] text-right font-bold text-gray-900">
                       {formatMoney((it.price || 0) * (it.qty || 0))}
                     </div>
 
@@ -485,10 +485,10 @@ export default function CartPage() {
                 );
               })}
 
-              <div className="pt-2 flex justify-end">
+              <div className="flex justify-end pt-2">
                 <button
                   type="button"
-                  className="btn btn-outline rounded-2xl bg-white hover:bg-gray-50 border-gray-200 text-red-600"
+                  className="btn btn-outline rounded-2xl border-gray-200 bg-white text-red-600 hover:bg-gray-50"
                   onClick={askClear}
                   disabled={busyClear}
                 >
@@ -498,10 +498,10 @@ export default function CartPage() {
               </div>
             </div>
 
-            <div className="lg:col-span-4 rounded-2xl border bg-white p-6 shadow-sm space-y-4">
+            <div className="space-y-4 rounded-2xl border bg-white p-6 shadow-sm lg:col-span-4">
               <div className="text-lg font-semibold text-gray-900">Order summary</div>
 
-              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+              <div className="space-y-3 rounded-2xl border border-gray-200 bg-gray-50 p-4">
                 <div className="flex items-center gap-2 text-sm font-medium text-gray-800">
                   <TicketPercent size={16} />
                   Apply coupon
@@ -562,7 +562,7 @@ export default function CartPage() {
                 )}
               </div>
 
-              <div className="text-sm text-gray-600 space-y-2">
+              <div className="space-y-2 text-sm text-gray-600">
                 <div className="flex items-center justify-between">
                   <span>Subtotal</span>
                   <span className="font-semibold text-gray-900">
@@ -594,7 +594,7 @@ export default function CartPage() {
 
               <button
                 type="button"
-                className="btn w-full rounded-2xl bg-black text-white hover:bg-gray-900 border-0"
+                className="btn w-full rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
                 onClick={handleCheckout}
                 disabled={isEmpty}
               >

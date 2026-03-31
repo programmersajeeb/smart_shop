@@ -526,7 +526,7 @@ export default function AdminLayout() {
       `}</style>
 
       <div className="sticky top-0 z-40 border-b border-gray-200 bg-white/85 backdrop-blur-xl lg:hidden">
-        <div className="flex items-center justify-between px-4 py-3">
+        <div className="site-shell flex items-center justify-between py-3">
           <button
             type="button"
             onClick={() => setDrawerOpen(true)}
@@ -590,7 +590,7 @@ export default function AdminLayout() {
       ) : null}
 
       <div className="hidden h-full lg:block">
-        <div className="mx-auto flex h-full max-w-[1540px] gap-5 px-5 py-5 2xl:px-6 2xl:py-6">
+        <div className="site-shell flex h-full gap-5 py-5 2xl:py-6">
           <aside
             className={[
               "h-full shrink-0 rounded-[30px] border border-gray-200 bg-white/92 shadow-[0_10px_28px_rgba(15,23,42,0.05)] backdrop-blur transition-all duration-300",
@@ -660,7 +660,7 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      <div className="px-4 py-6 sm:px-6 lg:hidden">
+      <div className="site-shell py-6 lg:hidden">
         <Outlet />
       </div>
 
