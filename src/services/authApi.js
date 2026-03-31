@@ -4,6 +4,7 @@ import api, {
   exchangeFirebaseToken,
   fetchMe,
   refreshAccessToken,
+  ensureFreshAccessToken,
   logout,
   logoutSession,
 } from "./apiClient";
@@ -14,6 +15,7 @@ export {
   exchangeFirebaseToken,
   fetchMe,
   refreshAccessToken,
+  ensureFreshAccessToken,
   logout,
   logoutSession,
 };

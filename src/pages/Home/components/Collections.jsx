@@ -70,7 +70,11 @@ function CollectionCard({ item, featured = false }) {
       className="group relative block overflow-hidden rounded-[28px] border border-black/5 bg-neutral-100 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
       aria-label={`Explore ${item?.title || "collection"}`}
     >
-      <div className={`relative w-full ${featured ? "h-[520px]" : "h-[250px] md:h-[248px]"}`}>
+      <div
+        className={`relative w-full ${
+          featured ? "h-[420px] sm:h-[480px] lg:h-[520px]" : "h-[250px] md:h-[248px]"
+        }`}
+      >
         <img
           src={imgSrc}
           alt={item?.title || "Collection"}
@@ -121,7 +125,8 @@ export default function Collections({ data, loading, error }) {
 
     if (serverItems.length > 0) {
       return serverItems.slice(0, 5).map((item, index) => {
-        const fallbackItem = fallbackCollections[index % fallbackCollections.length];
+        const fallbackItem =
+          fallbackCollections[index % fallbackCollections.length];
 
         return {
           id: item?.id || item?._id || `collection-${index + 1}`,
@@ -129,7 +134,9 @@ export default function Collections({ data, loading, error }) {
           image: normalizeImage(item?.image, fallbackItem.image),
           fallbackImage: fallbackItem.image,
           href: normalizeHref(item?.href, "/shop"),
-          count: Number.isFinite(Number(item?.count)) ? Number(item.count) : null,
+          count: Number.isFinite(Number(item?.count))
+            ? Number(item.count)
+            : null,
         };
       });
     }
@@ -148,7 +155,7 @@ export default function Collections({ data, loading, error }) {
   const secondary = items.slice(1, 5);
 
   return (
-    <section className="container mx-auto my-16 px-4" aria-label="Collections">
+    <section className="site-shell my-16" aria-label="Collections">
       <div className="mb-10 text-center">
         <h2 className="text-3xl font-semibold text-gray-950 md:text-4xl">
           {sectionTitle}

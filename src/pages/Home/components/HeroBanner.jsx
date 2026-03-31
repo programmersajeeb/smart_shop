@@ -56,10 +56,7 @@ export default function HeroBanner({ data, loading, error }) {
   const stats = useMemo(() => normalizeStats(data?.stats), [data?.stats]);
 
   return (
-    <section
-      className="container mx-auto px-4 py-4 sm:py-6 md:py-8"
-      aria-label="Hero banner"
-    >
+    <section className="site-shell py-4 sm:py-6 md:py-8" aria-label="Hero banner">
       <div className="relative overflow-hidden rounded-[24px] border border-black/5 bg-gradient-to-br from-[#f7f1ea] via-[#f7f4ef] to-white shadow-[0_20px_60px_rgba(15,23,42,0.08)] sm:rounded-[28px] lg:rounded-[32px]">
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.95),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(17,24,39,0.06),transparent_28%)]" />
 

@@ -129,15 +129,16 @@ export default function Products({ data, loading, error }) {
     "A curated selection of standout products from your active catalog.";
   const cta = data?.cta || null;
 
-  if (!loading && !error && (data?.enabled === false || data?.visible === false || items.length === 0)) {
+  if (
+    !loading &&
+    !error &&
+    (data?.enabled === false || data?.visible === false || items.length === 0)
+  ) {
     return null;
   }
 
   return (
-    <section
-      className="container mx-auto px-4 py-10 sm:py-12 md:py-14 lg:py-16"
-      aria-label={title}
-    >
+    <section className="site-shell py-10 sm:py-12 md:py-14 lg:py-16" aria-label={title}>
       <div className="mb-8 flex flex-col gap-4 sm:mb-10 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl md:text-4xl">

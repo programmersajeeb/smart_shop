@@ -144,7 +144,8 @@ function canAccessNav(ctx, item) {
       ? item.roles.includes(String(ctx.role || "").toLowerCase())
       : true;
 
-  const minLevelOk = item.minLevel != null ? canMinLevel(ctx.roleLevel, item.minLevel) : true;
+  const minLevelOk =
+    item.minLevel != null ? canMinLevel(ctx.roleLevel, item.minLevel) : true;
   const permOk = canAny(ctx, item.requiresAny);
 
   return roleOk && minLevelOk && permOk;
@@ -521,7 +522,9 @@ export default function Header() {
             icon: ArrowUpRight,
             hint: "Go to role-based admin workspace",
           },
-    ].filter(Boolean).filter((item) => canAccessNav(accessCtx, item));
+    ]
+      .filter(Boolean)
+      .filter((item) => canAccessNav(accessCtx, item));
 
     return {
       personal,
@@ -556,7 +559,6 @@ export default function Header() {
 
   useEffect(() => {
     closeAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search, location.hash]);
 
   useEffect(() => {
@@ -593,7 +595,7 @@ export default function Header() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-black/5 bg-white/75 backdrop-blur-2xl">
-        <div className="container mx-auto px-4 py-3">
+        <div className="site-shell py-3">
           <div className="flex items-center justify-between gap-3 rounded-[24px] border border-black/5 bg-white/85 px-4 py-3 shadow-[0_10px_30px_rgba(15,23,42,0.05)] md:px-5">
             <div className="flex min-w-0 items-center gap-4">
               <Link

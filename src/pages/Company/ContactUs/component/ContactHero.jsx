@@ -2,36 +2,29 @@ import { Mail, Phone, MessageCircle } from "lucide-react";
 
 function ContactHero() {
   return (
-    <section className="w-full py-20 md:py-28 bg-gray-50 border-b">
-      <div className="container mx-auto px-6 text-center">
-
-        {/* ICON */}
-        <div className="flex justify-center mb-6">
+    <section className="w-full border-b bg-gray-50 py-20 md:py-28">
+      <div className="site-shell text-center">
+        <div className="mb-6 flex justify-center">
           <MessageCircle size={52} className="text-black opacity-90" />
         </div>
 
-        {/* TITLE */}
-        <h1 className="text-3xl md:text-5xl font-bold text-gray-900 leading-tight">
+        <h1 className="text-3xl font-bold leading-tight text-gray-900 md:text-5xl">
           Contact Smart Shop
         </h1>
 
-        {/* SUBTEXT */}
-        <p className="text-gray-600 max-w-2xl mx-auto mt-4 text-base md:text-lg">
-          Have questions? Need help with an order?  
+        <p className="mx-auto mt-4 max-w-2xl text-base text-gray-600 md:text-lg">
+          Have questions? Need help with an order?
           Our friendly support team is always here to assist you—quickly and professionally.
         </p>
 
-        {/* QUICK CONTACT BUTTONS / SHORTCUTS */}
-        <div className="flex justify-center flex-wrap gap-4 mt-8">
-
+        <div className="mt-8 flex flex-wrap justify-center gap-4">
           <a
             href="mailto:support@smartshop.com"
             className="
               flex items-center gap-2
-              px-5 py-3
-              bg-white border
-              rounded-xl shadow-sm
-              hover:shadow-md transition
+              rounded-xl border bg-white
+              px-5 py-3 shadow-sm
+              transition hover:shadow-md
             "
           >
             <Mail size={20} />
@@ -42,17 +35,15 @@ function ContactHero() {
             href="tel:+8801234567890"
             className="
               flex items-center gap-2
-              px-5 py-3
-              bg-white border
-              rounded-xl shadow-sm
-              hover:shadow-md transition
+              rounded-xl border bg-white
+              px-5 py-3 shadow-sm
+              transition hover:shadow-md
             "
           >
             <Phone size={20} />
             Call Us
           </a>
         </div>
-
       </div>
     </section>
   );

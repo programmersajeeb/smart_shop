@@ -36,7 +36,7 @@ function SeasonalBanner({ data, loading, error }) {
 
   return (
     <section
-      className="container mx-auto px-4 py-10 sm:py-12 md:py-14 lg:py-16"
+      className="site-shell py-10 sm:py-12 md:py-14 lg:py-16"
       aria-label="Seasonal banner"
     >
       <div className="relative overflow-hidden rounded-[24px] border border-black/5 bg-neutral-200 shadow-sm sm:rounded-[28px] lg:rounded-[32px]">

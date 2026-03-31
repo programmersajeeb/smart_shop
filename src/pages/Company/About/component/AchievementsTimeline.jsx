@@ -35,47 +35,40 @@ function AchievementsTimeline() {
   ];
 
   return (
-    <section className="w-full py-20 md:py-28 bg-gray-50 border-y">
-      <div className="container mx-auto px-6">
-
-        {/* Title */}
-        <h2 className="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-16">
+    <section className="w-full border-y bg-gray-50 py-20 md:py-28">
+      <div className="site-shell">
+        <h2 className="mb-16 text-center text-3xl font-bold text-gray-900 md:text-4xl">
           Our Achievements & Milestones
         </h2>
 
-        {/* Timeline */}
-        <div className="relative border-l-2 border-gray-300 ml-4 md:ml-8">
-
+        <div className="relative ml-4 border-l-2 border-gray-300 md:ml-8">
           {milestones.map((m, index) => (
             <div key={index} className="mb-12 ml-6">
-
-              {/* Icon */}
-              <div className="
-                absolute -left-3 md:-left-4 w-8 h-8 
-                bg-black text-white rounded-full 
-                flex items-center justify-center
-                shadow
-              ">
+              <div
+                className="
+                  absolute -left-3 md:-left-4 h-8 w-8
+                  rounded-full bg-black text-white
+                  flex items-center justify-center
+                  shadow
+                "
+              >
                 <CheckCircle2 size={16} />
               </div>
 
-              {/* Content */}
-              <h3 className="text-xl md:text-2xl font-semibold text-gray-900">
+              <h3 className="text-xl font-semibold text-gray-900 md:text-2xl">
                 {m.year}
               </h3>
 
-              <h4 className="text-lg font-medium text-gray-800 mt-1">
+              <h4 className="mt-1 text-lg font-medium text-gray-800">
                 {m.title}
               </h4>
 
-              <p className="text-gray-600 mt-2 leading-relaxed max-w-xl">
+              <p className="mt-2 max-w-xl leading-relaxed text-gray-600">
                 {m.description}
               </p>
             </div>
           ))}
-
         </div>
-
       </div>
     </section>
   );

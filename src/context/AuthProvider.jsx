@@ -18,6 +18,7 @@ import {
   exchangeFirebaseToken,
   fetchMe,
   refreshAccessToken,
+  ensureFreshAccessToken,
   logout as apiLogout,
 } from "../services/authApi";
 
@@ -180,7 +181,7 @@ export default function AuthProvider({ children }) {
 
   const exchangeAndHydrate = useCallback(
     async (idToken, remember) => {
-      const data = await exchangeFirebaseToken(idToken);
+      const data = await exchangeFirebaseToken(idToken, remember);
 
       setRefreshDisabled(false);
 
@@ -271,6 +272,13 @@ export default function AuthProvider({ children }) {
 
         if (existing) {
           try {
+            const refreshedToken = await ensureFreshAccessToken();
+
+            if (!refreshedToken) {
+              resetLocalAuth({ removeMode: true, disableRefresh: true });
+              return;
+            }
+
             const nextUser = await hydrateMeSafe();
             if (active) {
               setUser(nextUser);
@@ -278,7 +286,28 @@ export default function AuthProvider({ children }) {
             bumpAuthStamp();
             return;
           } catch {
-            // fall through to refresh
+            try {
+              const r = await refreshAccessToken();
+
+              if (r?.accessToken) {
+                setRefreshDisabled(false);
+                applyLocalAccessToken(r.accessToken);
+
+                const nextUser = await hydrateMeSafe();
+                if (active) {
+                  setUser(nextUser);
+                }
+                bumpAuthStamp();
+                return;
+              }
+            } catch (err) {
+              const st = err?.response?.status;
+              resetLocalAuth({
+                removeMode: true,
+                disableRefresh: st === 401 || st === 403,
+              });
+              return;
+            }
           }
         }
 

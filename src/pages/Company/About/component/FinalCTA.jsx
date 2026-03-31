@@ -2,37 +2,28 @@ import { ArrowRight } from "lucide-react";
 
 function FinalCTA() {
   return (
-    <section className="w-full py-24 md:py-32 bg-black text-white text-center">
-      <div className="container mx-auto px-6">
-
-        {/* TITLE */}
-        <h2 className="text-3xl md:text-5xl font-bold leading-tight">
+    <section className="w-full bg-black py-24 text-center text-white md:py-32">
+      <div className="site-shell">
+        <h2 className="text-3xl font-bold leading-tight md:text-5xl">
           Join Our Journey Towards a Smarter Shopping Experience
         </h2>
 
-        {/* SUBTEXT */}
-        <p className="text-gray-300 max-w-2xl mx-auto mt-6 text-base md:text-lg leading-relaxed">
-          Discover premium quality, modern design, and a seamless shopping flow—crafted 
+        <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-gray-300 md:text-lg">
+          Discover premium quality, modern design, and a seamless shopping flow—crafted
           to give you confidence every day.
         </p>
 
-        {/* CTA BUTTON */}
         <button
           className="
-            mt-10 px-7 py-3 md:px-10 md:py-4 
-            bg-white text-black 
-            rounded-xl 
-            text-lg md:text-xl 
-            font-semibold 
-            hover:bg-gray-200 
-            transition 
-            inline-flex items-center gap-2
+            mt-10 inline-flex items-center gap-2 rounded-xl
+            bg-white px-7 py-3 text-lg font-semibold text-black
+            transition hover:bg-gray-200
+            md:px-10 md:py-4 md:text-xl
           "
         >
           Explore Our Collections
           <ArrowRight size={22} />
         </button>
-
       </div>
     </section>
   );

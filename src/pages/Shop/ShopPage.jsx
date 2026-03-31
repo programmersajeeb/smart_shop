@@ -629,7 +629,7 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="border-b border-black/5 bg-gradient-to-b from-white via-white to-gray-50">
-        <div className="container mx-auto px-4 py-6 sm:px-6 sm:py-8">
+        <div className="site-shell py-6 sm:py-8">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Home size={16} />
             <Link to="/" className="transition hover:text-black hover:underline">
@@ -789,7 +789,7 @@ export default function ShopPage() {
         </div>
       </div>
 
-      <div className="container mx-auto grid grid-cols-1 gap-8 px-4 py-8 sm:px-6 lg:grid-cols-12 lg:py-10">
+      <div className="site-shell grid grid-cols-1 gap-8 py-8 lg:grid-cols-12 lg:py-10">
         <aside className="hidden lg:col-span-3 lg:block">
           <div className="sticky top-28 space-y-5">
             <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm">

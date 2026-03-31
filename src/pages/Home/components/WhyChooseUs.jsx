@@ -46,7 +46,7 @@ function WhyChooseUs({ data, loading, error }) {
 
   return (
     <section
-      className="container mx-auto px-4 py-10 sm:py-12 md:py-14 lg:py-16"
+      className="site-shell py-10 sm:py-12 md:py-14 lg:py-16"
       aria-label="Why choose us"
     >
       <div className="mb-8 text-center sm:mb-10 md:mb-12">

@@ -34,7 +34,11 @@ function PriceCard({ item, featured = false, fallbackImage }) {
       className="group relative block overflow-hidden rounded-[28px] border border-black/5 bg-neutral-100 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
       aria-label={item?.label || "Shop by price"}
     >
-      <div className={`relative w-full ${featured ? "h-[420px] md:h-[520px]" : "h-[250px] md:h-[248px]"}`}>
+      <div
+        className={`relative w-full ${
+          featured ? "h-[420px] md:h-[520px]" : "h-[250px] md:h-[248px]"
+        }`}
+      >
         <img
           src={imgSrc}
           alt={item?.label || "Price collection"}
@@ -87,7 +91,7 @@ export default function ShopByPrice({ data, loading, error }) {
   const secondary = items.slice(1, 3);
 
   return (
-    <section className="container mx-auto mt-24 mb-20 px-4" aria-label="Shop by price">
+    <section className="site-shell mt-24 mb-20" aria-label="Shop by price">
       <div className="mb-10 text-center">
         <h2 className="text-3xl font-semibold text-gray-950 md:text-4xl">
           {title}
@@ -117,7 +121,9 @@ export default function ShopByPrice({ data, loading, error }) {
             <PriceCard
               key={item?.id || index}
               item={item}
-              fallbackImage={fallbackItems[(index + 1) % fallbackItems.length].img}
+              fallbackImage={
+                fallbackItems[(index + 1) % fallbackItems.length].img
+              }
             />
           ))}
         </div>

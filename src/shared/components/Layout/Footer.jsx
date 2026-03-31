@@ -44,7 +44,7 @@ function Footer() {
 
   return (
     <footer className="mt-12 bg-black text-white sm:mt-14 lg:mt-16">
-      <div className="container mx-auto px-4 py-12 sm:px-6 sm:py-14 lg:py-16">
+      <div className="site-shell py-12 sm:py-14 lg:py-16">
         <div className="grid grid-cols-1 gap-10 sm:gap-12 md:grid-cols-2 xl:grid-cols-[1.1fr_0.8fr_0.8fr_1fr] xl:gap-14">
           <div className="max-w-sm">
             <Link to="/" className="inline-block">
@@ -65,10 +65,7 @@ function Footer() {
             <ul className="mt-4 space-y-3 text-sm text-gray-300">
               {shopLinks.map((item) => (
                 <li key={item.label}>
-                  <Link
-                    to={item.to}
-                    className="transition hover:text-white"
-                  >
+                  <Link to={item.to} className="transition hover:text-white">
                     {item.label}
                   </Link>
                 </li>
@@ -82,10 +79,7 @@ function Footer() {
             <ul className="mt-4 space-y-3 text-sm text-gray-300">
               {supportLinks.map((item) => (
                 <li key={item.label}>
-                  <Link
-                    to={item.to}
-                    className="transition hover:text-white"
-                  >
+                  <Link to={item.to} className="transition hover:text-white">
                     {item.label}
                   </Link>
                 </li>
@@ -100,15 +94,12 @@ function Footer() {
               Subscribe to get exclusive offers, updates, and new arrivals.
             </p>
 
-            <form
-              className="mt-4"
-              onSubmit={(e) => e.preventDefault()}
-            >
+            <form className="mt-4" onSubmit={(e) => e.preventDefault()}>
               <label className="sr-only" htmlFor="footer-email">
                 Email address
               </label>
 
-              <div className="flex items-center rounded-2xl border border-white/10 bg-white overflow-hidden">
+              <div className="flex items-center overflow-hidden rounded-2xl border border-white/10 bg-white">
                 <Mail className="ml-4 shrink-0 text-black" size={18} />
                 <input
                   id="footer-email"

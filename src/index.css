@@ -2,7 +2,7 @@
 @plugin "daisyui";
 
 :root {
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
   color-scheme: light;
 
   --app-bg:
@@ -14,21 +14,24 @@
   --text-strong: #111827;
   --text-muted: #6b7280;
   --ring-soft: rgba(17, 24, 39, 0.12);
+
+  --site-shell-max: 1280px;
+  --site-shell-gutter: 16px;
 }
 
 html {
-  scrollbar-gutter: stable;
+  scrollbar-gutter: stable both-edges;
   color-scheme: light;
   -webkit-text-size-adjust: 100%;
   text-rendering: optimizeLegibility;
   scroll-behavior: smooth;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
-  overflow-x: clip;
+  overflow-x: hidden;
   overflow-y: scroll;
   background: var(--app-bg);
   -webkit-font-smoothing: antialiased;
@@ -37,7 +40,7 @@ body {
 
 #root {
   min-height: 100vh;
-  overflow-x: clip;
+  overflow-x: hidden;
 }
 
 *,
@@ -135,6 +138,24 @@ select {
 
 *::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* Shared site shell for consistent browser-safe page width */
+.site-shell {
+  width: min(100% - (var(--site-shell-gutter) * 2), var(--site-shell-max));
+  margin-inline: auto;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --site-shell-gutter: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --site-shell-gutter: 24px;
+  }
 }
 
 /* Enterprise utility classes */

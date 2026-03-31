@@ -2,51 +2,44 @@ import { Target, Eye } from "lucide-react";
 
 function MissionVision() {
   return (
-    <section className="w-full py-20 md:py-28 bg-gray-50 border-y">
-      <div className="container mx-auto px-6 text-center">
-
-        {/* Section Title */}
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-12">
+    <section className="w-full border-y bg-gray-50 py-20 md:py-28">
+      <div className="site-shell text-center">
+        <h2 className="mb-12 text-3xl font-bold text-gray-900 md:text-4xl">
           Our Mission & Vision
         </h2>
 
-        {/* Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16">
-
-          {/* Mission */}
-          <div className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-md transition border">
-            <div className="flex justify-center mb-4">
+        <div className="grid grid-cols-1 gap-10 md:grid-cols-2 md:gap-16">
+          <div className="rounded-2xl border bg-white p-10 shadow-sm transition hover:shadow-md">
+            <div className="mb-4 flex justify-center">
               <Target size={36} className="text-black" />
             </div>
 
-            <h3 className="text-xl md:text-2xl font-semibold text-gray-900">
+            <h3 className="text-xl font-semibold text-gray-900 md:text-2xl">
               Our Mission
             </h3>
 
-            <p className="mt-4 text-gray-600 leading-relaxed max-w-md mx-auto">
+            <p className="mx-auto mt-4 max-w-md leading-relaxed text-gray-600">
               To create a seamless shopping experience that blends premium quality,
               modern design, and fast delivery—ensuring every customer feels valued,
               confident, and satisfied.
             </p>
           </div>
 
-          {/* Vision */}
-          <div className="bg-white p-10 rounded-2xl shadow-sm hover:shadow-md transition border">
-            <div className="flex justify-center mb-4">
+          <div className="rounded-2xl border bg-white p-10 shadow-sm transition hover:shadow-md">
+            <div className="mb-4 flex justify-center">
               <Eye size={36} className="text-black" />
             </div>
 
-            <h3 className="text-xl md:text-2xl font-semibold text-gray-900">
+            <h3 className="text-xl font-semibold text-gray-900 md:text-2xl">
               Our Vision
             </h3>
 
-            <p className="mt-4 text-gray-600 leading-relaxed max-w-md mx-auto">
+            <p className="mx-auto mt-4 max-w-md leading-relaxed text-gray-600">
               To become a globally recognized brand that transforms the way people
               shop online—through innovation, sustainability, and world-class customer
               experience.
             </p>
           </div>
-
         </div>
       </div>
     </section>

@@ -57,12 +57,10 @@ function ImageWithSkeleton({
 
   return (
     <div className="relative w-full">
-      {/* Skeleton placeholder */}
       {!loaded && !failed ? (
         <div className={`w-full skeleton ${className} ${skeletonClassName}`} />
       ) : null}
 
-      {/* Real image */}
       <img
         src={src}
         alt={alt}
@@ -72,13 +70,11 @@ function ImageWithSkeleton({
         className={[
           "w-full object-cover",
           className,
-          // Hide image until it loads (prevents layout flash)
           loaded && !failed ? "opacity-100" : "opacity-0",
           "transition-opacity duration-300",
         ].join(" ")}
       />
 
-      {/* Fallback if image fails */}
       {failed ? (
         <div
           className={[
@@ -278,10 +274,8 @@ export default function CollectionsPage() {
 
   return (
     <div className="w-full">
-      {/* HERO */}
       <section className="border-b bg-white">
-        <div className="container mx-auto px-6 py-10">
-          {/* Breadcrumb */}
+        <div className="site-shell py-10">
           <div className="breadcrumbs text-sm mb-4">
             <ul>
               <li>
@@ -292,7 +286,7 @@ export default function CollectionsPage() {
             </ul>
           </div>
 
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
                 Explore Collections
@@ -303,7 +297,6 @@ export default function CollectionsPage() {
               </p>
             </div>
 
-            {/* Search */}
             <div className="w-full lg:max-w-md">
               <label className="flex items-center gap-3 rounded-2xl border bg-white px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2">
                 <Search size={18} className="text-gray-500" />
@@ -341,8 +334,7 @@ export default function CollectionsPage() {
             </div>
           </div>
 
-          {/* Quick trust badges */}
-          <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-2xl border bg-white p-4 flex items-center gap-3">
               <ShieldCheck className="text-gray-800" />
               <div>
@@ -376,9 +368,8 @@ export default function CollectionsPage() {
         </div>
       </section>
 
-      {/* FILTER PILLS */}
       <section className="bg-white border-b">
-        <div className="container mx-auto px-6 py-5">
+        <div className="site-shell py-5">
           <div className="flex gap-3 overflow-x-auto pb-1">
             {categories.map((c) => (
               <Pill key={c} active={active === c} onClick={() => setActive(c)}>
@@ -389,9 +380,8 @@ export default function CollectionsPage() {
         </div>
       </section>
 
-      {/* GRID */}
       <section className="py-12">
-        <div className="container mx-auto px-6">
+        <div className="site-shell">
           {filtered.length === 0 ? (
             <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
               <div className="mx-auto mb-3 w-fit rounded-full border px-3 py-1 text-sm bg-gray-50">
@@ -413,7 +403,7 @@ export default function CollectionsPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
               {filtered.map((item) => (
                 <CollectionCard key={item.key} item={item} />
               ))}
@@ -422,10 +412,9 @@ export default function CollectionsPage() {
         </div>
       </section>
 
-      {/* BOTTOM CTA */}
       <section className="pb-16">
-        <div className="container mx-auto px-6">
-          <div className="rounded-2xl border bg-white p-8 md:p-10 shadow-sm flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div className="site-shell">
+          <div className="rounded-2xl border bg-white p-8 md:p-10 shadow-sm flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full bg-gray-50 border px-3 py-1 text-sm">
                 <Sparkles size={16} />

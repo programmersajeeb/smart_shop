@@ -15,10 +15,7 @@ function Newsletter({ data, loading, error }) {
   }
 
   return (
-    <section
-      className="container mx-auto mt-24 mb-20 px-4"
-      aria-label="Newsletter"
-    >
+    <section className="site-shell mt-24 mb-20" aria-label="Newsletter">
       <div className="mx-auto max-w-5xl overflow-hidden rounded-[32px] border border-black/5 bg-gradient-to-br from-white via-[#faf7f2] to-[#f3f4f6] shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
         <div className="grid grid-cols-1 gap-8 px-6 py-8 md:px-10 md:py-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-12 lg:py-12">
           <div>

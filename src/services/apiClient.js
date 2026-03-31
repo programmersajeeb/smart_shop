@@ -237,6 +237,26 @@ export async function refreshAccessToken() {
   return data;
 }
 
+export async function ensureFreshAccessToken() {
+  const existing = getRequestToken();
+
+  if (!existing) {
+    return null;
+  }
+
+  const data = await runRefresh();
+  const token = String(data?.accessToken || "").trim();
+
+  if (!token) {
+    clearAuthState({ removeMode: true });
+    return null;
+  }
+
+  persistAccessToken(token);
+  setRefreshDisabled(false);
+  return token;
+}
+
 export async function logout() {
   setRefreshDisabled(true);
   clearAuthState({ removeMode: true });

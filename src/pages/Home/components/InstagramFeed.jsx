@@ -20,6 +20,21 @@ function normalizeHref(value, fallback = "/shop") {
   return href || fallback;
 }
 
+function createFeedKey(item, index) {
+  const rawId = String(item?.id || "").trim();
+  const rawHref = String(item?.href || "").trim();
+  const rawImage = String(item?.image || "").trim();
+  const rawTitle = String(item?.title || "").trim();
+
+  return [
+    rawId || "no-id",
+    rawHref || "no-href",
+    rawImage || "no-image",
+    rawTitle || "no-title",
+    index,
+  ].join("::");
+}
+
 function FeedCard({ item, featured = false, fallbackImage }) {
   const resolvedImage = normalizeText(item?.image, fallbackImage);
   const [imgSrc, setImgSrc] = useState(resolvedImage);
@@ -83,6 +98,7 @@ function InstagramFeed({ data, loading, error }) {
     if (Array.isArray(data?.items) && data.items.length > 0) {
       return data.items.slice(0, 5).map((item, index) => ({
         id: item?.id || `feed-${index + 1}`,
+        key: createFeedKey(item, index),
         image: normalizeText(
           item?.image,
           fallbackImages[index % fallbackImages.length]
@@ -94,6 +110,7 @@ function InstagramFeed({ data, loading, error }) {
 
     return fallbackImages.slice(0, 5).map((image, index) => ({
       id: `fallback-${index + 1}`,
+      key: `fallback::${index}::${image}`,
       image,
       title: "Shop the look",
       href: "/shop",
@@ -104,10 +121,7 @@ function InstagramFeed({ data, loading, error }) {
   const secondary = items.slice(1, 5);
 
   return (
-    <section
-      className="container mx-auto mt-24 mb-20 px-4"
-      aria-label="Instagram feed"
-    >
+    <section className="site-shell mt-24 mb-20" aria-label="Instagram feed">
       <div className="mb-10 text-center">
         <h2 className="text-3xl font-semibold text-gray-950 md:text-4xl">
           {title}
@@ -136,7 +150,7 @@ function InstagramFeed({ data, loading, error }) {
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-2">
           {secondary.map((item, index) => (
             <FeedCard
-              key={item?.id || index}
+              key={item?.key || `secondary-${index}`}
               item={item}
               fallbackImage={fallbackImages[(index + 1) % fallbackImages.length]}
             />

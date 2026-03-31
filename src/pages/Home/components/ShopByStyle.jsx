@@ -86,7 +86,10 @@ function ShopByStyle({ data, loading, error }) {
         id: item?.id || `style-${index + 1}`,
         label: normalizeText(item?.label, "Style"),
         href: normalizeHref(item?.href, "/shop"),
-        img: normalizeText(item?.img || item?.image, fallbackImages[index % fallbackImages.length]),
+        img: normalizeText(
+          item?.img || item?.image,
+          fallbackImages[index % fallbackImages.length]
+        ),
         type: normalizeText(item?.type, "style").toLowerCase(),
       }));
     }
@@ -127,7 +130,7 @@ function ShopByStyle({ data, loading, error }) {
   const secondary = items.slice(1, 4);
 
   return (
-    <section className="container mx-auto mt-24 mb-20 px-4" aria-label="Shop by style">
+    <section className="site-shell mt-24 mb-20" aria-label="Shop by style">
       <div className="mb-10 text-center">
         <h2 className="text-3xl font-semibold text-gray-950 md:text-4xl">
           {title}

@@ -32,25 +32,20 @@ function FAQSection() {
   };
 
   return (
-    <section className="w-full py-20 md:py-28 bg-white">
-      <div className="container mx-auto px-6">
-
-        {/* Section Title */}
-        <h2 className="text-2xl md:text-3xl font-bold text-gray-900 text-center mb-10">
+    <section className="w-full bg-white py-20 md:py-28">
+      <div className="site-shell">
+        <h2 className="mb-10 text-center text-2xl font-bold text-gray-900 md:text-3xl">
           Frequently Asked Questions
         </h2>
 
-        {/* FAQ LIST */}
-        <div className="max-w-3xl mx-auto space-y-4">
-
+        <div className="mx-auto max-w-3xl space-y-4">
           {faqs.map((item, index) => (
             <div
               key={index}
-              className="bg-gray-50 border rounded-xl p-5 cursor-pointer hover:shadow transition"
+              className="cursor-pointer rounded-xl border bg-gray-50 p-5 transition hover:shadow"
               onClick={() => toggleFAQ(index)}
             >
-              {/* Question Row */}
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">
                   {item.q}
                 </h3>
@@ -63,15 +58,13 @@ function FAQSection() {
                 />
               </div>
 
-              {/* Answer */}
               {active === index && (
-                <p className="mt-3 text-gray-600 text-sm leading-relaxed">
+                <p className="mt-3 text-sm leading-relaxed text-gray-600">
                   {item.a}
                 </p>
               )}
             </div>
           ))}
-
         </div>
       </div>
     </section>

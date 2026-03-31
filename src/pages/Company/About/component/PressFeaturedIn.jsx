@@ -1,65 +1,56 @@
 function PressFeaturedIn() {
   return (
-    <section className="w-full py-20 md:py-28 bg-gray-50 border-y">
-      <div className="container mx-auto px-6 text-center">
-
-        {/* Section Title */}
-        <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+    <section className="w-full border-y bg-gray-50 py-20 md:py-28">
+      <div className="site-shell text-center">
+        <h2 className="mb-6 text-3xl font-bold text-gray-900 md:text-4xl">
           Featured In
         </h2>
 
-        <p className="text-gray-600 max-w-2xl mx-auto text-base md:text-lg mb-12 leading-relaxed">
-          Smart Shop has been highlighted by leading publications and media platforms 
+        <p className="mx-auto mb-12 max-w-2xl text-base leading-relaxed text-gray-600 md:text-lg">
+          Smart Shop has been highlighted by leading publications and media platforms
           for innovation, customer experience, and brand excellence.
         </p>
 
-        {/* Logo Grid */}
-        <div className="
-          grid 
-          grid-cols-2 
-          sm:grid-cols-3 
-          md:grid-cols-5 
-          gap-10 
-          items-center
-        ">
-
-          {/* Logo 1 */}
-          <img 
+        <div
+          className="
+            grid
+            grid-cols-2
+            items-center
+            gap-10
+            sm:grid-cols-3
+            md:grid-cols-5
+          "
+        >
+          <img
             src="https://cdn.freebiesupply.com/logos/large/2x/forbes-logo-png-transparent.png"
             alt="Forbes"
-            className="w-28 mx-auto opacity-70 hover:opacity-100 transition"
+            className="mx-auto w-28 opacity-70 transition hover:opacity-100"
           />
 
-          {/* Logo 2 */}
-          <img 
+          <img
             src="https://cdn.freebiesupply.com/logos/large/2x/vogue-logo-png-transparent.png"
             alt="Vogue"
-            className="w-28 mx-auto opacity-70 hover:opacity-100 transition"
+            className="mx-auto w-28 opacity-70 transition hover:opacity-100"
           />
 
-          {/* Logo 3 */}
-          <img 
+          <img
             src="https://cdn.freebiesupply.com/logos/large/2x/techcrunch-logo-png-transparent.png"
             alt="TechCrunch"
-            className="w-28 mx-auto opacity-70 hover:opacity-100 transition"
+            className="mx-auto w-28 opacity-70 transition hover:opacity-100"
           />
 
-          {/* Logo 4 */}
-          <img 
+          <img
             src="https://cdn.freebiesupply.com/logos/large/2x/bbc-logo-png-transparent.png"
             alt="BBC"
-            className="w-24 mx-auto opacity-70 hover:opacity-100 transition"
+            className="mx-auto w-24 opacity-70 transition hover:opacity-100"
           />
 
-          {/* Logo 5 */}
-          <img 
+          <img
             src="https://cdn.freebiesupply.com/logos/large/2x/guardian-logo-png-transparent.png"
             alt="The Guardian"
-            className="w-28 mx-auto opacity-70 hover:opacity-100 transition"
+            className="mx-auto w-28 opacity-70 transition hover:opacity-100"
           />
-
         </div>
-
       </div>
     </section>
   );

@@ -38,10 +38,7 @@ function BrandStory({ data, loading, error }) {
   };
 
   return (
-    <section
-      className="container mx-auto mt-24 mb-20 px-4"
-      aria-label="Brand story"
-    >
+    <section className="site-shell mt-24 mb-20" aria-label="Brand story">
       <div className="overflow-hidden rounded-[32px] border border-black/5 bg-gradient-to-br from-white via-[#faf7f2] to-[#f3f4f6] shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
         <div className="grid grid-cols-1 gap-0 lg:grid-cols-[0.95fr_1.05fr]">
           <div className="relative min-h-[320px] bg-neutral-200 lg:min-h-[560px]">

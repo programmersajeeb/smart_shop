@@ -310,7 +310,7 @@ function FlashSale({ data, loading, error }) {
   }
 
   return (
-    <section className="container mx-auto mt-20 px-4" aria-label="Flash sale">
+    <section className="site-shell mt-20" aria-label="Flash sale">
       <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <div className="inline-flex rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-red-600">

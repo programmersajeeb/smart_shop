@@ -20,7 +20,7 @@ export default function Trending({
 
   return (
     <section
-      className="container mx-auto px-4 py-10 sm:py-12 md:py-14 lg:py-16"
+      className="site-shell py-10 sm:py-12 md:py-14 lg:py-16"
       aria-label={title}
     >
       <div className="mb-8 flex flex-col gap-4 sm:mb-10 md:flex-row md:items-end md:justify-between">
