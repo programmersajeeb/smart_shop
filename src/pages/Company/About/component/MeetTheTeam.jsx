@@ -1,86 +1,71 @@
-import { Mail, Linkedin } from "lucide-react";
+import { Linkedin } from "lucide-react";
 
 function MeetTheTeam() {
+  const members = [
+    {
+      name: "Alicia Brown",
+      role: "Founder & CEO",
+      image:
+        "https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80",
+    },
+    {
+      name: "Sophia Turner",
+      role: "Head of Marketing",
+      image:
+        "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80",
+    },
+    {
+      name: "Daniel Carter",
+      role: "Operations Manager",
+      image:
+        "https://images.unsplash.com/photo-1524502397800-2eeaad7c3fe5?auto=format&fit=crop&w=600&q=80",
+    },
+  ];
+
   return (
-    <section className="w-full bg-white py-20 md:py-28">
-      <div className="site-shell text-center">
-        <h2 className="mb-6 text-3xl font-bold text-gray-900 md:text-4xl">
-          Meet Our Team
-        </h2>
+    <section className="w-full bg-white py-16 md:py-24">
+      <div className="site-shell">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-950 md:text-4xl">
+            Meet the team
+          </h2>
 
-        <p className="mx-auto mb-14 max-w-2xl text-base leading-relaxed text-gray-600 md:text-lg">
-          The talented individuals behind Smart Shop — working every day to
-          deliver excellence, innovation, and a seamless shopping experience.
-        </p>
+          <p className="mt-4 text-sm leading-7 text-gray-600 md:text-[15px]">
+            Behind Smart Shop is a team working across product, brand, service,
+            and operations to keep the experience improving.
+          </p>
+        </div>
 
-        <div
-          className="
-            grid
-            grid-cols-1
-            gap-10
-            sm:grid-cols-2
-            md:grid-cols-3
-          "
-        >
-          <div className="flex flex-col items-center">
-            <img
-              src="https://images.unsplash.com/photo-1529626455594-4ff0802cfb7e?auto=format&fit=crop&w=600&q=80"
-              alt="CEO"
-              className="h-40 w-40 rounded-full object-cover shadow-md transition hover:scale-105 md:h-48 md:w-48"
-            />
+        <div className="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {members.map((member) => (
+            <div
+              key={member.name}
+              className="rounded-[28px] border border-black/5 bg-gray-50 p-6 text-center shadow-[0_12px_30px_rgba(15,23,42,0.04)]"
+            >
+              <div className="mx-auto h-36 w-36 overflow-hidden rounded-full border border-black/5 bg-white shadow-sm sm:h-40 sm:w-40">
+                <img
+                  src={member.image}
+                  alt={member.name}
+                  className="h-full w-full object-cover"
+                />
+              </div>
 
-            <h3 className="mt-5 text-xl font-semibold">Alicia Brown</h3>
-            <p className="text-sm text-gray-600">Founder & CEO</p>
+              <h3 className="mt-5 text-xl font-semibold text-gray-950">
+                {member.name}
+              </h3>
+              <p className="mt-1 text-sm text-gray-600">{member.role}</p>
 
-            <div className="mt-3 flex gap-4">
-              <a href="#" className="text-gray-700 transition hover:text-black">
-                <Mail size={20} />
-              </a>
-              <a href="#" className="text-gray-700 transition hover:text-black">
-                <Linkedin size={20} />
-              </a>
+              <div className="mt-4 flex justify-center">
+                <a
+                  href="#"
+                  aria-label={`${member.name} LinkedIn`}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-black/10 bg-white text-gray-700 transition hover:bg-gray-100 hover:text-black"
+                >
+                  <Linkedin size={18} />
+                </a>
+              </div>
             </div>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <img
-              src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=600&q=80"
-              alt="Marketing Head"
-              className="h-40 w-40 rounded-full object-cover shadow-md transition hover:scale-105 md:h-48 md:w-48"
-            />
-
-            <h3 className="mt-5 text-xl font-semibold">Sophia Turner</h3>
-            <p className="text-sm text-gray-600">Head of Marketing</p>
-
-            <div className="mt-3 flex gap-4">
-              <a href="#" className="text-gray-700 transition hover:text-black">
-                <Mail size={20} />
-              </a>
-              <a href="#" className="text-gray-700 transition hover:text-black">
-                <Linkedin size={20} />
-              </a>
-            </div>
-          </div>
-
-          <div className="flex flex-col items-center">
-            <img
-              src="https://images.unsplash.com/photo-1524502397800-2eeaad7c3fe5?auto=format&fit=crop&w=600&q=80"
-              alt="Operations Manager"
-              className="h-40 w-40 rounded-full object-cover shadow-md transition hover:scale-105 md:h-48 md:w-48"
-            />
-
-            <h3 className="mt-5 text-xl font-semibold">Daniel Carter</h3>
-            <p className="text-sm text-gray-600">Operations Manager</p>
-
-            <div className="mt-3 flex gap-4">
-              <a href="#" className="text-gray-700 transition hover:text-black">
-                <Mail size={20} />
-              </a>
-              <a href="#" className="text-gray-700 transition hover:text-black">
-                <Linkedin size={20} />
-              </a>
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </section>

@@ -1,70 +1,69 @@
 import { ShieldCheck, Truck, BadgeCheck, HeartHandshake } from "lucide-react";
 
 function CoreValues() {
+  const values = [
+    {
+      icon: HeartHandshake,
+      title: "Customer First",
+      description:
+        "We try to make decisions that remove friction and make shopping easier for real people.",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Reliable Quality",
+      description:
+        "We care about product standards, clear presentation, and building trust over time.",
+    },
+    {
+      icon: Truck,
+      title: "Fast Fulfillment",
+      description:
+        "From checkout to delivery, we focus on keeping the process smooth and dependable.",
+    },
+    {
+      icon: BadgeCheck,
+      title: "Clear Policies",
+      description:
+        "Simple pricing, straightforward communication, and honest service matter to us.",
+    },
+  ];
+
   return (
-    <section className="w-full bg-white py-20 md:py-28">
-      <div className="site-shell text-center">
-        <h2 className="mb-12 text-3xl font-bold text-gray-900 md:text-4xl">
-          Our Core Values
-        </h2>
+    <section className="w-full bg-white py-16 md:py-24">
+      <div className="site-shell">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-950 md:text-4xl">
+            What matters to us
+          </h2>
+          <p className="mt-4 text-sm leading-7 text-gray-600 md:text-[15px]">
+            These are the values we come back to when we think about products,
+            service, and the overall customer experience.
+          </p>
+        </div>
 
-        <div
-          className="
-            grid
-            grid-cols-1
-            gap-8
-            sm:grid-cols-2
-            md:grid-cols-4
-            md:gap-12
-          "
-        >
-          <div className="rounded-2xl border bg-gray-50 p-8 transition hover:shadow-md">
-            <div className="mb-4 flex justify-center">
-              <HeartHandshake size={40} className="text-black" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900">
-              Customer First
-            </h3>
-            <p className="mt-3 text-sm text-gray-600">
-              Every decision we make is focused on delivering the best for our customers.
-            </p>
-          </div>
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {values.map((value) => {
+            const Icon = value.icon;
 
-          <div className="rounded-2xl border bg-gray-50 p-8 transition hover:shadow-md">
-            <div className="mb-4 flex justify-center">
-              <ShieldCheck size={40} className="text-black" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900">
-              Trusted Quality
-            </h3>
-            <p className="mt-3 text-sm text-gray-600">
-              We ensure premium, reliable products that meet high international standards.
-            </p>
-          </div>
+            return (
+              <div
+                key={value.title}
+                className="rounded-[26px] border border-black/5 bg-gray-50 p-6 shadow-[0_12px_30px_rgba(15,23,42,0.04)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-black/5 bg-white text-gray-900">
+                  <Icon size={20} />
+                </div>
 
-          <div className="rounded-2xl border bg-gray-50 p-8 transition hover:shadow-md">
-            <div className="mb-4 flex justify-center">
-              <Truck size={40} className="text-black" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900">
-              Fast Delivery
-            </h3>
-            <p className="mt-3 text-sm text-gray-600">
-              Quick and secure shipping so your products reach you on time.
-            </p>
-          </div>
+                <h3 className="mt-5 text-xl font-semibold text-gray-950">
+                  {value.title}
+                </h3>
 
-          <div className="rounded-2xl border bg-gray-50 p-8 transition hover:shadow-md">
-            <div className="mb-4 flex justify-center">
-              <BadgeCheck size={40} className="text-black" />
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900">
-              Transparent Business
-            </h3>
-            <p className="mt-3 text-sm text-gray-600">
-              Honest pricing, clear policies, and a commitment to fairness.
-            </p>
-          </div>
+                <p className="mt-3 text-sm leading-7 text-gray-600">
+                  {value.description}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>

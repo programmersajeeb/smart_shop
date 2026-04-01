@@ -1,90 +1,65 @@
-function WhyChooseUs({ data, loading, error }) {
-  const fallbackItems = [
+import { Users, ShoppingBag, HeartHandshake, CheckCircle2 } from "lucide-react";
+
+function WhyChooseUs() {
+  const items = [
     {
-      id: "delivery",
-      icon: "🚚",
-      title: "Fast Delivery",
-      description: "Quick and reliable delivery straight to your doorstep.",
+      icon: CheckCircle2,
+      value: "4.9 / 5.0",
+      label: "Average customer rating",
     },
     {
-      id: "payments",
-      icon: "💳",
-      title: "Secure Payments",
-      description: "Your transactions are encrypted for maximum safety.",
+      icon: Users,
+      value: "120K+",
+      label: "Customers reached",
     },
     {
-      id: "returns",
-      icon: "🔄",
-      title: "Easy Returns",
-      description: "Hassle-free 30-day return and exchange policy.",
+      icon: ShoppingBag,
+      value: "350K+",
+      label: "Orders completed",
     },
     {
-      id: "quality",
-      icon: "⭐",
-      title: "Premium Quality",
-      description: "Only the highest-quality products curated for you.",
+      icon: HeartHandshake,
+      value: "Fast support",
+      label: "Helpful response when customers need it",
     },
   ];
 
-  const items =
-    Array.isArray(data?.items) && data.items.length > 0
-      ? data.items.slice(0, 4).map((item, index) => ({
-          id: item?.id || `why-${index + 1}`,
-          icon:
-            item?.icon ||
-            fallbackItems[index % fallbackItems.length]?.icon ||
-            "✓",
-          title: item?.title || "Why choose us",
-          description: item?.description || item?.desc || "",
-        }))
-      : fallbackItems;
-
-  const title = data?.title || "Why Choose Us";
-  const subtitle =
-    data?.subtitle ||
-    "Clear trust signals that help customers feel confident about shopping, checkout, and fulfillment.";
-
   return (
-    <section
-      className="site-shell py-10 sm:py-12 md:py-14 lg:py-16"
-      aria-label="Why choose us"
-    >
-      <div className="mb-8 text-center sm:mb-10 md:mb-12">
-        <h2 className="text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl md:text-4xl">
-          {title}
-        </h2>
+    <section className="w-full border-y border-black/5 bg-gray-50 py-16 md:py-24">
+      <div className="site-shell">
+        <div className="mx-auto max-w-3xl text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-gray-950 md:text-4xl">
+            Why customers keep choosing us
+          </h2>
 
-        <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
-          {subtitle}
-        </p>
-      </div>
-
-      {!loading && error && (
-        <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          Failed to load trust highlights
-          {error?.message ? ` (${error.message})` : ""}
+          <p className="mt-4 text-sm leading-7 text-gray-600 md:text-[15px]">
+            We focus on the things shoppers care about most: clear product browsing,
+            dependable service, and an experience that feels easy from start to finish.
+          </p>
         </div>
-      )}
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 md:gap-6 xl:grid-cols-4">
-        {items.map((item, i) => (
-          <article
-            key={item?.id || i}
-            className="group h-full rounded-[22px] border border-black/5 bg-white p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md sm:rounded-[24px] sm:p-6 lg:rounded-[28px] lg:p-7"
-          >
-            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-100 text-xl transition group-hover:bg-black group-hover:text-white sm:mb-5 sm:h-14 sm:w-14 sm:text-2xl">
-              {item?.icon}
-            </div>
+        <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+          {items.map((item) => {
+            const Icon = item.icon;
 
-            <h3 className="text-lg font-semibold leading-7 text-gray-950 sm:text-xl">
-              {item?.title}
-            </h3>
+            return (
+              <div
+                key={item.label}
+                className="rounded-[26px] border border-black/5 bg-white p-6 text-center shadow-[0_12px_30px_rgba(15,23,42,0.05)] transition hover:-translate-y-1 hover:shadow-[0_18px_40px_rgba(15,23,42,0.08)]"
+              >
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl border border-black/5 bg-gray-50 text-gray-900">
+                  <Icon size={20} />
+                </div>
 
-            <p className="mt-3 text-sm leading-6 text-gray-600">
-              {item?.description}
-            </p>
-          </article>
-        ))}
+                <h3 className="mt-5 text-2xl font-bold tracking-tight text-gray-950">
+                  {item.value}
+                </h3>
+
+                <p className="mt-2 text-sm leading-6 text-gray-600">{item.label}</p>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

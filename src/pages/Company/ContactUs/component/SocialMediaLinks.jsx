@@ -1,77 +1,48 @@
-import { Facebook, Instagram, Youtube, Linkedin, MessageCircle } from "lucide-react";
+import {
+  Facebook,
+  Instagram,
+  Youtube,
+  Linkedin,
+  MessageCircle,
+} from "lucide-react";
 
 function SocialMediaLinks() {
+  const items = [
+    { icon: Facebook, href: "https://facebook.com", label: "Facebook" },
+    { icon: Instagram, href: "https://instagram.com", label: "Instagram" },
+    { icon: Youtube, href: "https://youtube.com", label: "YouTube" },
+    { icon: Linkedin, href: "https://linkedin.com", label: "LinkedIn" },
+    { icon: MessageCircle, href: "https://wa.me/+8801234567890", label: "WhatsApp" },
+  ];
+
   return (
-    <section className="w-full border-t bg-white py-14">
+    <section className="w-full border-t border-black/5 bg-white py-14 md:py-16">
       <div className="site-shell text-center">
-        <h2 className="mb-6 text-xl font-bold text-gray-900 md:text-2xl">
-          Connect With Us
+        <h2 className="text-2xl font-bold tracking-tight text-gray-950">
+          Connect with us
         </h2>
 
-        <p className="mx-auto mb-8 max-w-md text-sm text-gray-600 md:text-base">
-          Follow us on social media for updates, announcements, and exclusive offers.
+        <p className="mx-auto mt-4 max-w-md text-sm leading-7 text-gray-600 md:text-[15px]">
+          Follow Smart Shop for updates, new arrivals, and brand news.
         </p>
 
-        <div className="flex justify-center gap-6 md:gap-8">
-          <a
-            href="https://facebook.com"
-            target="_blank"
-            rel="noreferrer"
-            className="
-              rounded-full border bg-white p-3 shadow-sm
-              transition hover:bg-black hover:text-white
-            "
-          >
-            <Facebook size={22} />
-          </a>
+        <div className="mt-8 flex flex-wrap justify-center gap-4 sm:gap-5">
+          {items.map((item) => {
+            const Icon = item.icon;
 
-          <a
-            href="https://instagram.com"
-            target="_blank"
-            rel="noreferrer"
-            className="
-              rounded-full border bg-white p-3 shadow-sm
-              transition hover:bg-black hover:text-white
-            "
-          >
-            <Instagram size={22} />
-          </a>
-
-          <a
-            href="https://youtube.com"
-            target="_blank"
-            rel="noreferrer"
-            className="
-              rounded-full border bg-white p-3 shadow-sm
-              transition hover:bg-black hover:text-white
-            "
-          >
-            <Youtube size={22} />
-          </a>
-
-          <a
-            href="https://linkedin.com"
-            target="_blank"
-            rel="noreferrer"
-            className="
-              rounded-full border bg-white p-3 shadow-sm
-              transition hover:bg-black hover:text-white
-            "
-          >
-            <Linkedin size={22} />
-          </a>
-
-          <a
-            href="https://wa.me/+8801234567890"
-            target="_blank"
-            rel="noreferrer"
-            className="
-              rounded-full border bg-white p-3 shadow-sm
-              transition hover:bg-black hover:text-white
-            "
-          >
-            <MessageCircle size={22} />
-          </a>
+            return (
+              <a
+                key={item.label}
+                href={item.href}
+                target="_blank"
+                rel="noreferrer"
+                aria-label={item.label}
+                className="inline-flex h-12 w-12 items-center justify-center rounded-full border border-black/10 bg-white text-gray-800 shadow-sm transition hover:bg-black hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+              >
+                <Icon size={20} />
+              </a>
+            );
+          })}
         </div>
       </div>
     </section>
