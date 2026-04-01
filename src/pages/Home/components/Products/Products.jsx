@@ -1,14 +1,49 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ProductGridSkeleton from "../../../../shared/components/ui/skeletons/ProductGridSkeleton";
+import api from "../../../../services/apiClient";
 
 const FALLBACK_PRODUCT_IMAGE = "https://placehold.co/900x1100?text=Product";
+
+function getApiBaseUrl() {
+  const base =
+    typeof api?.defaults?.baseURL === "string" ? api.defaults.baseURL : "";
+  return String(base || "").replace(/\/$/, "");
+}
+
+function isAbsoluteUrl(value) {
+  return /^(https?:)?\/\//i.test(String(value || "").trim());
+}
+
+function normalizeImageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return FALLBACK_PRODUCT_IMAGE;
+
+  if (
+    isAbsoluteUrl(raw) ||
+    raw.startsWith("data:") ||
+    raw.startsWith("blob:")
+  ) {
+    return raw;
+  }
+
+  const apiBase = getApiBaseUrl();
+  if (!apiBase) {
+    return raw;
+  }
+
+  if (raw.startsWith("/")) {
+    return `${apiBase}${raw}`;
+  }
+
+  return `${apiBase}/${raw}`;
+}
 
 function getPrimaryImage(product) {
   const first = Array.isArray(product?.images) ? product.images[0] : null;
 
   if (typeof first === "string" && first.trim()) {
-    return first.trim();
+    return normalizeImageUrl(first.trim());
   }
 
   if (
@@ -17,11 +52,11 @@ function getPrimaryImage(product) {
     typeof first.url === "string" &&
     first.url.trim()
   ) {
-    return first.url.trim();
+    return normalizeImageUrl(first.url.trim());
   }
 
   if (typeof product?.image === "string" && product.image.trim()) {
-    return product.image.trim();
+    return normalizeImageUrl(product.image.trim());
   }
 
   return FALLBACK_PRODUCT_IMAGE;
@@ -42,6 +77,22 @@ function ProductCard({ product }) {
 
   const href = `/shop?q=${encodeURIComponent(product?.title || "")}`;
   const inStock = Number(product?.stock ?? 0) > 0;
+
+  const price = Number(product?.price || 0);
+  const compareAtPrice = Number(product?.compareAtPrice || 0);
+  const isDiscounted =
+    Boolean(product?.isDiscounted) ||
+    (compareAtPrice > 0 && compareAtPrice > price);
+
+  const discountPercent =
+    Number(product?.discountPercent || 0) > 0
+      ? Number(product.discountPercent)
+      : isDiscounted
+        ? Math.max(
+            1,
+            Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
+          )
+        : 0;
 
   return (
     <Link
@@ -69,6 +120,12 @@ function ProductCard({ product }) {
             {product?.category ? (
               <span className="max-w-full truncate rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-700 shadow-sm">
                 {product.category}
+              </span>
+            ) : null}
+
+            {isDiscounted ? (
+              <span className="rounded-full bg-red-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm">
+                -{discountPercent}%
               </span>
             ) : null}
           </div>
@@ -107,9 +164,24 @@ function ProductCard({ product }) {
             <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
               Price
             </p>
-            <p className="mt-1 text-lg font-semibold text-gray-950 sm:text-xl">
-              {formatMoney(product?.price)}
-            </p>
+
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p className="text-lg font-semibold text-gray-950 sm:text-xl">
+                {formatMoney(price)}
+              </p>
+
+              {isDiscounted ? (
+                <p className="text-sm font-medium text-gray-400 line-through sm:text-base">
+                  {formatMoney(compareAtPrice)}
+                </p>
+              ) : null}
+            </div>
+
+            {isDiscounted ? (
+              <p className="mt-1 text-xs font-medium text-red-600">
+                Save {formatMoney(compareAtPrice - price)}
+              </p>
+            ) : null}
           </div>
 
           <span className="inline-flex shrink-0 items-center rounded-full border border-black/10 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 transition group-hover:bg-black group-hover:text-white">
@@ -138,7 +210,10 @@ export default function Products({ data, loading, error }) {
   }
 
   return (
-    <section className="site-shell py-10 sm:py-12 md:py-14 lg:py-16" aria-label={title}>
+    <section
+      className="site-shell py-10 sm:py-12 md:py-14 lg:py-16"
+      aria-label={title}
+    >
       <div className="mb-8 flex flex-col gap-4 sm:mb-10 md:flex-row md:items-end md:justify-between">
         <div className="max-w-2xl">
           <h2 className="text-2xl font-semibold tracking-tight text-gray-950 sm:text-3xl md:text-4xl">

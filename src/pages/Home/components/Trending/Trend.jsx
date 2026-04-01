@@ -1,13 +1,48 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import api from "../../../../services/apiClient";
 
 const FALLBACK_PRODUCT_IMAGE = "https://placehold.co/900x1100?text=Product";
+
+function getApiBaseUrl() {
+  const base =
+    typeof api?.defaults?.baseURL === "string" ? api.defaults.baseURL : "";
+  return String(base || "").replace(/\/$/, "");
+}
+
+function isAbsoluteUrl(value) {
+  return /^(https?:)?\/\//i.test(String(value || "").trim());
+}
+
+function normalizeImageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return FALLBACK_PRODUCT_IMAGE;
+
+  if (
+    isAbsoluteUrl(raw) ||
+    raw.startsWith("data:") ||
+    raw.startsWith("blob:")
+  ) {
+    return raw;
+  }
+
+  const apiBase = getApiBaseUrl();
+  if (!apiBase) {
+    return raw;
+  }
+
+  if (raw.startsWith("/")) {
+    return `${apiBase}${raw}`;
+  }
+
+  return `${apiBase}/${raw}`;
+}
 
 function getPrimaryImage(item) {
   const first = Array.isArray(item?.images) ? item.images[0] : null;
 
   if (typeof first === "string" && first.trim()) {
-    return first.trim();
+    return normalizeImageUrl(first.trim());
   }
 
   if (
@@ -16,11 +51,11 @@ function getPrimaryImage(item) {
     typeof first.url === "string" &&
     first.url.trim()
   ) {
-    return first.url.trim();
+    return normalizeImageUrl(first.url.trim());
   }
 
   if (typeof item?.image === "string" && item.image.trim()) {
-    return item.image.trim();
+    return normalizeImageUrl(item.image.trim());
   }
 
   return FALLBACK_PRODUCT_IMAGE;
@@ -44,6 +79,22 @@ export default function Trend({ item }) {
   const { title, price, category, brand, stock } = item;
   const href = `/shop?q=${encodeURIComponent(title || "")}`;
   const inStock = Number(stock ?? 0) > 0;
+
+  const currentPrice = Number(price || 0);
+  const compareAtPrice = Number(item?.compareAtPrice || 0);
+  const isDiscounted =
+    Boolean(item?.isDiscounted) ||
+    (compareAtPrice > 0 && compareAtPrice > currentPrice);
+
+  const discountPercent =
+    Number(item?.discountPercent || 0) > 0
+      ? Number(item.discountPercent)
+      : isDiscounted
+        ? Math.max(
+            1,
+            Math.round(((compareAtPrice - currentPrice) / compareAtPrice) * 100)
+          )
+        : 0;
 
   return (
     <Link
@@ -71,6 +122,12 @@ export default function Trend({ item }) {
             {category ? (
               <span className="max-w-full truncate rounded-full bg-white/90 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-gray-700 shadow-sm">
                 {category}
+              </span>
+            ) : null}
+
+            {isDiscounted ? (
+              <span className="rounded-full bg-red-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-red-700 shadow-sm">
+                -{discountPercent}%
               </span>
             ) : null}
           </div>
@@ -109,9 +166,24 @@ export default function Trend({ item }) {
             <p className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
               Price
             </p>
-            <p className="mt-1 text-lg font-semibold text-gray-950 sm:text-xl">
-              {formatMoney(price)}
-            </p>
+
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <p className="text-lg font-semibold text-gray-950 sm:text-xl">
+                {formatMoney(currentPrice)}
+              </p>
+
+              {isDiscounted ? (
+                <p className="text-sm font-medium text-gray-400 line-through sm:text-base">
+                  {formatMoney(compareAtPrice)}
+                </p>
+              ) : null}
+            </div>
+
+            {isDiscounted ? (
+              <p className="mt-1 text-xs font-medium text-red-600">
+                Save {formatMoney(compareAtPrice - currentPrice)}
+              </p>
+            ) : null}
           </div>
 
           <span className="inline-flex shrink-0 items-center rounded-full border border-black/10 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700 transition group-hover:bg-black group-hover:text-white">

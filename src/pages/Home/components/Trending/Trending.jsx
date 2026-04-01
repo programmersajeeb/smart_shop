@@ -5,18 +5,35 @@ import ProductGridSkeleton from "../../../../shared/components/ui/skeletons/Prod
 
 export default function Trending({
   trend,
+  data,
   loading,
   error,
   sectionTitle,
   sectionSubtitle,
   cta,
 }) {
-  const items = Array.isArray(trend?.products) ? trend.products.slice(0, 4) : [];
+  const trendingData = trend || data || {};
+  const items = Array.isArray(trendingData?.products)
+    ? trendingData.products.slice(0, 4)
+    : [];
 
-  const title = sectionTitle || "Trending Now";
+  const title = sectionTitle || trendingData?.title || "Trending Now";
   const subtitle =
     sectionSubtitle ||
+    trendingData?.subtitle ||
     "Fresh picks from the latest in-stock products across your active catalog.";
+
+  const sectionCta = cta || trendingData?.cta || null;
+
+  if (
+    !loading &&
+    !error &&
+    (trendingData?.enabled === false ||
+      trendingData?.visible === false ||
+      items.length === 0)
+  ) {
+    return null;
+  }
 
   return (
     <section
@@ -34,12 +51,12 @@ export default function Trending({
           </p>
         </div>
 
-        {cta?.href ? (
+        {sectionCta?.href ? (
           <Link
-            to={cta.href}
+            to={sectionCta.href}
             className="inline-flex min-h-[46px] w-full items-center justify-center rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-gray-900 transition hover:bg-gray-50 sm:w-auto"
           >
-            {cta?.label || "View all"}
+            {sectionCta?.label || "View all"}
           </Link>
         ) : null}
       </div>
