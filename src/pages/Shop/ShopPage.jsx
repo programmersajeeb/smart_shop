@@ -36,10 +36,7 @@ function iconFromKey(iconKey) {
 function resolveAssetUrl(rawUrl) {
   const value = String(rawUrl || "").trim();
   if (!value) return "";
-
-  if (/^(https?:|data:|blob:)/i.test(value)) {
-    return value;
-  }
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
 
   const base = String(api?.defaults?.baseURL || window.location.origin).trim();
 
@@ -47,7 +44,6 @@ function resolveAssetUrl(rawUrl) {
     const normalizedPath = value.startsWith("/")
       ? value
       : `/${value.replace(/^\.?\//, "")}`;
-
     return new URL(normalizedPath, base).toString();
   } catch {
     return value;
@@ -59,26 +55,17 @@ function normalizeSortFromUrl(value, fallback = "newest") {
   if (v === "price_asc" || v === "pricelow" || v === "pricelowtohigh") return "priceLow";
   if (v === "price_desc" || v === "pricehigh" || v === "pricehightolow") return "priceHigh";
   if (v === "latest" || v === "newest") return "newest";
-
-  const safeFallback = String(fallback || "").trim();
-  return safeFallback === "priceLow" || safeFallback === "priceHigh" || safeFallback === "newest"
-    ? safeFallback
+  return ["priceLow", "priceHigh", "newest"].includes(String(fallback || ""))
+    ? fallback
     : "newest";
 }
 
 function getPrimaryImage(product) {
   const first = Array.isArray(product?.images) ? product.images[0] : null;
 
-  if (typeof first === "string" && first.trim()) {
-    return resolveAssetUrl(first.trim());
-  }
+  if (typeof first === "string" && first.trim()) return resolveAssetUrl(first.trim());
 
-  if (
-    first &&
-    typeof first === "object" &&
-    typeof first.url === "string" &&
-    first.url.trim()
-  ) {
+  if (first && typeof first === "object" && typeof first.url === "string" && first.url.trim()) {
     return resolveAssetUrl(first.url.trim());
   }
 
@@ -104,23 +91,16 @@ function normalizeFacetOptions(input) {
     if (typeof item === "string") {
       const value = item.trim();
       if (!value) continue;
-
       const key = value.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-
-      out.push({
-        value,
-        label: value,
-        count: null,
-      });
+      out.push({ value, label: value, count: null });
       continue;
     }
 
     if (item && typeof item === "object") {
       const rawValue = String(item.value ?? item.label ?? "").trim();
       if (!rawValue) continue;
-
       const key = rawValue.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
@@ -199,13 +179,11 @@ function buildSearchParams({
   else next.set("sort", "latest");
 
   if (page > 1) next.set("page", String(page));
-
   return next;
 }
 
 function getVisiblePages(current, total) {
   if (total <= 1) return [1];
-
   const pages = new Set([1, total, current, current - 1, current + 1]);
 
   if (current <= 2) {
@@ -244,9 +222,24 @@ function getErrorMessage(...errors) {
 function normalizeMaxPriceValue(value, sliderMax) {
   const next = Number(value);
   if (!Number.isFinite(next)) return null;
-
   const rounded = Math.max(0, Math.min(Math.round(next), Math.max(1, sliderMax)));
   return rounded >= sliderMax ? null : rounded;
+}
+
+function normalizeRegistryCategories(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      name: String(item?.name || "").trim(),
+      iconKey: String(item?.iconKey || "").trim(),
+      isActive: item?.isActive !== false,
+      featured: Boolean(item?.featured),
+      image: String(item?.image || "").trim(),
+      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
+    }))
+    .filter((item) => item.name && item.isActive)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
 }
 
 export default function ShopPage() {
@@ -261,7 +254,7 @@ export default function ShopPage() {
   } = useQuery({
     queryKey: ["page-config", "shop"],
     queryFn: async () => (await api.get("/page-config/shop")).data,
-    staleTime: 60_000,
+    staleTime: 60000,
   });
 
   const cfg = shopCfg?.data || {};
@@ -297,7 +290,6 @@ export default function ShopPage() {
     setSearch(urlState.search);
     setSortBy(urlState.sortBy);
     setPage(urlState.page);
-
     setDraftCategory(urlState.category);
     setDraftBrand(urlState.brand);
     setDraftInStockOnly(urlState.inStockOnly);
@@ -343,15 +335,10 @@ export default function ShopPage() {
 
   useEffect(() => {
     function handleKeydown(event) {
-      if (event.key === "Escape") {
-        setMobileFilterOpen(false);
-      }
+      if (event.key === "Escape") setMobileFilterOpen(false);
     }
 
-    if (mobileFilterOpen) {
-      document.addEventListener("keydown", handleKeydown);
-    }
-
+    if (mobileFilterOpen) document.addEventListener("keydown", handleKeydown);
     return () => document.removeEventListener("keydown", handleKeydown);
   }, [mobileFilterOpen]);
 
@@ -363,19 +350,13 @@ export default function ShopPage() {
   } = useQuery({
     queryKey: ["products", "facets"],
     queryFn: async () => (await api.get("/products/facets")).data,
-    staleTime: 60_000,
+    staleTime: 60000,
   });
 
   const facetBrandsAll = useMemo(
     () => normalizeFacetOptions(facets?.brands),
     [facets?.brands]
   );
-
-  const facetCategoriesAll = useMemo(
-    () => normalizeFacetOptions(facets?.categories),
-    [facets?.categories]
-  );
-
   const facetPriceMax = Number(facets?.price?.max ?? 0);
 
   const allowedBrands = Array.isArray(cfg?.brands) ? cfg.brands : [];
@@ -394,58 +375,37 @@ export default function ShopPage() {
   const sliderMax = useMemo(() => {
     const cfgMax = Number(cfg?.priceMax ?? 0);
     if (Number.isFinite(cfgMax) && cfgMax > 0) return Math.round(cfgMax);
-    if (Number.isFinite(facetPriceMax) && facetPriceMax > 0) {
-      return Math.round(facetPriceMax);
-    }
+    if (Number.isFinite(facetPriceMax) && facetPriceMax > 0) return Math.round(facetPriceMax);
     return DEFAULT_SLIDER_MAX;
   }, [cfg?.priceMax, facetPriceMax]);
 
   useEffect(() => {
-    setMaxPrice((prev) => {
-      if (prev == null) return prev;
-      return Math.min(prev, sliderMax);
-    });
-
-    setDraftMaxPrice((prev) => {
-      if (prev == null) return prev;
-      return Math.min(prev, sliderMax);
-    });
+    setMaxPrice((prev) => (prev == null ? prev : Math.min(prev, sliderMax)));
+    setDraftMaxPrice((prev) => (prev == null ? prev : Math.min(prev, sliderMax)));
   }, [sliderMax]);
 
+  const registryCategories = useMemo(
+    () => normalizeRegistryCategories(cfg?.categories),
+    [cfg?.categories]
+  );
+
   const categoryPills = useMemo(() => {
-    const configCategories = Array.isArray(cfg?.categories) ? cfg.categories : [];
-    const source =
-      configCategories.length > 0
-        ? configCategories.map((item) => ({
-            name: String(item?.name || "").trim(),
-            icon: iconFromKey(item?.iconKey),
-          }))
-        : facetCategoriesAll.map((item) => ({
-            name: String(item?.value || "").trim(),
-            icon: ShoppingBag,
-          }));
-
-    const seen = new Set();
-    const unique = [];
-
-    for (const item of source) {
-      if (!item.name) continue;
-      const key = item.name.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      unique.push(item);
-    }
-
-    return [{ name: "All", icon: ShoppingBag }, ...unique];
-  }, [cfg?.categories, facetCategoriesAll]);
+    return [
+      { name: "All", icon: ShoppingBag },
+      ...registryCategories.map((item) => ({
+        name: item.name,
+        icon: iconFromKey(item.iconKey),
+      })),
+    ];
+  }, [registryCategories]);
 
   const params = useMemo(() => {
     const apiSort =
       sortBy === "priceLow"
         ? "price_asc"
         : sortBy === "priceHigh"
-          ? "price_desc"
-          : "";
+        ? "price_desc"
+        : "";
 
     const p = {
       page,
@@ -481,9 +441,7 @@ export default function ShopPage() {
   const totalPages = Math.max(1, Number(data?.pages ?? 1));
 
   useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
+    if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
   useEffect(() => {
@@ -539,81 +497,16 @@ export default function ShopPage() {
     sortBy === "priceLow"
       ? "Price: Low to High"
       : sortBy === "priceHigh"
-        ? "Price: High to Low"
-        : "Newest";
+      ? "Price: High to Low"
+      : "Newest";
 
   const combinedErrorMessage =
     productsError || facetsError || shopCfgError
       ? getErrorMessage(productsErrorData, facetsErrorData, shopCfgErrorData)
       : "";
 
-  const handleCategoryChange = (value) => {
-    setCategory(value);
-    setPage(1);
-  };
-
-  const handleBrandChange = (value) => {
-    setBrand(value);
-    setPage(1);
-  };
-
-  const handleInStockChange = (value) => {
-    setInStockOnly(Boolean(value));
-    setPage(1);
-  };
-
-  const handleMaxPriceChange = (value) => {
-    setMaxPrice(normalizeMaxPriceValue(value, sliderMax));
-    setPage(1);
-  };
-
-  const handleSortChange = (value) => {
-    setSortBy(value);
-    setPage(1);
-  };
-
-  const clearFilters = () => {
-    setCategory("All");
-    setBrand("");
-    setInStockOnly(false);
-    setMaxPrice(null);
-    setSearchInput("");
-    setSearch("");
-    setSortBy(defaultSort);
-    setPage(1);
-  };
-
-  const clearSingleFilter = (key) => {
-    if (key === "category") setCategory("All");
-    if (key === "brand") setBrand("");
-    if (key === "stock") setInStockOnly(false);
-    if (key === "price") setMaxPrice(null);
-    if (key === "search") {
-      setSearchInput("");
-      setSearch("");
-    }
-    setPage(1);
-  };
-
-  const applyMobileFilters = () => {
-    setCategory(draftCategory);
-    setBrand(draftBrand);
-    setInStockOnly(draftInStockOnly);
-    setMaxPrice(draftMaxPrice);
-    setPage(1);
-    setMobileFilterOpen(false);
-  };
-
-  const clearMobileDraftFilters = () => {
-    setDraftCategory("All");
-    setDraftBrand("");
-    setDraftInStockOnly(false);
-    setDraftMaxPrice(null);
-  };
-
   const displayedMaxPrice =
     maxPrice != null && Number.isFinite(maxPrice) ? Math.min(maxPrice, sliderMax) : sliderMax;
-
   const displayedDraftMaxPrice =
     draftMaxPrice != null && Number.isFinite(draftMaxPrice)
       ? Math.min(draftMaxPrice, sliderMax)
@@ -623,8 +516,71 @@ export default function ShopPage() {
   const featuredCollections = Array.isArray(cfg?.featuredCollections)
     ? cfg.featuredCollections
     : [];
-
   const heroImageSrc = resolveAssetUrl(cfg?.heroImage);
+
+  function handleCategoryChange(value) {
+    setCategory(value);
+    setPage(1);
+  }
+
+  function handleBrandChange(value) {
+    setBrand(value);
+    setPage(1);
+  }
+
+  function handleInStockChange(value) {
+    setInStockOnly(Boolean(value));
+    setPage(1);
+  }
+
+  function handleMaxPriceChange(value) {
+    setMaxPrice(normalizeMaxPriceValue(value, sliderMax));
+    setPage(1);
+  }
+
+  function handleSortChange(value) {
+    setSortBy(value);
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setCategory("All");
+    setBrand("");
+    setInStockOnly(false);
+    setMaxPrice(null);
+    setSearchInput("");
+    setSearch("");
+    setSortBy(defaultSort);
+    setPage(1);
+  }
+
+  function clearSingleFilter(key) {
+    if (key === "category") setCategory("All");
+    if (key === "brand") setBrand("");
+    if (key === "stock") setInStockOnly(false);
+    if (key === "price") setMaxPrice(null);
+    if (key === "search") {
+      setSearchInput("");
+      setSearch("");
+    }
+    setPage(1);
+  }
+
+  function applyMobileFilters() {
+    setCategory(draftCategory);
+    setBrand(draftBrand);
+    setInStockOnly(draftInStockOnly);
+    setMaxPrice(draftMaxPrice);
+    setPage(1);
+    setMobileFilterOpen(false);
+  }
+
+  function clearMobileDraftFilters() {
+    setDraftCategory("All");
+    setDraftBrand("");
+    setDraftInStockOnly(false);
+    setDraftMaxPrice(null);
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -908,12 +864,8 @@ export default function ShopPage() {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <label className="sr-only" htmlFor="shop-sort">
-                    Sort products
-                  </label>
                   <div className="relative min-w-[200px]">
                     <select
-                      id="shop-sort"
                       value={sortBy}
                       onChange={(e) => handleSortChange(e.target.value)}
                       className="w-full appearance-none rounded-2xl border border-black/10 bg-white px-4 py-3 pr-10 text-sm font-medium text-gray-800 outline-none transition focus:ring-2 focus:ring-black/10"
@@ -1044,9 +996,7 @@ export default function ShopPage() {
               <div className="flex items-start gap-3">
                 <AlertCircle size={18} className="mt-0.5 shrink-0" />
                 <div>
-                  <div className="font-semibold text-red-800">
-                    Couldn’t load the shop view
-                  </div>
+                  <div className="font-semibold text-red-800">Couldn’t load the shop view</div>
                   <div className="mt-1">{combinedErrorMessage}</div>
                 </div>
               </div>
@@ -1208,9 +1158,7 @@ export default function ShopPage() {
                   <div className="mb-2 flex items-center justify-between gap-3">
                     <p className="font-medium text-gray-900">Max price</p>
                     <span className="text-sm font-semibold text-gray-700">
-                      {draftMaxPrice != null
-                        ? formatMoney(displayedDraftMaxPrice)
-                        : "Any"}
+                      {draftMaxPrice != null ? formatMoney(displayedDraftMaxPrice) : "Any"}
                     </span>
                   </div>
 
@@ -1247,9 +1195,7 @@ export default function ShopPage() {
                     className="mt-1"
                   />
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium text-gray-900">
-                      In stock only
-                    </span>
+                    <span className="block text-sm font-medium text-gray-900">In stock only</span>
                     <span className="block text-xs text-gray-500">
                       Hide products that are currently unavailable.
                     </span>
@@ -1414,9 +1360,7 @@ function ProductCard({ p }) {
         </h3>
 
         {p?.description ? (
-          <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">
-            {p.description}
-          </p>
+          <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">{p.description}</p>
         ) : (
           <p className="mt-2 text-sm text-gray-400">Premium catalog listing</p>
         )}

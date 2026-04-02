@@ -64,6 +64,10 @@ const DEFAULT_PERMISSION_GROUPS = [
     items: ["products:read", "products:write"],
   },
   {
+    name: "Newsletter",
+    items: ["newsletter:read", "newsletter:write"],
+  },
+  {
     name: "Audit",
     items: ["audit:read"],
   },
@@ -78,6 +82,7 @@ const DEFAULT_TEMPLATE_MAP = {
   "User Manager": ["admin:access", "users:read", "users:write"],
   "Order Manager": ["admin:access", "orders:read", "orders:write"],
   "Catalog Manager": ["admin:access", "products:read", "products:write"],
+  "Newsletter Manager": ["admin:access", "newsletter:read", "newsletter:write"],
   Auditor: ["admin:access", "audit:read"],
   "Support Staff": ["admin:access", "users:read", "orders:read"],
   "Read Only Admin": [
@@ -85,6 +90,7 @@ const DEFAULT_TEMPLATE_MAP = {
     "users:read",
     "orders:read",
     "products:read",
+    "newsletter:read",
     "settings:read",
     "audit:read",
   ],
@@ -94,6 +100,7 @@ const PERMISSION_DEPENDENCIES = {
   "users:write": ["users:read"],
   "orders:write": ["orders:read"],
   "products:write": ["products:read"],
+  "newsletter:write": ["newsletter:read"],
   "settings:write": ["settings:read"],
 };
 

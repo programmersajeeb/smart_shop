@@ -1,29 +1,49 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronDown } from "lucide-react";
 
-function FAQSection() {
-  const faqs = [
-    {
-      q: "How can I track my order?",
-      a: "Once your order is shipped, we send a tracking update by email or SMS. You can also check your order status from your account.",
-    },
-    {
-      q: "What is your return policy?",
-      a: "Unused items in their original condition can usually be returned within 7 days. Refund timing may vary depending on the payment method.",
-    },
-    {
-      q: "How do I contact customer support?",
-      a: "You can email us at support@smartshop.com or call +880 1234-567890 during support hours.",
-    },
-    {
-      q: "Do you offer international shipping?",
-      a: "Yes, international shipping is available in selected cases. Delivery time depends on the destination and shipping option.",
-    },
-    {
-      q: "Can I modify or cancel my order?",
-      a: "If your order has not moved into processing yet, our team may still be able to help. Contact support as soon as possible.",
-    },
-  ];
+function normalizeText(value, fallback = "") {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text || fallback;
+}
+
+function FAQSection({ data }) {
+  const faqs = useMemo(() => {
+    if (Array.isArray(data?.items) && data.items.length) {
+      return data.items.map((item, index) => ({
+        q: normalizeText(item?.q, `Question ${index + 1}`),
+        a: normalizeText(item?.a),
+      }));
+    }
+
+    return [
+      {
+        q: "How can I track my order?",
+        a: "Once your order is shipped, we send a tracking update by email or SMS. You can also check your order status from your account.",
+      },
+      {
+        q: "What is your return policy?",
+        a: "Unused items in their original condition can usually be returned within 7 days. Refund timing may vary depending on the payment method.",
+      },
+      {
+        q: "How do I contact customer support?",
+        a: "You can email us at support@smartshop.com or call +880 1234-567890 during support hours.",
+      },
+      {
+        q: "Do you offer international shipping?",
+        a: "Yes, international shipping is available in selected cases. Delivery time depends on the destination and shipping option.",
+      },
+      {
+        q: "Can I modify or cancel my order?",
+        a: "If your order has not moved into processing yet, our team may still be able to help. Contact support as soon as possible.",
+      },
+    ];
+  }, [data]);
+
+  const title = normalizeText(data?.title, "Frequently asked questions");
+  const subtitle = normalizeText(
+    data?.subtitle,
+    "A few common questions customers usually ask before reaching out."
+  );
 
   const [active, setActive] = useState(0);
 
@@ -36,11 +56,11 @@ function FAQSection() {
       <div className="site-shell">
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-2xl font-bold tracking-tight text-gray-950 md:text-4xl">
-            Frequently asked questions
+            {title}
           </h2>
 
           <p className="mt-4 text-sm leading-7 text-gray-600 md:text-[15px]">
-            A few common questions customers usually ask before reaching out.
+            {subtitle}
           </p>
         </div>
 
@@ -50,7 +70,7 @@ function FAQSection() {
 
             return (
               <div
-                key={item.q}
+                key={`${item.q}-${index}`}
                 className="overflow-hidden rounded-[24px] border border-black/5 bg-gray-50 shadow-[0_10px_24px_rgba(15,23,42,0.03)]"
               >
                 <button

@@ -11,6 +11,8 @@ import {
   LayoutTemplate,
   Filter,
   Layers3,
+  Upload,
+  GripVertical,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "../../services/apiClient";
@@ -25,28 +27,24 @@ const SORT_OPTIONS = [
 function uniqNormalized(list) {
   const seen = new Set();
   const out = [];
-
   for (const raw of list || []) {
     const value = String(raw || "").trim();
     if (!value) continue;
-
     const key = value.toLowerCase();
     if (seen.has(key)) continue;
-
     seen.add(key);
     out.push(value);
   }
-
   return out;
 }
 
 function parseBrands(text) {
-  const items = String(text || "")
-    .split(/\r?\n|,/g)
-    .map((item) => item.trim())
-    .filter(Boolean);
-
-  return uniqNormalized(items);
+  return uniqNormalized(
+    String(text || "")
+      .split(/\r?\n|,/g)
+      .map((item) => item.trim())
+      .filter(Boolean)
+  );
 }
 
 function clampNumber(value, min, max) {
@@ -54,35 +52,63 @@ function clampNumber(value, min, max) {
   return Math.max(min, Math.min(max, parsed));
 }
 
-function normalizeCategory(raw) {
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function normalizeCategory(raw, index = 0) {
+  const name = String(raw?.name || "").trim();
+  const slug = String(raw?.slug || "").trim() || slugify(name);
   return {
-    name: String(raw?.name || "").trim(),
+    id:
+      String(raw?.id || slug || `category-${index + 1}`).trim() ||
+      `category-${index + 1}`,
+    name,
+    slug,
     iconKey: ICON_KEYS.includes(String(raw?.iconKey || ""))
       ? String(raw.iconKey)
       : "ShoppingBag",
+    image: String(raw?.image || "").trim(),
+    isActive: raw?.isActive !== false,
+    featured:
+      raw?.featured === true ||
+      raw?.featured === "true" ||
+      raw?.featured === 1 ||
+      raw?.featured === "1",
+    sortOrder: Number.isFinite(Number(raw?.sortOrder))
+      ? Number(raw.sortOrder)
+      : index + 1,
   };
 }
 
 function sanitizeCategories(list) {
   const rawList = Array.isArray(list) ? list : [];
-  return rawList.slice(0, 40).map(normalizeCategory);
+  return rawList.slice(0, 40).map((item, index) => normalizeCategory(item, index));
 }
 
 function dedupeCategories(list) {
-  const seen = new Set();
+  const seenName = new Set();
+  const seenId = new Set();
   const out = [];
 
   for (const item of sanitizeCategories(list)) {
     if (!item.name) continue;
-
-    const key = item.name.toLowerCase();
-    if (seen.has(key)) continue;
-
-    seen.add(key);
+    const nameKey = item.name.toLowerCase();
+    const idKey = item.id.toLowerCase();
+    if (seenName.has(nameKey) || seenId.has(idKey)) continue;
+    seenName.add(nameKey);
+    seenId.add(idKey);
     out.push(item);
   }
 
-  return out;
+  return out
+    .slice(0, 40)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
 }
 
 function normalizeBadge(raw, index = 0) {
@@ -103,10 +129,8 @@ function dedupeTrustBadges(list) {
 
   for (const item of sanitizeTrustBadges(list)) {
     if (!item.label) continue;
-
     const key = item.label.toLowerCase();
     if (seen.has(key)) continue;
-
     seen.add(key);
     out.push(item);
   }
@@ -131,61 +155,52 @@ function sanitizeFeaturedCollections(list) {
   return rawList.slice(0, 6).map(normalizeCollection);
 }
 
-function shallowSnapshot({
-  heroEyebrow,
-  heroTitle,
-  heroSubtitle,
-  heroImage,
-  promoTitle,
-  promoText,
-  defaultSort,
-  emptyStateTitle,
-  emptyStateSubtitle,
-  priceMax,
-  brandsText,
-  categories,
-  trustBadges,
-  featuredCollections,
-}) {
+async function uploadSingleImage(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const response = await api.post("/upload/local", formData);
+  const data = response?.data || {};
+  if (!String(data?.url || "").trim()) {
+    throw new Error("Image upload failed.");
+  }
+  return String(data.url || "").trim();
+}
+
+function shallowSnapshot(state) {
   return JSON.stringify({
-    heroEyebrow: String(heroEyebrow || ""),
-    heroTitle: String(heroTitle || ""),
-    heroSubtitle: String(heroSubtitle || ""),
-    heroImage: String(heroImage || ""),
-    promoTitle: String(promoTitle || ""),
-    promoText: String(promoText || ""),
-    defaultSort: String(defaultSort || "newest"),
-    emptyStateTitle: String(emptyStateTitle || ""),
-    emptyStateSubtitle: String(emptyStateSubtitle || ""),
-    priceMax: clampNumber(priceMax, 1, 1_000_000),
-    brandsText: String(brandsText || ""),
-    categories: sanitizeCategories(categories),
-    trustBadges: sanitizeTrustBadges(trustBadges),
-    featuredCollections: sanitizeFeaturedCollections(featuredCollections),
+    heroEyebrow: String(state.heroEyebrow || ""),
+    heroTitle: String(state.heroTitle || ""),
+    heroSubtitle: String(state.heroSubtitle || ""),
+    heroImage: String(state.heroImage || ""),
+    promoTitle: String(state.promoTitle || ""),
+    promoText: String(state.promoText || ""),
+    defaultSort: String(state.defaultSort || "newest"),
+    emptyStateTitle: String(state.emptyStateTitle || ""),
+    emptyStateSubtitle: String(state.emptyStateSubtitle || ""),
+    priceMax: clampNumber(state.priceMax, 1, 1000000),
+    brandsText: String(state.brandsText || ""),
+    categories: sanitizeCategories(state.categories),
+    trustBadges: sanitizeTrustBadges(state.trustBadges),
+    featuredCollections: sanitizeFeaturedCollections(state.featuredCollections),
   });
 }
 
 function buildFormState(shopDoc) {
   const config = shopDoc?.data || {};
-
   return {
     version: Number(shopDoc?.version || 0),
-
     heroEyebrow: String(config?.heroEyebrow || ""),
     heroTitle: String(config?.heroTitle || ""),
     heroSubtitle: String(config?.heroSubtitle || ""),
     heroImage: String(config?.heroImage || ""),
-
     promoTitle: String(config?.promoTitle || ""),
     promoText: String(config?.promoText || ""),
     defaultSort: String(config?.defaultSort || "newest"),
-
     emptyStateTitle: String(config?.emptyStateTitle || ""),
     emptyStateSubtitle: String(config?.emptyStateSubtitle || ""),
-
-    priceMax: clampNumber(config?.priceMax ?? 5000, 1, 1_000_000),
+    priceMax: clampNumber(config?.priceMax ?? 5000, 1, 1000000),
     brandsText: (Array.isArray(config?.brands) ? config.brands : []).join("\n"),
-
     categories: sanitizeCategories(config?.categories),
     trustBadges: sanitizeTrustBadges(config?.trustBadges),
     featuredCollections: sanitizeFeaturedCollections(config?.featuredCollections),
@@ -211,7 +226,6 @@ function SectionCard({ title, description, icon: Icon, children }) {
             <Icon size={18} />
           </div>
         ) : null}
-
         <div>
           <h2 className="text-base font-semibold text-gray-900">{title}</h2>
           {description ? (
@@ -219,9 +233,79 @@ function SectionCard({ title, description, icon: Icon, children }) {
           ) : null}
         </div>
       </div>
-
       <div className="mt-5">{children}</div>
     </section>
+  );
+}
+
+function UploadField({ label, value, onChange, hint }) {
+  const [busy, setBusy] = useState(false);
+
+  async function onPickFile(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setBusy(true);
+      const url = await uploadSingleImage(file);
+      onChange(url);
+      toast.success("Image uploaded");
+    } catch (error) {
+      toast.error("Upload failed", {
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Could not upload image.",
+      });
+    } finally {
+      setBusy(false);
+      event.target.value = "";
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="text-sm font-medium text-gray-800">{label}</div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto]">
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://example.com/image.webp"
+          maxLength={500}
+          className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+        />
+
+        <label className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+          {busy ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+          Upload
+          <input
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={onPickFile}
+            disabled={busy}
+          />
+        </label>
+      </div>
+
+      {value ? (
+        <div className="overflow-hidden rounded-[22px] border border-gray-200 bg-gray-50">
+          <img
+            src={value}
+            alt={label}
+            className="h-44 w-full object-cover"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        </div>
+      ) : null}
+
+      <div className="text-xs text-gray-500">
+        {hint || "Use a relative path or a full http/https URL."}
+      </div>
+    </div>
   );
 }
 
@@ -239,7 +323,7 @@ export default function AdminShopControlPage() {
   } = useQuery({
     queryKey: ["page-config", "shop"],
     queryFn: async () => (await api.get("/page-config/shop")).data,
-    staleTime: 60_000,
+    staleTime: 60000,
     retry: 1,
   });
 
@@ -266,10 +350,7 @@ export default function AdminShopControlPage() {
   const initialStateRef = useRef(null);
 
   const categoriesSafe = useMemo(() => sanitizeCategories(categories), [categories]);
-  const trustBadgesSafe = useMemo(
-    () => sanitizeTrustBadges(trustBadges),
-    [trustBadges]
-  );
+  const trustBadgesSafe = useMemo(() => sanitizeTrustBadges(trustBadges), [trustBadges]);
   const featuredCollectionsSafe = useMemo(
     () => sanitizeFeaturedCollections(featuredCollections),
     [featuredCollections]
@@ -279,25 +360,24 @@ export default function AdminShopControlPage() {
   const isDirty = useMemo(() => {
     const snapshot = initialSnapshotRef.current;
     if (!snapshot) return false;
-
-    const current = shallowSnapshot({
-      heroEyebrow,
-      heroTitle,
-      heroSubtitle,
-      heroImage,
-      promoTitle,
-      promoText,
-      defaultSort,
-      emptyStateTitle,
-      emptyStateSubtitle,
-      priceMax,
-      brandsText,
-      categories,
-      trustBadges,
-      featuredCollections,
-    });
-
-    return current !== snapshot;
+    return (
+      shallowSnapshot({
+        heroEyebrow,
+        heroTitle,
+        heroSubtitle,
+        heroImage,
+        promoTitle,
+        promoText,
+        defaultSort,
+        emptyStateTitle,
+        emptyStateSubtitle,
+        priceMax,
+        brandsText,
+        categories,
+        trustBadges,
+        featuredCollections,
+      }) !== snapshot
+    );
   }, [
     heroEyebrow,
     heroTitle,
@@ -336,23 +416,7 @@ export default function AdminShopControlPage() {
     setFeaturedCollections(sanitizeFeaturedCollections(next.featuredCollections));
 
     initialStateRef.current = {
-      version: Number(next.version || 0),
-
-      heroEyebrow: next.heroEyebrow,
-      heroTitle: next.heroTitle,
-      heroSubtitle: next.heroSubtitle,
-      heroImage: next.heroImage,
-
-      promoTitle: next.promoTitle,
-      promoText: next.promoText,
-      defaultSort: next.defaultSort,
-
-      emptyStateTitle: next.emptyStateTitle,
-      emptyStateSubtitle: next.emptyStateSubtitle,
-
-      priceMax: next.priceMax,
-      brandsText: next.brandsText,
-
+      ...next,
       categories: sanitizeCategories(next.categories),
       trustBadges: sanitizeTrustBadges(next.trustBadges),
       featuredCollections: sanitizeFeaturedCollections(next.featuredCollections),
@@ -363,7 +427,6 @@ export default function AdminShopControlPage() {
 
   useEffect(() => {
     if (!shopDoc) return;
-
     const next = buildFormState(shopDoc);
 
     if (!hasHydratedRef.current) {
@@ -383,7 +446,6 @@ export default function AdminShopControlPage() {
       event.preventDefault();
       event.returnValue = "";
     }
-
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
@@ -392,47 +454,18 @@ export default function AdminShopControlPage() {
     mutationFn: async (payload) => (await api.put("/page-config/shop", payload)).data,
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["page-config", "shop"] });
-
-      const nextConfig = response
-        ? buildFormState(response)
-        : {
-            version: Number(initialStateRef.current?.version || 0),
-
-            heroEyebrow,
-            heroTitle,
-            heroSubtitle,
-            heroImage,
-
-            promoTitle,
-            promoText,
-            defaultSort,
-
-            emptyStateTitle,
-            emptyStateSubtitle,
-
-            priceMax: clampNumber(priceMax, 1, 1_000_000),
-            brandsText,
-
-            categories: sanitizeCategories(categories),
-            trustBadges: sanitizeTrustBadges(trustBadges),
-            featuredCollections: sanitizeFeaturedCollections(featuredCollections),
-          };
-
-      applyFormState(nextConfig);
-
+      applyFormState(buildFormState(response));
       toast.success("Saved successfully", {
         description: "Your shop configuration has been updated.",
       });
     },
     onError: (err) => {
-      const message =
-        err?.response?.data?.message ||
-        err?.response?.data?.error ||
-        err?.message ||
-        "Update failed. Please try again.";
-
       toast.error("Could not save changes", {
-        description: String(message),
+        description:
+          err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          err?.message ||
+          "Update failed. Please try again.",
       });
     },
   });
@@ -440,21 +473,53 @@ export default function AdminShopControlPage() {
   function addCategory() {
     setCategories((prev) => [
       ...(Array.isArray(prev) ? prev : []),
-      { name: "", iconKey: "ShoppingBag" },
+      normalizeCategory(
+        {
+          name: "",
+          slug: "",
+          iconKey: "ShoppingBag",
+          image: "",
+          isActive: true,
+          featured: false,
+        },
+        prev.length
+      ),
     ]);
   }
 
   function updateCategory(index, patch) {
     setCategories((prev) => {
       const next = [...(Array.isArray(prev) ? prev : [])];
-      next[index] = normalizeCategory({ ...(next[index] || {}), ...patch });
+      const merged = normalizeCategory({ ...(next[index] || {}), ...patch }, index);
+      if (patch.name != null && !patch.slug) {
+        merged.slug = slugify(merged.name);
+      }
+      next[index] = merged;
       return next;
+    });
+  }
+
+  function moveCategory(index, direction) {
+    setCategories((prev) => {
+      const next = [...(Array.isArray(prev) ? prev : [])];
+      const target = index + direction;
+      if (target < 0 || target >= next.length) return prev;
+
+      const temp = next[index];
+      next[index] = next[target];
+      next[target] = temp;
+
+      return next.map((item, idx) =>
+        normalizeCategory({ ...item, sortOrder: idx + 1 }, idx)
+      );
     });
   }
 
   function removeCategory(index) {
     setCategories((prev) =>
-      (Array.isArray(prev) ? prev : []).filter((_, i) => i !== index)
+      (Array.isArray(prev) ? prev : [])
+        .filter((_, i) => i !== index)
+        .map((item, idx) => normalizeCategory({ ...item, sortOrder: idx + 1 }, idx))
     );
   }
 
@@ -495,10 +560,7 @@ export default function AdminShopControlPage() {
   function updateFeaturedCollection(index, patch) {
     setFeaturedCollections((prev) => {
       const next = [...(Array.isArray(prev) ? prev : [])];
-      next[index] = normalizeCollection(
-        { ...(next[index] || {}), ...patch },
-        index
-      );
+      next[index] = normalizeCollection({ ...(next[index] || {}), ...patch }, index);
       return next;
     });
   }
@@ -522,102 +584,23 @@ export default function AdminShopControlPage() {
     const cleanEmptyStateTitle = String(emptyStateTitle || "").trim();
     const cleanEmptyStateSubtitle = String(emptyStateSubtitle || "").trim();
 
-    const cleanPriceMax = clampNumber(priceMax, 1, 1_000_000);
-    const uniqueCategories = dedupeCategories(categoriesSafe);
+    const cleanPriceMax = clampNumber(priceMax, 1, 1000000);
+    const uniqueCategories = dedupeCategories(
+      categoriesSafe.map((item, index) => ({
+        ...item,
+        sortOrder: index + 1,
+        slug: item.slug || slugify(item.name),
+      }))
+    );
+
     const uniqueTrustBadges = dedupeTrustBadges(trustBadgesSafe);
     const cleanCollections = featuredCollectionsSafe
       .map((item, index) => normalizeCollection(item, index))
       .filter((item) => item.title);
 
-    if (!cleanHeroTitle) {
-      return { ok: false, message: "Hero title is required." };
-    }
-
-    if (cleanHeroEyebrow.length > 40) {
-      return { ok: false, message: "Hero eyebrow must be within 40 characters." };
-    }
-
-    if (cleanHeroTitle.length > 90) {
-      return { ok: false, message: "Hero title must be within 90 characters." };
-    }
-
-    if (cleanHeroSubtitle.length > 320) {
-      return { ok: false, message: "Hero subtitle must be within 320 characters." };
-    }
-
-    if (cleanHeroImage.length > 500) {
-      return { ok: false, message: "Hero image URL is too long." };
-    }
-
-    if (cleanPromoTitle.length > 80) {
-      return { ok: false, message: "Promo title must be within 80 characters." };
-    }
-
-    if (cleanPromoText.length > 220) {
-      return { ok: false, message: "Promo text must be within 220 characters." };
-    }
-
-    if (
-      cleanDefaultSort !== "newest" &&
-      cleanDefaultSort !== "priceLow" &&
-      cleanDefaultSort !== "priceHigh"
-    ) {
-      return { ok: false, message: "Invalid default sort value." };
-    }
-
-    if (cleanEmptyStateTitle.length > 80) {
-      return {
-        ok: false,
-        message: "Empty state title must be within 80 characters.",
-      };
-    }
-
-    if (cleanEmptyStateSubtitle.length > 220) {
-      return {
-        ok: false,
-        message: "Empty state subtitle must be within 220 characters.",
-      };
-    }
-
-    if (uniqueCategories.some((category) => category.name.length > 40)) {
-      return {
-        ok: false,
-        message: "Each category name must be within 40 characters.",
-      };
-    }
-
-    if (uniqueCategories.length > 40) {
-      return { ok: false, message: "Maximum 40 categories are allowed." };
-    }
-
-    if (uniqueTrustBadges.some((badge) => badge.label.length > 40)) {
-      return {
-        ok: false,
-        message: "Each trust badge label must be within 40 characters.",
-      };
-    }
-
-    if (uniqueTrustBadges.length > 6) {
-      return { ok: false, message: "Maximum 6 trust badges are allowed." };
-    }
-
-    if (cleanCollections.length > 6) {
-      return { ok: false, message: "Maximum 6 featured collections are allowed." };
-    }
-
-    if (
-      cleanCollections.some(
-        (item) =>
-          item.title.length > 80 ||
-          item.description.length > 220 ||
-          item.href.length > 500 ||
-          item.image.length > 500
-      )
-    ) {
-      return {
-        ok: false,
-        message: "One or more featured collection fields are too long.",
-      };
+    if (!cleanHeroTitle) return { ok: false, message: "Hero title is required." };
+    if (uniqueCategories.some((category) => !category.slug)) {
+      return { ok: false, message: "Each category must have a valid slug." };
     }
 
     const payload = {
@@ -636,7 +619,6 @@ export default function AdminShopControlPage() {
       priceMax: cleanPriceMax,
       brands: brandsSafe,
       categories: uniqueCategories,
-
       trustBadges: uniqueTrustBadges,
       featuredCollections: cleanCollections,
     };
@@ -646,46 +628,22 @@ export default function AdminShopControlPage() {
       payload.version = version;
     }
 
-    return {
-      ok: true,
-      payload,
-    };
+    return { ok: true, payload };
   }
 
   function handleSave() {
     const result = validateAndBuildPayload();
-
     if (!result.ok) {
       toast.error("Validation failed", { description: result.message });
       return;
     }
-
     mutation.mutate(result.payload);
   }
 
   function handleReset() {
     const base = initialStateRef.current;
     if (!base) return;
-
-    setHeroEyebrow(base.heroEyebrow);
-    setHeroTitle(base.heroTitle);
-    setHeroSubtitle(base.heroSubtitle);
-    setHeroImage(base.heroImage);
-
-    setPromoTitle(base.promoTitle);
-    setPromoText(base.promoText);
-    setDefaultSort(base.defaultSort);
-
-    setEmptyStateTitle(base.emptyStateTitle);
-    setEmptyStateSubtitle(base.emptyStateSubtitle);
-
-    setPriceMax(base.priceMax);
-    setBrandsText(base.brandsText);
-
-    setCategories(sanitizeCategories(base.categories));
-    setTrustBadges(sanitizeTrustBadges(base.trustBadges));
-    setFeaturedCollections(sanitizeFeaturedCollections(base.featuredCollections));
-
+    applyFormState(base);
     toast.message("Changes reverted", {
       description: "Restored last saved configuration.",
     });
@@ -698,20 +656,12 @@ export default function AdminShopControlPage() {
           <div className="h-7 w-56 rounded-xl bg-gray-100" />
           <div className="mt-4 h-4 w-full rounded-xl bg-gray-100" />
           <div className="mt-2 h-4 w-5/6 rounded-xl bg-gray-100" />
-
           <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="h-24 rounded-2xl bg-gray-100" />
             <div className="h-24 rounded-2xl bg-gray-100" />
             <div className="h-24 rounded-2xl bg-gray-100" />
             <div className="h-24 rounded-2xl bg-gray-100" />
           </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <div className="h-72 rounded-3xl bg-gray-100" />
-            <div className="h-72 rounded-3xl bg-gray-100" />
-          </div>
-
-          <div className="mt-6 h-56 rounded-3xl bg-gray-100" />
         </div>
       </div>
     );
@@ -727,7 +677,6 @@ export default function AdminShopControlPage() {
               error?.message ||
               "Failed to load shop configuration."}
           </div>
-
           <button
             type="button"
             onClick={() => refetch()}
@@ -759,8 +708,7 @@ export default function AdminShopControlPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              Manage hero content, promo copy, discovery controls, quick filters and
-              curated collection blocks for the shop page.
+              Manage hero content, collections, filters, and the master category registry used across shop pages.
             </p>
 
             {isDirty ? (
@@ -786,7 +734,6 @@ export default function AdminShopControlPage() {
                 "focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
               ].join(" ")}
               disabled={!isDirty || mutation.isPending}
-              title="Revert to last saved"
             >
               <RotateCcw size={18} />
               Reset
@@ -825,26 +772,14 @@ export default function AdminShopControlPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+        <SummaryCard label="Hero title" value={heroTitle.trim() || "—"} hint="Main shop heading" />
+        <SummaryCard label="Allowed brands" value={brandsSafe.length || 0} hint="Unique brand entries" />
         <SummaryCard
-          label="Hero title"
-          value={heroTitle.trim() || "—"}
-          hint="Main shop heading"
+          label="Active categories"
+          value={normalizedPreviewCategories.filter((c) => c.isActive).length || 0}
+          hint="Visible in storefront"
         />
-        <SummaryCard
-          label="Allowed brands"
-          value={brandsSafe.length || 0}
-          hint="Unique brand entries"
-        />
-        <SummaryCard
-          label="Category pills"
-          value={normalizedPreviewCategories.length || 0}
-          hint="Quick filters shown on top"
-        />
-        <SummaryCard
-          label="Trust badges"
-          value={normalizedPreviewTrustBadges.length || 0}
-          hint="Discovery support chips"
-        />
+        <SummaryCard label="Trust badges" value={normalizedPreviewTrustBadges.length || 0} hint="Discovery support chips" />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -859,7 +794,6 @@ export default function AdminShopControlPage() {
               className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
               value={heroEyebrow}
               onChange={(e) => setHeroEyebrow(e.target.value)}
-              placeholder="Premium catalog"
               maxLength={40}
             />
           </label>
@@ -870,7 +804,6 @@ export default function AdminShopControlPage() {
               className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
               value={heroTitle}
               onChange={(e) => setHeroTitle(e.target.value)}
-              placeholder="Shop all products"
               maxLength={90}
             />
           </label>
@@ -881,24 +814,18 @@ export default function AdminShopControlPage() {
               className="mt-2 min-h-[120px] w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
               value={heroSubtitle}
               onChange={(e) => setHeroSubtitle(e.target.value)}
-              placeholder="Short description..."
               maxLength={320}
             />
           </label>
 
-          <label className="mt-4 block">
-            <div className="text-sm font-medium text-gray-800">Hero image URL</div>
-            <input
-              className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+          <div className="mt-4">
+            <UploadField
+              label="Hero image"
               value={heroImage}
-              onChange={(e) => setHeroImage(e.target.value)}
-              placeholder="https://example.com/shop-hero.jpg"
-              maxLength={500}
+              onChange={setHeroImage}
+              hint="Upload or paste the hero image URL."
             />
-            <div className="mt-2 text-xs text-gray-500">
-              Optional. Use a relative path or a full http/https URL.
-            </div>
-          </label>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -912,7 +839,6 @@ export default function AdminShopControlPage() {
               className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
               value={promoTitle}
               onChange={(e) => setPromoTitle(e.target.value)}
-              placeholder="Curated storefront experience"
               maxLength={80}
             />
           </label>
@@ -923,7 +849,6 @@ export default function AdminShopControlPage() {
               className="mt-2 min-h-[110px] w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
               value={promoText}
               onChange={(e) => setPromoText(e.target.value)}
-              placeholder="Short supporting copy..."
               maxLength={220}
             />
           </label>
@@ -949,7 +874,6 @@ export default function AdminShopControlPage() {
               className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
               value={emptyStateTitle}
               onChange={(e) => setEmptyStateTitle(e.target.value)}
-              placeholder="No products found"
               maxLength={80}
             />
           </label>
@@ -960,7 +884,6 @@ export default function AdminShopControlPage() {
               className="mt-2 min-h-[100px] w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
               value={emptyStateSubtitle}
               onChange={(e) => setEmptyStateSubtitle(e.target.value)}
-              placeholder="Help the user recover from an empty result."
               maxLength={220}
             />
           </label>
@@ -974,9 +897,7 @@ export default function AdminShopControlPage() {
           icon={Filter}
         >
           <label className="block">
-            <div className="text-sm font-medium text-gray-800">
-              Price slider cap (max)
-            </div>
+            <div className="text-sm font-medium text-gray-800">Price slider cap (max)</div>
             <input
               type="number"
               className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
@@ -985,31 +906,16 @@ export default function AdminShopControlPage() {
               min={1}
               max={1000000}
             />
-            <div className="mt-2 text-xs text-gray-500">
-              Used as the maximum range of the client-side price slider.
-            </div>
           </label>
 
           <label className="mt-4 block">
-            <div className="text-sm font-medium text-gray-800">
-              Brand allowlist (optional)
-            </div>
+            <div className="text-sm font-medium text-gray-800">Brand allowlist</div>
             <textarea
               className="mt-2 min-h-[160px] w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
               value={brandsText}
               onChange={(e) => setBrandsText(e.target.value)}
               placeholder={"Nike\nApple\nChanel"}
             />
-            <div className="mt-2 text-xs text-gray-500">
-              Leave empty to allow all brands. Use one brand per line or comma-separated values.
-            </div>
-
-            {brandsSafe.length > 0 ? (
-              <div className="mt-3 text-xs text-gray-600">
-                <span className="font-semibold">{brandsSafe.length}</span> unique brand(s)
-                detected.
-              </div>
-            ) : null}
           </label>
         </SectionCard>
 
@@ -1035,28 +941,17 @@ export default function AdminShopControlPage() {
           </div>
 
           <div className="mt-5 space-y-3">
-            {trustBadgesSafe.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5 text-sm text-gray-500">
-                No trust badges yet. Add a badge to get started.
-              </div>
-            ) : null}
-
             {trustBadgesSafe.map((badge, index) => (
               <div
                 key={badge.id || index}
                 className="grid grid-cols-1 gap-3 rounded-[24px] border border-gray-200 bg-gray-50 p-4 md:grid-cols-12 md:items-center"
               >
                 <div className="md:col-span-10">
-                  <label className="block text-sm font-medium text-gray-800">
-                    Badge label
-                  </label>
+                  <label className="block text-sm font-medium text-gray-800">Badge label</label>
                   <input
                     className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
-                    placeholder="Secure checkout"
                     value={badge.label}
-                    onChange={(e) =>
-                      updateTrustBadge(index, { label: e.target.value })
-                    }
+                    onChange={(e) => updateTrustBadge(index, { label: e.target.value })}
                     maxLength={40}
                   />
                 </div>
@@ -1066,7 +961,6 @@ export default function AdminShopControlPage() {
                     type="button"
                     onClick={() => removeTrustBadge(index)}
                     className="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50"
-                    title="Remove"
                   >
                     <Trash2 size={18} />
                   </button>
@@ -1079,13 +973,11 @@ export default function AdminShopControlPage() {
 
       <SectionCard
         title="Featured collections"
-        description="Optional editorial-style cards shown to guide customers into curated shop paths."
+        description="Curated cards shown under the hero section."
         icon={Layers3}
       >
         <div className="flex items-center justify-between gap-3">
-          <div className="text-xs text-gray-500">
-            Add up to 6 collection cards with title, description, link and optional image.
-          </div>
+          <div className="text-xs text-gray-500">Add up to 6 collection cards.</div>
 
           <button
             type="button"
@@ -1099,27 +991,15 @@ export default function AdminShopControlPage() {
         </div>
 
         <div className="mt-5 space-y-4">
-          {featuredCollectionsSafe.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5 text-sm text-gray-500">
-              No featured collections yet. Add a collection card to get started.
-            </div>
-          ) : null}
-
           {featuredCollectionsSafe.map((item, index) => (
-            <div
-              key={item.id || index}
-              className="rounded-[24px] border border-gray-200 bg-gray-50 p-4"
-            >
+            <div key={item.id || index} className="rounded-[24px] border border-gray-200 bg-gray-50 p-4">
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <label className="block">
                   <div className="text-sm font-medium text-gray-800">Title</div>
                   <input
                     className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
-                    placeholder="Latest arrivals"
                     value={item.title}
-                    onChange={(e) =>
-                      updateFeaturedCollection(index, { title: e.target.value })
-                    }
+                    onChange={(e) => updateFeaturedCollection(index, { title: e.target.value })}
                     maxLength={80}
                   />
                 </label>
@@ -1128,11 +1008,8 @@ export default function AdminShopControlPage() {
                   <div className="text-sm font-medium text-gray-800">Href</div>
                   <input
                     className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
-                    placeholder="/shop?sort=latest"
                     value={item.href}
-                    onChange={(e) =>
-                      updateFeaturedCollection(index, { href: e.target.value })
-                    }
+                    onChange={(e) => updateFeaturedCollection(index, { href: e.target.value })}
                     maxLength={500}
                   />
                 </label>
@@ -1142,29 +1019,19 @@ export default function AdminShopControlPage() {
                 <div className="text-sm font-medium text-gray-800">Description</div>
                 <textarea
                   className="mt-2 min-h-[100px] w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
-                  placeholder="Explore newly updated products from the live catalog."
                   value={item.description}
-                  onChange={(e) =>
-                    updateFeaturedCollection(index, {
-                      description: e.target.value,
-                    })
-                  }
+                  onChange={(e) => updateFeaturedCollection(index, { description: e.target.value })}
                   maxLength={220}
                 />
               </label>
 
-              <label className="mt-4 block">
-                <div className="text-sm font-medium text-gray-800">Image URL</div>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
-                  placeholder="https://example.com/collection.jpg"
+              <div className="mt-4">
+                <UploadField
+                  label="Collection image"
                   value={item.image}
-                  onChange={(e) =>
-                    updateFeaturedCollection(index, { image: e.target.value })
-                  }
-                  maxLength={500}
+                  onChange={(value) => updateFeaturedCollection(index, { image: value })}
                 />
-              </label>
+              </div>
 
               <div className="mt-4 flex justify-end">
                 <button
@@ -1181,19 +1048,19 @@ export default function AdminShopControlPage() {
       </SectionCard>
 
       <SectionCard
-        title="Category pills"
-        description="Configure the quick category pills shown at the top of the shop page."
+        title="Master categories"
+        description="These categories drive the shop pills, products selector, and storefront collection discovery."
         icon={ShoppingBag}
       >
         <div className="flex items-center justify-between gap-3">
           <div className="text-xs text-gray-500">
-            Duplicate names are automatically merged on save. Maximum 40 categories.
+            Maximum 40 categories. Order here controls storefront order.
           </div>
 
           <button
             type="button"
             onClick={addCategory}
-            className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
+            className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             disabled={categoriesSafe.length >= 40}
           >
             <Plus size={18} />
@@ -1201,64 +1068,118 @@ export default function AdminShopControlPage() {
           </button>
         </div>
 
-        <div className="mt-5 space-y-3">
-          {categoriesSafe.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-gray-300 bg-gray-50 p-5 text-sm text-gray-500">
-              No categories yet. Add a category to get started.
-            </div>
-          ) : null}
-
+        <div className="mt-5 space-y-4">
           {categoriesSafe.map((category, index) => (
             <div
-              key={index}
-              className="grid grid-cols-1 gap-3 rounded-[24px] border border-gray-200 bg-gray-50 p-4 md:grid-cols-12 md:items-center"
+              key={category.id || index}
+              className="rounded-[24px] border border-gray-200 bg-gray-50 p-4"
             >
-              <div className="md:col-span-6">
-                <label className="block text-sm font-medium text-gray-800">
-                  Category name
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-gray-500">
+                  <GripVertical size={14} />
+                  Position {index + 1}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => moveCategory(index, -1)}
+                    disabled={index === 0}
+                    className="rounded-2xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50"
+                  >
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveCategory(index, 1)}
+                    disabled={index === categoriesSafe.length - 1}
+                    className="rounded-2xl border border-gray-200 px-3 py-2 text-xs font-semibold text-gray-700 disabled:opacity-50"
+                  >
+                    Down
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeCategory(index)}
+                    className="rounded-2xl border border-red-200 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                <label className="block">
+                  <div className="text-sm font-medium text-gray-800">Category name</div>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+                    value={category.name}
+                    onChange={(e) => updateCategory(index, { name: e.target.value })}
+                    maxLength={40}
+                  />
                 </label>
-                <input
-                  className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
-                  placeholder="Category name (e.g. Men)"
-                  value={category.name}
-                  onChange={(e) => updateCategory(index, { name: e.target.value })}
-                  maxLength={40}
+
+                <label className="block">
+                  <div className="text-sm font-medium text-gray-800">Slug</div>
+                  <input
+                    className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+                    value={category.slug}
+                    onChange={(e) => updateCategory(index, { slug: slugify(e.target.value) })}
+                    maxLength={60}
+                  />
+                </label>
+              </div>
+
+              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <label className="block">
+                  <div className="text-sm font-medium text-gray-800">Icon</div>
+                  <select
+                    className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
+                    value={category.iconKey}
+                    onChange={(e) => updateCategory(index, { iconKey: e.target.value })}
+                  >
+                    {ICON_KEYS.map((iconKey) => (
+                      <option key={iconKey} value={iconKey}>
+                        {iconKey}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={category.isActive}
+                    onChange={(e) => updateCategory(index, { isActive: e.target.checked })}
+                  />
+                  <span className="text-sm font-medium text-gray-800">Active in storefront</span>
+                </label>
+
+                <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={category.featured}
+                    onChange={(e) => updateCategory(index, { featured: e.target.checked })}
+                  />
+                  <span className="text-sm font-medium text-gray-800">Featured collection</span>
+                </label>
+              </div>
+
+              <div className="mt-4">
+                <UploadField
+                  label="Category image"
+                  value={category.image}
+                  onChange={(value) => updateCategory(index, { image: value })}
+                  hint="Used in collections and category-driven discovery sections."
                 />
               </div>
 
-              <div className="md:col-span-4">
-                <label className="block text-sm font-medium text-gray-800">Icon</label>
-                <select
-                  className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
-                  value={category.iconKey}
-                  onChange={(e) => updateCategory(index, { iconKey: e.target.value })}
-                >
-                  {ICON_KEYS.map((iconKey) => (
-                    <option key={iconKey} value={iconKey}>
-                      {iconKey}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex md:col-span-2 md:justify-end">
-                <button
-                  type="button"
-                  onClick={() => removeCategory(index)}
-                  className="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
-                  title="Remove"
-                >
-                  <Trash2 size={18} />
-                </button>
+              <div className="mt-4 rounded-[20px] border border-dashed border-gray-300 bg-white px-4 py-3 text-xs text-gray-500">
+                <span className="font-semibold text-gray-700">Preview:</span>{" "}
+                id=<span className="font-mono">{category.id}</span>, slug=
+                <span className="font-mono">{category.slug || "auto-generated"}</span>
               </div>
             </div>
           ))}
-
-          {categoriesSafe.length >= 40 ? (
-            <div className="text-xs text-gray-500">
-              Maximum limit reached: 40 categories.
-            </div>
-          ) : null}
         </div>
       </SectionCard>
 

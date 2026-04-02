@@ -21,6 +21,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Home,
+  Mail,
+  Phone,
 } from "lucide-react";
 import { useAuth } from "../../shared/hooks/useAuth";
 
@@ -382,6 +384,18 @@ export default function AdminLayout() {
         label: "Promotions",
         requiresAny: ["settings:write"],
       },
+      {
+        to: "/admin/newsletter",
+        icon: Mail,
+        label: "Newsletter",
+        requiresAny: ["newsletter:read", "newsletter:write"],
+      },
+      {
+        to: "/admin/contact-control",
+        icon: Phone,
+        label: "Contact Control",
+        requiresAny: ["settings:read", "settings:write"],
+      },
     ].filter((it) => canAccessNav(ctx, it));
 
     const operations = [
@@ -389,7 +403,6 @@ export default function AdminLayout() {
         to: "/admin/support",
         icon: LifeBuoy,
         label: "Support",
-        badge: "Soon",
         requiresAny: ["users:read", "users:write", "orders:read"],
       },
     ].filter((it) => canAccessNav(ctx, it));

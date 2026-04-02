@@ -1,7 +1,19 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import api from "../../../services/apiClient";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
 
 function Newsletter({ data, loading, error }) {
   const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitState, setSubmitState] = useState({
+    type: "",
+    message: "",
+  });
 
   const title = data?.title || "Join Our Newsletter";
   const description =
@@ -10,12 +22,67 @@ function Newsletter({ data, loading, error }) {
   const placeholder = data?.placeholder || "Enter your email";
   const buttonLabel = data?.buttonLabel || "Subscribe";
 
-  function handleSubmit(e) {
+  const isDisabled = useMemo(() => {
+    return submitting;
+  }, [submitting]);
+
+  async function handleSubmit(e) {
     e.preventDefault();
+
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail) {
+      setSubmitState({
+        type: "error",
+        message: "Please enter your email address.",
+      });
+      return;
+    }
+
+    if (!EMAIL_RE.test(normalizedEmail)) {
+      setSubmitState({
+        type: "error",
+        message: "Please enter a valid email address.",
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setSubmitState({ type: "", message: "" });
+
+      const response = await api.post("/newsletter/subscribe", {
+        email: normalizedEmail,
+        source: "home_newsletter",
+      });
+
+      const message =
+        response?.data?.message ||
+        "Subscription completed successfully. Please check your inbox for future updates.";
+
+      setSubmitState({
+        type: "success",
+        message,
+      });
+
+      setEmail("");
+    } catch (submitError) {
+      const message =
+        submitError?.response?.data?.message ||
+        submitError?.response?.data?.error ||
+        "We could not complete your subscription right now. Please try again.";
+
+      setSubmitState({
+        type: "error",
+        message: String(message),
+      });
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
-    <section className="site-shell mt-24 mb-20" aria-label="Newsletter">
+    <section className="site-shell mb-20 mt-24" aria-label="Newsletter">
       <div className="mx-auto max-w-5xl overflow-hidden rounded-[32px] border border-black/5 bg-gradient-to-br from-white via-[#faf7f2] to-[#f3f4f6] shadow-[0_20px_60px_rgba(15,23,42,0.08)]">
         <div className="grid grid-cols-1 gap-8 px-6 py-8 md:px-10 md:py-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:px-12 lg:py-12">
           <div>
@@ -52,7 +119,7 @@ function Newsletter({ data, loading, error }) {
           </div>
 
           <div className="rounded-[28px] border border-black/5 bg-white/95 p-5 shadow-sm md:p-6">
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
               <label className="block">
                 <span className="mb-2 block text-sm font-medium text-gray-800">
                   Email address
@@ -61,23 +128,48 @@ function Newsletter({ data, loading, error }) {
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (submitState.type) {
+                      setSubmitState({ type: "", message: "" });
+                    }
+                  }}
                   placeholder={placeholder}
-                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 outline-none transition focus:border-black"
+                  autoComplete="email"
+                  inputMode="email"
+                  aria-invalid={submitState.type === "error"}
+                  aria-describedby="newsletter-feedback"
+                  disabled={isDisabled}
+                  className="w-full rounded-2xl border border-gray-300 bg-white px-4 py-3.5 text-sm text-gray-900 outline-none transition focus:border-black disabled:cursor-not-allowed disabled:bg-gray-50"
                 />
               </label>
 
               <button
                 type="submit"
-                className="inline-flex w-full items-center justify-center rounded-2xl bg-black px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-gray-800"
+                disabled={isDisabled}
+                className="inline-flex w-full items-center justify-center rounded-2xl bg-black px-6 py-3.5 text-sm font-semibold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-400"
               >
-                {buttonLabel}
+                {submitting ? "Subscribing..." : buttonLabel}
               </button>
+
+              {submitState.message ? (
+                <div
+                  id="newsletter-feedback"
+                  className={[
+                    "rounded-2xl px-4 py-3 text-sm",
+                    submitState.type === "success"
+                      ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border border-red-200 bg-red-50 text-red-700",
+                  ].join(" ")}
+                >
+                  {submitState.message}
+                </div>
+              ) : null}
 
               <div className="rounded-2xl bg-gray-50 px-4 py-4 ring-1 ring-black/5">
                 <p className="text-xs leading-5 text-gray-600">
-                  Newsletter form UI is ready. Connect this button to your
-                  subscriber API or email platform to activate real subscriptions.
+                  Subscribe to receive curated product updates, new arrivals,
+                  and exclusive seasonal highlights directly in your inbox.
                 </p>
               </div>
 

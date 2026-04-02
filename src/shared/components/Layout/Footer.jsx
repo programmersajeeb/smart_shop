@@ -1,8 +1,23 @@
+import { useState } from "react";
 import { Facebook, Instagram, Youtube, Linkedin, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
+import api from "../../../services/apiClient";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
+
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
 
 function Footer() {
   const year = new Date().getFullYear();
+
+  const [email, setEmail] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitState, setSubmitState] = useState({
+    type: "",
+    message: "",
+  });
 
   const shopLinks = [
     { label: "Men's Fashion", to: "/shop?category=Men" },
@@ -41,6 +56,61 @@ function Footer() {
       icon: <Linkedin size={18} />,
     },
   ];
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail) {
+      setSubmitState({
+        type: "error",
+        message: "Please enter your email address.",
+      });
+      return;
+    }
+
+    if (!EMAIL_RE.test(normalizedEmail)) {
+      setSubmitState({
+        type: "error",
+        message: "Please enter a valid email address.",
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setSubmitState({ type: "", message: "" });
+
+      const response = await api.post("/newsletter/subscribe", {
+        email: normalizedEmail,
+        source: "footer_newsletter",
+      });
+
+      const message =
+        response?.data?.message ||
+        "Subscription completed successfully. You will receive future updates in your inbox.";
+
+      setSubmitState({
+        type: "success",
+        message,
+      });
+
+      setEmail("");
+    } catch (submitError) {
+      const message =
+        submitError?.response?.data?.message ||
+        submitError?.response?.data?.error ||
+        "We could not complete your subscription right now. Please try again.";
+
+      setSubmitState({
+        type: "error",
+        message: String(message),
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <footer className="mt-12 bg-black text-white sm:mt-14 lg:mt-16">
@@ -94,7 +164,7 @@ function Footer() {
               Subscribe to get exclusive offers, updates, and new arrivals.
             </p>
 
-            <form className="mt-4" onSubmit={(e) => e.preventDefault()}>
+            <form className="mt-4" onSubmit={handleSubmit} noValidate>
               <label className="sr-only" htmlFor="footer-email">
                 Email address
               </label>
@@ -104,17 +174,44 @@ function Footer() {
                 <input
                   id="footer-email"
                   type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (submitState.type) {
+                      setSubmitState({ type: "", message: "" });
+                    }
+                  }}
                   placeholder="Enter your email"
-                  className="w-full border-0 bg-transparent px-3 py-3.5 text-sm text-black outline-none placeholder:text-gray-500"
+                  autoComplete="email"
+                  inputMode="email"
+                  aria-invalid={submitState.type === "error"}
+                  aria-describedby="footer-newsletter-feedback"
+                  disabled={submitting}
+                  className="w-full border-0 bg-transparent px-3 py-3.5 text-sm text-black outline-none placeholder:text-gray-500 disabled:cursor-not-allowed disabled:bg-gray-100"
                 />
               </div>
 
               <button
                 type="submit"
-                className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-gray-200"
+                disabled={submitting}
+                className="mt-3 inline-flex min-h-[48px] w-full items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-gray-200 disabled:cursor-not-allowed disabled:bg-gray-300"
               >
-                Subscribe
+                {submitting ? "Subscribing..." : "Subscribe"}
               </button>
+
+              {submitState.message ? (
+                <div
+                  id="footer-newsletter-feedback"
+                  className={[
+                    "mt-3 rounded-2xl px-4 py-3 text-sm",
+                    submitState.type === "success"
+                      ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                      : "border border-red-200 bg-red-50 text-red-700",
+                  ].join(" ")}
+                >
+                  {submitState.message}
+                </div>
+              ) : null}
             </form>
           </div>
         </div>

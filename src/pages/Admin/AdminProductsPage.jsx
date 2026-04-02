@@ -392,7 +392,32 @@ function ProductActionModal({
   );
 }
 
-function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
+function normalizeMasterCategories(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      name: String(item?.name || "").trim(),
+      slug: String(item?.slug || "").trim(),
+      isActive: item?.isActive !== false,
+      featured: Boolean(item?.featured),
+      image: String(item?.image || "").trim(),
+      iconKey: String(item?.iconKey || "").trim(),
+      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
+    }))
+    .filter((item) => item.name)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
+function ProductModal({
+  open,
+  mode,
+  initial,
+  onClose,
+  onSubmit,
+  busy,
+  categories = [],
+}) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [price, setPrice] = useState("0");
@@ -452,6 +477,13 @@ function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
     ...existingImages.map((image) => toAbsoluteMediaUrl(image?.url)).filter(Boolean),
     ...previewUrls,
   ];
+
+  const activeCategories = categories.filter((item) => item.isActive);
+  const selectedCategoryMissing =
+    category &&
+    !categories.some(
+      (item) => item.name.toLowerCase() === String(category).trim().toLowerCase()
+    );
 
   function onPickFiles(event) {
     const files = Array.from(event.target.files || []);
@@ -661,12 +693,24 @@ function ProductModal({ open, mode, initial, onClose, onSubmit, busy }) {
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <label className="block">
                     <div className="text-sm font-medium text-gray-800">Category</div>
-                    <input
+                    <select
                       value={category}
                       onChange={(e) => setCategory(e.target.value)}
-                      placeholder="Men / Women / Accessories..."
                       className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 outline-none shadow-sm transition focus:border-gray-300 focus:ring-2 focus:ring-black focus:ring-offset-2"
-                    />
+                    >
+                      <option value="">Select category</option>
+                      {activeCategories.map((item) => (
+                        <option key={item.id || item.name} value={item.name}>
+                          {item.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    {selectedCategoryMissing ? (
+                      <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        This product uses a category that is no longer in the master registry.
+                      </div>
+                    ) : null}
                   </label>
 
                   <label className="block">
@@ -1218,6 +1262,17 @@ export default function AdminProductsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmTarget, setConfirmTarget] = useState(null);
 
+  const { data: shopCfgDoc } = useQuery({
+    queryKey: ["page-config", "shop"],
+    queryFn: async () => (await api.get("/page-config/shop")).data,
+    staleTime: 60000,
+  });
+
+  const masterCategories = useMemo(
+    () => normalizeMasterCategories(shopCfgDoc?.data?.categories),
+    [shopCfgDoc?.data?.categories]
+  );
+
   useEffect(() => {
     const id = setTimeout(() => setQ(searchInput.trim()), 350);
     return () => clearTimeout(id);
@@ -1238,7 +1293,7 @@ export default function AdminProductsPage() {
     queryKey: ["admin-products", params],
     queryFn: async ({ signal }) =>
       (await api.get("/products/admin", { params, signal })).data,
-    staleTime: 30_000,
+    staleTime: 30000,
     placeholderData: (previous) => previous,
   });
 
@@ -1256,7 +1311,7 @@ export default function AdminProductsPage() {
       queryKey: ["admin-products", nextParams],
       queryFn: async ({ signal }) =>
         (await api.get("/products/admin", { params: nextParams, signal })).data,
-      staleTime: 30_000,
+      staleTime: 30000,
     });
   }, [page, pages, params, queryClient]);
 
@@ -1302,6 +1357,7 @@ export default function AdminProductsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
       setModalOpen(false);
       toast.success("Product created");
     },
@@ -1333,6 +1389,7 @@ export default function AdminProductsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
       setModalOpen(false);
       toast.success("Product updated");
     },
@@ -1379,6 +1436,7 @@ export default function AdminProductsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
       toast.success("Product moved to inactive");
     },
   });
@@ -1417,6 +1475,7 @@ export default function AdminProductsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
       toast.success("Product permanently deleted");
     },
   });
@@ -1453,6 +1512,7 @@ export default function AdminProductsPage() {
     },
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
       toast.message("Status updated", {
         description: variables?.isActive
           ? "Product is active again."
@@ -1828,6 +1888,7 @@ export default function AdminProductsPage() {
         onClose={() => setModalOpen(false)}
         onSubmit={submitModal}
         busy={createMutation.isPending || updateMutation.isPending}
+        categories={masterCategories}
       />
 
       <ProductActionModal

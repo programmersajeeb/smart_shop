@@ -9,13 +9,12 @@ import {
   Trash2,
   ArrowRight,
   Loader2,
+  Image as ImageIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import api from "../../services/apiClient";
 import ConfirmDialog from "../../shared/ui/ConfirmDialog";
-
-/* ----------------------------- helpers ----------------------------- */
 
 function useDebouncedValue(value, delay = 350) {
   const [debounced, setDebounced] = useState(value);
@@ -41,10 +40,6 @@ function lockBodyScroll(lock) {
   }
 }
 
-function Skeleton({ className = "" }) {
-  return <div className={`animate-pulse rounded-2xl bg-gray-100 ${className}`} />;
-}
-
 function Badge({ children, tone = "gray" }) {
   const className =
     tone === "green"
@@ -62,7 +57,37 @@ function Badge({ children, tone = "gray" }) {
   );
 }
 
-/* ----------------------------- page ----------------------------- */
+function Skeleton({ className = "" }) {
+  return <div className={`animate-pulse rounded-2xl bg-gray-100 ${className}`} />;
+}
+
+function normalizeMasterCategories(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      name: String(item?.name || "").trim(),
+      slug: String(item?.slug || "").trim(),
+      image: String(item?.image || "").trim(),
+      isActive: item?.isActive !== false,
+      featured: Boolean(item?.featured),
+      sortOrder: Number.isFinite(Number(item?.sortOrder))
+        ? Number(item.sortOrder)
+        : 0,
+      iconKey: String(item?.iconKey || "").trim(),
+    }))
+    .filter((item) => item.name)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
+function slugify(value) {
+  return String(value || "")
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 export default function AdminCategoriesPage() {
   const queryClient = useQueryClient();
@@ -98,24 +123,71 @@ export default function AdminCategoriesPage() {
       });
       return response.data;
     },
-    staleTime: 20_000,
+    staleTime: 20000,
     placeholderData: (prev) => prev,
     refetchOnWindowFocus: false,
   });
 
-  const rows = listQuery.data?.categories || [];
+  const shopCfgQuery = useQuery({
+    queryKey: ["page-config", "shop"],
+    queryFn: async () => (await api.get("/page-config/shop")).data,
+    staleTime: 60000,
+  });
+
+  const usageRows = Array.isArray(listQuery.data?.categories)
+    ? listQuery.data.categories
+    : [];
+
+  const registryRows = useMemo(
+    () => normalizeMasterCategories(shopCfgQuery.data?.data?.categories),
+    [shopCfgQuery.data?.data?.categories]
+  );
+
+  const rows = useMemo(() => {
+    const usageMap = new Map(
+      usageRows.map((row) => [
+        String(row?.name || row?._id || "").trim().toLowerCase(),
+        row,
+      ])
+    );
+
+    const merged = registryRows.map((item) => {
+      const usage = usageMap.get(item.name.toLowerCase()) || null;
+
+      return {
+        id: item.id,
+        name: item.name,
+        slug: item.slug,
+        image: item.image,
+        isActive: item.isActive,
+        featured: item.featured,
+        sortOrder: item.sortOrder,
+        count: Number(usage?.count || 0),
+        activeCount: Number(usage?.activeCount || 0),
+        inStockCount: Number(usage?.inStockCount || 0),
+        lowStockCount: Number(usage?.lowStockCount || 0),
+        outOfStockCount: Number(usage?.outOfStockCount || 0),
+        totalStock: Number(usage?.totalStock || 0),
+      };
+    });
+
+    const query = String(debouncedQuery || "").trim().toLowerCase();
+    if (!query) return merged;
+
+    return merged.filter((row) => {
+      return (
+        row.name.toLowerCase().includes(query) ||
+        row.slug.toLowerCase().includes(query)
+      );
+    });
+  }, [registryRows, usageRows, debouncedQuery]);
 
   const totals = useMemo(() => {
-    const totalCategories = rows.length;
-    const totalProducts = rows.reduce((sum, row) => sum + Number(row.count || 0), 0);
-    const totalStock = rows.reduce((sum, row) => sum + Number(row.totalStock || 0), 0);
-    const lowStock = rows.reduce((sum, row) => sum + Number(row.lowStockCount || 0), 0);
-
     return {
-      totalCategories,
-      totalProducts,
-      totalStock,
-      lowStock,
+      totalCategories: rows.length,
+      totalProducts: rows.reduce((sum, row) => sum + Number(row.count || 0), 0),
+      totalStock: rows.reduce((sum, row) => sum + Number(row.totalStock || 0), 0),
+      lowStock: rows.reduce((sum, row) => sum + Number(row.lowStockCount || 0), 0),
     };
   }, [rows]);
 
@@ -131,8 +203,6 @@ export default function AdminCategoriesPage() {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin-categories"] }),
         queryClient.invalidateQueries({ queryKey: ["admin-products"] }),
-        queryClient.invalidateQueries({ queryKey: ["admin-inventory"] }),
-        queryClient.invalidateQueries({ queryKey: ["admin-inventory-summary"] }),
       ]);
     },
     onError: (error) => {
@@ -150,13 +220,11 @@ export default function AdminCategoriesPage() {
       setWorking({ type: "delete", category: String(category || "") });
     },
     onSuccess: async () => {
-      toast.success("Category removed");
+      toast.success("Category removed from products");
 
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["admin-categories"] }),
         queryClient.invalidateQueries({ queryKey: ["admin-products"] }),
-        queryClient.invalidateQueries({ queryKey: ["admin-inventory"] }),
-        queryClient.invalidateQueries({ queryKey: ["admin-inventory-summary"] }),
       ]);
     },
     onError: (error) => {
@@ -195,8 +263,44 @@ export default function AdminCategoriesPage() {
       });
     }
 
+    const currentShop = shopCfgQuery.data?.data || {};
+    const currentCategories = normalizeMasterCategories(currentShop.categories);
+
+    const nextCategories = currentCategories.map((item) =>
+      item.name === from
+        ? {
+            ...item,
+            name: to,
+            slug: String(item.slug || "").trim() || slugify(to),
+          }
+        : item
+    );
+
     closeRename();
+
+    await api.put("/page-config/shop", {
+      ...currentShop,
+      categories: nextCategories,
+      version: Number(shopCfgQuery.data?.version || 0),
+    });
+
     await renameMutation.mutateAsync({ from, to });
+    await queryClient.invalidateQueries({ queryKey: ["page-config", "shop"] });
+  }
+
+  async function handleRegistryDelete(name) {
+    const currentShop = shopCfgQuery.data?.data || {};
+    const currentCategories = normalizeMasterCategories(currentShop.categories);
+    const nextCategories = currentCategories.filter((item) => item.name !== name);
+
+    await api.put("/page-config/shop", {
+      ...currentShop,
+      categories: nextCategories,
+      version: Number(shopCfgQuery.data?.version || 0),
+    });
+
+    await deleteMutation.mutateAsync({ category: name });
+    await queryClient.invalidateQueries({ queryKey: ["page-config", "shop"] });
   }
 
   function resetFilters() {
@@ -253,19 +357,21 @@ export default function AdminCategoriesPage() {
           </h1>
 
           <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-500">
-            Categories are derived from products. Renaming or removing a category updates all
-            matching products automatically.
+            Categories now come from the master registry in Shop Control. Usage stats below are calculated from products.
           </p>
         </div>
 
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={() => listQuery.refetch()}
-            disabled={listQuery.isFetching}
+            onClick={() => {
+              listQuery.refetch();
+              shopCfgQuery.refetch();
+            }}
+            disabled={listQuery.isFetching || shopCfgQuery.isFetching}
             className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2 disabled:opacity-60"
           >
-            {listQuery.isFetching ? (
+            {listQuery.isFetching || shopCfgQuery.isFetching ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               <RefreshCw size={16} />
@@ -282,17 +388,17 @@ export default function AdminCategoriesPage() {
           </button>
 
           <Link
-            to="/admin/inventory"
+            to="/admin/shop-control"
             className="inline-flex items-center gap-2 rounded-2xl bg-black px-4 py-3 text-sm font-semibold text-white transition hover:bg-gray-900"
           >
-            Inventory
+            Shop Control
             <ArrowRight size={16} />
           </Link>
         </div>
       </div>
 
       <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {listQuery.isPending ? (
+        {listQuery.isPending || shopCfgQuery.isPending ? (
           <>
             <Skeleton className="h-[92px]" />
             <Skeleton className="h-[92px]" />
@@ -353,11 +459,13 @@ export default function AdminCategoriesPage() {
         <div className="flex items-center justify-between gap-3 bg-gray-50 px-5 py-4">
           <div className="text-sm font-semibold text-gray-900">Category list</div>
           <div className="text-xs text-gray-500">
-            {listQuery.isFetching ? "Updating..." : `${rows.length} item(s)`}
+            {listQuery.isFetching || shopCfgQuery.isFetching
+              ? "Updating..."
+              : `${rows.length} item(s)`}
           </div>
         </div>
 
-        {listQuery.isPending ? (
+        {listQuery.isPending || shopCfgQuery.isPending ? (
           <div className="p-8">
             <Skeleton className="h-10 w-full" />
             <div className="mt-3 space-y-2">
@@ -382,10 +490,11 @@ export default function AdminCategoriesPage() {
           </div>
         ) : (
           <div className="overflow-auto">
-            <table className="min-w-[980px] w-full text-sm">
+            <table className="min-w-[1100px] w-full text-sm">
               <thead className="sticky top-0 z-10 bg-white">
                 <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-[0.14em] text-gray-500">
                   <th className="px-5 py-3">Category</th>
+                  <th className="px-5 py-3">State</th>
                   <th className="px-5 py-3">Products</th>
                   <th className="px-5 py-3">Active</th>
                   <th className="px-5 py-3">In stock</th>
@@ -398,51 +507,78 @@ export default function AdminCategoriesPage() {
 
               <tbody>
                 {rows.map((row) => {
-                  const name = row?.name || row?._id || "";
-                  const count = Number(row?.count || 0);
-                  const activeCount = Number(row?.activeCount || 0);
-                  const inStock = Number(row?.inStockCount || 0);
-                  const lowStock = Number(row?.lowStockCount || 0);
-                  const outOfStock = Number(row?.outOfStockCount || 0);
-                  const totalStock = Number(row?.totalStock || 0);
-
+                  const name = row.name;
                   const isRowWorking =
                     (working.type === "rename" || working.type === "delete") &&
                     String(working.category || "") === String(name || "");
 
                   return (
-                    <tr key={name} className="border-b border-gray-100 last:border-b-0">
+                    <tr
+                      key={row.id || name}
+                      className="border-b border-gray-100 last:border-b-0"
+                    >
                       <td className="px-5 py-4">
-                        <div className="font-semibold text-gray-900">{name}</div>
-                        <div className="mt-1 text-xs text-gray-500">
-                          <Link
-                            className="underline"
-                            to={`/admin/inventory?category=${encodeURIComponent(name)}`}
-                          >
-                            View in inventory
-                          </Link>
+                        <div className="flex items-center gap-3">
+                          <div className="h-11 w-11 overflow-hidden rounded-2xl border border-gray-200 bg-gray-50">
+                            {row.image ? (
+                              <img
+                                src={row.image}
+                                alt={row.name}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-gray-400">
+                                <ImageIcon size={16} />
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <div className="font-semibold text-gray-900">{name}</div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              /{row.slug}
+                            </div>
+                          </div>
                         </div>
                       </td>
 
-                      <td className="px-5 py-4 text-gray-900">{count}</td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Badge tone={row.isActive ? "green" : "gray"}>
+                            {row.isActive ? "Active" : "Hidden"}
+                          </Badge>
+                          {row.featured ? <Badge tone="amber">Featured</Badge> : null}
+                          <Badge tone="gray">Order {row.sortOrder}</Badge>
+                        </div>
+                      </td>
+
+                      <td className="px-5 py-4 text-gray-900">{row.count}</td>
 
                       <td className="px-5 py-4">
-                        <Badge tone={activeCount ? "green" : "gray"}>{activeCount}</Badge>
+                        <Badge tone={row.activeCount ? "green" : "gray"}>
+                          {row.activeCount}
+                        </Badge>
                       </td>
 
                       <td className="px-5 py-4">
-                        <Badge tone={inStock ? "green" : "gray"}>{inStock}</Badge>
+                        <Badge tone={row.inStockCount ? "green" : "gray"}>
+                          {row.inStockCount}
+                        </Badge>
                       </td>
 
                       <td className="px-5 py-4">
-                        <Badge tone={lowStock ? "amber" : "gray"}>{lowStock}</Badge>
+                        <Badge tone={row.lowStockCount ? "amber" : "gray"}>
+                          {row.lowStockCount}
+                        </Badge>
                       </td>
 
                       <td className="px-5 py-4">
-                        <Badge tone={outOfStock ? "red" : "gray"}>{outOfStock}</Badge>
+                        <Badge tone={row.outOfStockCount ? "red" : "gray"}>
+                          {row.outOfStockCount}
+                        </Badge>
                       </td>
 
-                      <td className="px-5 py-4 text-gray-900">{totalStock}</td>
+                      <td className="px-5 py-4 text-gray-900">{row.totalStock}</td>
 
                       <td className="px-5 py-4">
                         <div className="flex justify-end gap-2">
@@ -497,26 +633,26 @@ export default function AdminCategoriesPage() {
             <div className="border-b border-gray-100 p-5">
               <div className="text-lg font-semibold text-gray-950">Rename category</div>
               <div className="mt-1 text-sm text-gray-600">
-                This updates all products currently using{" "}
-                <span className="font-semibold">{renameModal.from}</span>.
+                This updates the master registry and all matching products.
               </div>
             </div>
 
             <div className="p-5">
-              <label className="block text-sm font-semibold text-gray-800">New name</label>
+              <label className="block text-sm font-semibold text-gray-800">
+                New name
+              </label>
               <input
                 value={renameModal.to}
                 onChange={(e) =>
                   setRenameModal((prev) => ({ ...prev, to: e.target.value }))
                 }
                 className="mt-2 w-full rounded-2xl border border-gray-200 px-4 py-3 text-sm text-gray-900 outline-none transition focus:ring-2 focus:ring-black focus:ring-offset-2"
-                placeholder="e.g. Accessories"
                 autoFocus
               />
 
               <div className="mt-4 flex justify-end gap-2">
                 <button
-                  className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
+                  className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                   onClick={closeRename}
                   disabled={renameMutation.isPending}
                 >
@@ -531,10 +667,6 @@ export default function AdminCategoriesPage() {
                   {renameMutation.isPending ? "Working..." : "Rename"}
                 </button>
               </div>
-
-              <div className="mt-3 text-xs text-gray-500">
-                Press <span className="font-semibold">Esc</span> to close.
-              </div>
             </div>
           </div>
         </div>
@@ -545,7 +677,7 @@ export default function AdminCategoriesPage() {
         title="Remove category?"
         description={
           confirm.category
-            ? `This will remove the category from all products currently in "${confirm.category}".`
+            ? `This removes the category from the master registry and clears it from products currently in "${confirm.category}".`
             : ""
         }
         confirmText="Remove"
@@ -556,7 +688,7 @@ export default function AdminCategoriesPage() {
           const category = confirm.category;
           setConfirm({ open: false, category: "" });
           if (!category) return;
-          await deleteMutation.mutateAsync({ category });
+          await handleRegistryDelete(category);
         }}
         onClose={() => setConfirm({ open: false, category: "" })}
       />

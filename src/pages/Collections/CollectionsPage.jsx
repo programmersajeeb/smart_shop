@@ -14,11 +14,16 @@ import {
   Gift,
   CheckCircle2,
   SlidersHorizontal,
+  ShoppingBag,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import api from "../../services/apiClient";
 
 import menImg from "../../assets/men.png";
 import womenImg from "../../assets/women.png";
 import accessoriesImg from "../../assets/accessories.png";
+
+const ICONS = { ShoppingBag, Shirt, Watch, Gem, Baby, Gift };
 
 const Pill = memo(function Pill({ active, children, onClick }) {
   return (
@@ -185,103 +190,112 @@ const CollectionCard = memo(function CollectionCard({ item }) {
   );
 });
 
+function getFallbackImage(name) {
+  const value = String(name || "").trim().toLowerCase();
+  if (value === "women") return womenImg;
+  if (value === "men") return menImg;
+  if (value === "accessories") return accessoriesImg;
+  return womenImg;
+}
+
+function iconFromKey(iconKey) {
+  return ICONS[String(iconKey || "")] || ShoppingBag;
+}
+
+function normalizeRegistryCategories(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      name: String(item?.name || "").trim(),
+      slug: String(item?.slug || "").trim(),
+      image: String(item?.image || "").trim(),
+      isActive: item?.isActive !== false,
+      featured: Boolean(item?.featured),
+      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
+      iconKey: String(item?.iconKey || "").trim(),
+    }))
+    .filter((item) => item.name && item.isActive)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
+function resolveAssetUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  if (!value) return "";
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+
+  const base = String(api?.defaults?.baseURL || window.location.origin).trim();
+
+  try {
+    const normalizedPath = value.startsWith("/")
+      ? value
+      : `/${value.replace(/^\.?\//, "")}`;
+    return new URL(normalizedPath, base).toString();
+  } catch {
+    return value;
+  }
+}
+
 export default function CollectionsPage() {
   const [q, setQ] = useState("");
   const [active, setActive] = useState("All");
 
-  const collections = useMemo(
-    () => [
-      {
-        key: "women",
-        title: "Women",
-        tag: "Top picks",
-        badge: "Trending",
-        icon: Shirt,
-        image: womenImg,
-        href: "/shop?category=Women",
-        description:
-          "Everyday looks, occasion wear, and new-season styles picked to make shopping easier.",
-        highlights: ["New arrivals", "Best sellers", "Popular styles"],
-        count: 128,
-      },
-      {
-        key: "men",
-        title: "Men",
-        tag: "Everyday wear",
-        badge: "Popular",
-        icon: Shirt,
-        image: menImg,
-        href: "/shop?category=Men",
-        description:
-          "Easy-to-wear pieces for daily use, office looks, and weekend outfits in one place.",
-        highlights: ["Casual", "Formal", "Daily essentials"],
-        count: 96,
-      },
-      {
-        key: "accessories",
-        title: "Accessories",
-        tag: "Finish the look",
-        badge: "Hot",
-        icon: Watch,
-        image: accessoriesImg,
-        href: "/shop?category=Accessories",
-        description:
-          "Watches, bags, and everyday add-ons that go well with both simple and dressed-up looks.",
-        highlights: ["Watches", "Bags", "Everyday carry"],
-        count: 74,
-      },
-      {
-        key: "jewelry",
-        title: "Jewelry",
-        tag: "Most loved",
-        badge: "New",
-        icon: Gem,
-        image:
-          "https://images.unsplash.com/photo-1601121141461-9d6647bca1d2?auto=format&fit=crop&w=1400&q=80",
-        href: "/shop?category=Jewelry",
-        description:
-          "Simple and standout pieces that work well for daily styling, gifts, and special moments.",
-        highlights: ["Rings", "Necklaces", "Gift ideas"],
-        count: 42,
-      },
-      {
-        key: "kids",
-        title: "Kids",
-        tag: "Soft & easy",
-        badge: "",
-        icon: Baby,
-        image:
-          "https://images.unsplash.com/photo-1503457574465-19d3900d2d6f?auto=format&fit=crop&w=1400&q=80",
-        href: "/shop?category=Kids",
-        description:
-          "Comfortable styles for kids with soft fabrics, easy fits, and everyday-friendly designs.",
-        highlights: ["Soft cotton", "Daily wear", "Easy sizes"],
-        count: 58,
-      },
-      {
-        key: "gifts",
-        title: "Gifts",
-        tag: "Gift ideas",
-        badge: "Best",
-        icon: Gift,
-        image:
-          "https://images.unsplash.com/photo-1512909006721-3d6018887383?auto=format&fit=crop&w=1400&q=80",
-        href: "/shop?category=Gifts",
-        description:
-          "Thoughtful picks for birthdays, celebrations, and last-minute gifting without the guesswork.",
-        highlights: ["Under $25", "Under $50", "Best picks"],
-        count: 36,
-      },
-    ],
-    []
+  const { data: shopCfgDoc } = useQuery({
+    queryKey: ["page-config", "shop"],
+    queryFn: async () => (await api.get("/page-config/shop")).data,
+    staleTime: 60000,
+  });
+
+  const { data: facetsDoc } = useQuery({
+    queryKey: ["products", "facets"],
+    queryFn: async () => (await api.get("/products/facets")).data,
+    staleTime: 60000,
+  });
+
+  const registryCategories = useMemo(
+    () => normalizeRegistryCategories(shopCfgDoc?.data?.categories),
+    [shopCfgDoc?.data?.categories]
   );
+
+  const countMap = useMemo(() => {
+    const map = new Map();
+    const categories = Array.isArray(facetsDoc?.categories) ? facetsDoc.categories : [];
+
+    for (const item of categories) {
+      const key = String(item?.value || item?.label || "").trim().toLowerCase();
+      if (!key) continue;
+      map.set(key, Number(item?.count || 0));
+    }
+
+    return map;
+  }, [facetsDoc?.categories]);
+
+  const collections = useMemo(() => {
+    return registryCategories.map((item) => ({
+      key: item.slug || item.id || item.name.toLowerCase(),
+      title: item.name,
+      tag: item.featured ? "Featured" : "Collection",
+      badge: item.featured ? "Trending" : "",
+      icon: iconFromKey(item.iconKey),
+      image: resolveAssetUrl(item.image) || getFallbackImage(item.name),
+      href: `/shop?category=${encodeURIComponent(item.name)}`,
+      description: `${item.name} collection curated from the live catalog.`,
+      highlights: item.featured
+        ? ["Featured", "Live catalog", "Shop now"]
+        : ["Live catalog", "Updated", "Category"],
+      count: countMap.get(item.name.toLowerCase()) || 0,
+    }));
+  }, [registryCategories, countMap]);
 
   const categories = useMemo(
-    () => ["All", "Women", "Men", "Accessories", "Jewelry", "Kids", "Gifts"],
-    []
+    () => ["All", ...collections.map((item) => item.title)],
+    [collections]
   );
 
-  const featuredCollection = useMemo(() => collections[0], [collections]);
+  const featuredCollection = useMemo(
+    () => collections.find((item) => item.badge) || collections[0],
+    [collections]
+  );
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
@@ -299,6 +313,16 @@ export default function CollectionsPage() {
       return matchesCategory && matchesQuery;
     });
   }, [collections, q, active]);
+
+  if (!featuredCollection) {
+    return (
+      <div className="site-shell py-16">
+        <div className="rounded-[28px] border border-gray-200 bg-white p-8 text-center shadow-sm">
+          No active collections available.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">
@@ -365,7 +389,7 @@ export default function CollectionsPage() {
                     Products
                   </div>
                   <div className="mt-2 text-2xl font-bold tracking-tight text-gray-950">
-                    400+
+                    {collections.reduce((sum, item) => sum + Number(item.count || 0), 0)}
                   </div>
                   <div className="mt-1 text-sm text-gray-600">Across different styles</div>
                 </div>

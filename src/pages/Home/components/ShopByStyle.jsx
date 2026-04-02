@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
+import api from "../../../services/apiClient";
 
 const fallbackImages = [
   "https://images.unsplash.com/photo-1520974735194-3b1c3ac20740?auto=format&fit=crop&w=1400&q=80",
@@ -18,8 +20,46 @@ function normalizeHref(value, fallback = "/shop") {
   return href || fallback;
 }
 
+function resolveAssetUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  if (!value) return "";
+
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+
+  const base = String(api?.defaults?.baseURL || window.location.origin).trim();
+
+  try {
+    const normalizedPath = value.startsWith("/")
+      ? value
+      : `/${value.replace(/^\.?\//, "")}`;
+    return new URL(normalizedPath, base).toString();
+  } catch {
+    return value;
+  }
+}
+
+function normalizeImage(value, fallback) {
+  if (typeof value === "string" && value.trim()) {
+    return resolveAssetUrl(value.trim());
+  }
+
+  if (value && typeof value === "object") {
+    if (typeof value.url === "string" && value.url.trim()) {
+      return resolveAssetUrl(value.url.trim());
+    }
+    if (typeof value.image === "string" && value.image.trim()) {
+      return resolveAssetUrl(value.image.trim());
+    }
+    if (typeof value.img === "string" && value.img.trim()) {
+      return resolveAssetUrl(value.img.trim());
+    }
+  }
+
+  return fallback;
+}
+
 function StyleCard({ item, featured = false, fallbackImage }) {
-  const resolvedImage = normalizeText(item?.img || item?.image, fallbackImage);
+  const resolvedImage = normalizeImage(item?.img || item?.image, fallbackImage);
   const [imgSrc, setImgSrc] = useState(resolvedImage);
 
   useEffect(() => {
@@ -28,7 +68,12 @@ function StyleCard({ item, featured = false, fallbackImage }) {
 
   const label = normalizeText(item?.label, "Style");
   const href = normalizeHref(item?.href, "/shop");
-  const badge = item?.type === "brand" ? "Brand edit" : "Style edit";
+  const badge =
+    item?.type === "brand"
+      ? "Brand edit"
+      : item?.type === "category"
+      ? "Category edit"
+      : "Style edit";
 
   return (
     <Link
@@ -64,12 +109,32 @@ function StyleCard({ item, featured = false, fallbackImage }) {
             {label}
           </h3>
 
-          <div className="mt-4 inline-flex items-center rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition group-hover:bg-neutral-100">
-            Explore style
+          <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition group-hover:bg-neutral-100">
+            Explore style <ArrowRight size={14} />
           </div>
         </div>
       </div>
     </Link>
+  );
+}
+
+function ShopByStyleSkeleton() {
+  return (
+    <section className="site-shell mb-20 mt-24" aria-label="Shop by style loading">
+      <div className="mb-10 text-center">
+        <div className="mx-auto h-10 w-72 animate-pulse rounded-2xl bg-gray-200" />
+        <div className="mx-auto mt-4 h-5 w-[520px] max-w-full animate-pulse rounded-2xl bg-gray-100" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="h-[420px] animate-pulse rounded-[28px] bg-gray-200 md:h-[520px]" />
+        <div className="grid grid-cols-1 gap-6">
+          <div className="h-[250px] animate-pulse rounded-[28px] bg-gray-200 md:h-[248px]" />
+          <div className="h-[250px] animate-pulse rounded-[28px] bg-gray-200 md:h-[248px]" />
+          <div className="h-[250px] animate-pulse rounded-[28px] bg-gray-200 md:h-[248px]" />
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -86,7 +151,7 @@ function ShopByStyle({ data, loading, error }) {
         id: item?.id || `style-${index + 1}`,
         label: normalizeText(item?.label, "Style"),
         href: normalizeHref(item?.href, "/shop"),
-        img: normalizeText(
+        img: normalizeImage(
           item?.img || item?.image,
           fallbackImages[index % fallbackImages.length]
         ),
@@ -129,23 +194,27 @@ function ShopByStyle({ data, loading, error }) {
   const featured = items[0];
   const secondary = items.slice(1, 4);
 
+  if (loading && !items.length) {
+    return <ShopByStyleSkeleton />;
+  }
+
   return (
-    <section className="site-shell mt-24 mb-20" aria-label="Shop by style">
+    <section className="site-shell mb-20 mt-24" aria-label="Shop by style">
       <div className="mb-10 text-center">
-        <h2 className="text-3xl font-semibold text-gray-950 md:text-4xl">
+        <h2 className="text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
           {title}
         </h2>
-        <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-600 md:text-base">
+        <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-gray-600 md:text-base">
           {subtitle}
         </p>
       </div>
 
-      {!loading && error && (
+      {!loading && error ? (
         <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           Failed to load style collections
           {error?.message ? ` (${error.message})` : ""}
         </div>
-      )}
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.05fr_0.95fr]">
         {featured ? (
@@ -153,13 +222,48 @@ function ShopByStyle({ data, loading, error }) {
         ) : null}
 
         <div className="grid grid-cols-1 gap-6">
-          {secondary.map((item, index) => (
-            <StyleCard
-              key={item?.id || index}
-              item={item}
-              fallbackImage={fallbackImages[(index + 1) % fallbackImages.length]}
-            />
-          ))}
+          {secondary.length > 0 ? (
+            secondary.map((item, index) => (
+              <StyleCard
+                key={item?.id || index}
+                item={item}
+                fallbackImage={fallbackImages[(index + 1) % fallbackImages.length]}
+              />
+            ))
+          ) : (
+            <>
+              <StyleCard
+                item={{
+                  id: "formal",
+                  label: "Formal",
+                  href: "/shop?q=Formal",
+                  img: fallbackImages[1],
+                  type: "style",
+                }}
+                fallbackImage={fallbackImages[1]}
+              />
+              <StyleCard
+                item={{
+                  id: "streetwear",
+                  label: "Streetwear",
+                  href: "/shop?q=Streetwear",
+                  img: fallbackImages[2],
+                  type: "style",
+                }}
+                fallbackImage={fallbackImages[2]}
+              />
+              <StyleCard
+                item={{
+                  id: "sportswear",
+                  label: "Sportswear",
+                  href: "/shop?q=Sportswear",
+                  img: fallbackImages[3],
+                  type: "style",
+                }}
+                fallbackImage={fallbackImages[3]}
+              />
+            </>
+          )}
         </div>
       </div>
     </section>

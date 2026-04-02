@@ -57,6 +57,9 @@ import AdminInventoryPage from "../pages/Admin/AdminInventoryPage";
 import AdminSettingsPage from "../pages/Admin/AdminSettingsPage";
 import AdminHomeConfigPage from "../pages/Admin/AdminHomeConfigPage";
 import AdminPromotionsPage from "../pages/Admin/AdminPromotionsPage";
+import AdminNewsletterPage from "../pages/Admin/AdminNewsletterPage";
+import AdminSupportPage from "../pages/Admin/AdminSupportPage";
+import AdminContactControlPage from "../pages/Admin/AdminContactControlPage";
 
 import { useAuth } from "../shared/hooks/useAuth";
 import api, { raw } from "../services/apiClient";
@@ -180,56 +183,6 @@ function AdminPermissionRoute({
   }
 
   return children;
-}
-
-function AdminComingSoonPage({ title = "Coming soon", description }) {
-  return (
-    <div className="rounded-[28px] border border-gray-200 bg-white p-6 shadow-sm md:p-8">
-      <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
-        Admin
-      </div>
-
-      <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">
-        {title}
-      </h1>
-
-      <p className="mt-2 max-w-2xl text-gray-600">
-        {description ||
-          "This module is currently being prepared. The full workflow, filtering, validation and activity tracking will be added here."}
-      </p>
-
-      <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-          <div className="text-sm font-semibold text-gray-900">Planned workflow</div>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-600">
-            <li>Fast list view with pagination</li>
-            <li>Search and filter controls</li>
-            <li>Bulk actions and validation</li>
-            <li>Activity visibility and audit support</li>
-          </ul>
-        </div>
-
-        <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5">
-          <div className="text-sm font-semibold text-gray-900">Experience standard</div>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-600">
-            <li>Stable loading states</li>
-            <li>Clear inline feedback</li>
-            <li>Responsive layout support</li>
-            <li>Consistent interaction patterns</li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="mt-8">
-        <Link
-          to="/admin"
-          className="inline-flex items-center justify-center rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-900"
-        >
-          Back to overview
-        </Link>
-      </div>
-    </div>
-  );
 }
 
 function AdminNotFoundPage() {
@@ -403,8 +356,7 @@ function OrderConfirmationPage() {
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-gray-900">Guest order lookup</div>
                     <div className="mt-1 text-sm text-gray-600">
-                      আপনার অর্ডার দেখতে checkout-এ দেওয়া{" "}
-                      <span className="font-semibold">Phone</span> দিন।
+                      To view your order, enter the phone number used during checkout.
                     </div>
 
                     <div className="mt-3 flex flex-col gap-3 sm:flex-row">
@@ -710,15 +662,28 @@ export const AppRoutes = createBrowserRouter([
         ),
       },
       {
+        path: "newsletter",
+        element: (
+          <AdminPermissionRoute requiresAny={["newsletter:read", "newsletter:write"]}>
+            <AdminNewsletterPage />
+          </AdminPermissionRoute>
+        ),
+      },
+      {
         path: "support",
         element: (
           <AdminPermissionRoute
             requiresAny={["users:read", "users:write", "orders:read"]}
           >
-            <AdminComingSoonPage
-              title="Support"
-              description="Support inbox, tickets and service workflows will be available here."
-            />
+            <AdminSupportPage />
+          </AdminPermissionRoute>
+        ),
+      },
+      {
+        path: "contact-control",
+        element: (
+          <AdminPermissionRoute requiresAny={["settings:read", "settings:write"]}>
+            <AdminContactControlPage />
           </AdminPermissionRoute>
         ),
       },
