@@ -23,7 +23,61 @@ import menImg from "../../assets/men.png";
 import womenImg from "../../assets/women.png";
 import accessoriesImg from "../../assets/accessories.png";
 
-const ICONS = { ShoppingBag, Shirt, Watch, Gem, Baby, Gift };
+const COLLECTION_ICONS = {
+  ShoppingBag,
+  Shirt,
+  Watch,
+  Gem,
+  Baby,
+  Gift,
+};
+
+const DEFAULT_HIGHLIGHTS = [
+  {
+    id: "secure-checkout",
+    title: "Secure checkout",
+    description: "A smooth and dependable checkout experience from cart to order.",
+    iconKey: "ShieldCheck",
+  },
+  {
+    id: "fast-delivery",
+    title: "Fast delivery",
+    description: "Quick handling and a cleaner fulfillment flow for everyday orders.",
+    iconKey: "Truck",
+  },
+  {
+    id: "easy-returns",
+    title: "Easy returns",
+    description: "Simple support when a customer needs help after purchase.",
+    iconKey: "RefreshCcw",
+  },
+  {
+    id: "easy-browsing",
+    title: "Easy browsing",
+    description: "A layout designed to help shoppers reach the right products faster.",
+    iconKey: "CheckCircle2",
+  },
+];
+
+const DEFAULT_WHY_ITEMS = [
+  { id: "faster-discovery", text: "Find categories faster without scrolling through everything." },
+  { id: "cleaner-layout", text: "A cleaner layout that feels easier to read on any screen." },
+  { id: "mobile-friendly", text: "Better mobile browsing with clearer tap targets and spacing." },
+  { id: "quick-filters", text: "Quick filters that help narrow things down right away." },
+];
+
+const DEFAULT_FINAL_STATS = [
+  { id: "responsive", label: "Easy browsing", value: "Responsive" },
+  { id: "clean-ui", label: "Clear layout", value: "Clean UI" },
+  { id: "mobile", label: "Works best on", value: "Mobile" },
+];
+
+const HIGHLIGHT_ICONS = {
+  ShieldCheck,
+  Truck,
+  RefreshCcw,
+  CheckCircle2,
+};
 
 const Pill = memo(function Pill({ active, children, onClick }) {
   return (
@@ -153,9 +207,9 @@ const CollectionCard = memo(function CollectionCard({ item }) {
 
       <div className="p-5 sm:p-6">
         <div className="flex flex-wrap gap-2">
-          {item.highlights.map((h) => (
+          {item.highlights.map((h, index) => (
             <span
-              key={h}
+              key={`${item.key}-highlight-${index}`}
               className="rounded-full border border-black/10 bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-700"
             >
               {h}
@@ -198,27 +252,6 @@ function getFallbackImage(name) {
   return womenImg;
 }
 
-function iconFromKey(iconKey) {
-  return ICONS[String(iconKey || "")] || ShoppingBag;
-}
-
-function normalizeRegistryCategories(input) {
-  const list = Array.isArray(input) ? input : [];
-  return list
-    .map((item) => ({
-      id: String(item?.id || "").trim(),
-      name: String(item?.name || "").trim(),
-      slug: String(item?.slug || "").trim(),
-      image: String(item?.image || "").trim(),
-      isActive: item?.isActive !== false,
-      featured: Boolean(item?.featured),
-      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
-      iconKey: String(item?.iconKey || "").trim(),
-    }))
-    .filter((item) => item.name && item.isActive)
-    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
-}
-
 function resolveAssetUrl(rawUrl) {
   const value = String(rawUrl || "").trim();
   if (!value) return "";
@@ -236,13 +269,81 @@ function resolveAssetUrl(rawUrl) {
   }
 }
 
+function collectionIconFromKey(iconKey) {
+  return COLLECTION_ICONS[String(iconKey || "")] || ShoppingBag;
+}
+
+function highlightIconFromKey(iconKey) {
+  return HIGHLIGHT_ICONS[String(iconKey || "")] || ShieldCheck;
+}
+
+function normalizeShopCategories(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      title: String(item?.name || "").trim(),
+      slug: String(item?.slug || "").trim(),
+      image: String(item?.image || "").trim(),
+      iconKey: String(item?.iconKey || "").trim(),
+      isActive: item?.isActive !== false,
+      featured: Boolean(item?.featured),
+      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
+    }))
+    .filter((item) => item.title && item.isActive)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
+function normalizeHighlightCards(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      title: String(item?.title || "").trim(),
+      description: String(item?.description || "").trim(),
+      iconKey: String(item?.iconKey || "").trim(),
+    }))
+    .filter((item) => item.title || item.description)
+    .slice(0, 4);
+}
+
+function normalizeStatItems(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      label: String(item?.label || "").trim(),
+      value: String(item?.value || "").trim(),
+      hint: String(item?.hint || "").trim(),
+    }))
+    .filter((item) => item.label || item.value || item.hint)
+    .slice(0, 6);
+}
+
+function normalizeWhyItems(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      text: String(item?.text || "").trim(),
+    }))
+    .filter((item) => item.text)
+    .slice(0, 6);
+}
+
 export default function CollectionsPage() {
   const [q, setQ] = useState("");
   const [active, setActive] = useState("All");
 
-  const { data: shopCfgDoc } = useQuery({
+  const { data: shopDoc } = useQuery({
     queryKey: ["page-config", "shop"],
     queryFn: async () => (await api.get("/page-config/shop")).data,
+    staleTime: 60000,
+  });
+
+  const { data: collectionsDoc } = useQuery({
+    queryKey: ["page-config", "collections"],
+    queryFn: async () => (await api.get("/page-config/collections")).data,
     staleTime: 60000,
   });
 
@@ -252,10 +353,8 @@ export default function CollectionsPage() {
     staleTime: 60000,
   });
 
-  const registryCategories = useMemo(
-    () => normalizeRegistryCategories(shopCfgDoc?.data?.categories),
-    [shopCfgDoc?.data?.categories]
-  );
+  const shopConfig = shopDoc?.data || {};
+  const collectionsConfig = collectionsDoc?.data || {};
 
   const countMap = useMemo(() => {
     const map = new Map();
@@ -271,21 +370,65 @@ export default function CollectionsPage() {
   }, [facetsDoc?.categories]);
 
   const collections = useMemo(() => {
-    return registryCategories.map((item) => ({
-      key: item.slug || item.id || item.name.toLowerCase(),
-      title: item.name,
-      tag: item.featured ? "Featured" : "Collection",
-      badge: item.featured ? "Trending" : "",
-      icon: iconFromKey(item.iconKey),
-      image: resolveAssetUrl(item.image) || getFallbackImage(item.name),
-      href: `/shop?category=${encodeURIComponent(item.name)}`,
-      description: `${item.name} collection curated from the live catalog.`,
-      highlights: item.featured
-        ? ["Featured", "Live catalog", "Shop now"]
-        : ["Live catalog", "Updated", "Category"],
-      count: countMap.get(item.name.toLowerCase()) || 0,
-    }));
-  }, [registryCategories, countMap]);
+    return normalizeShopCategories(shopConfig?.categories).map((item) => {
+      const safeTitle = String(item.title || "").trim();
+      const resolvedCount = countMap.get(safeTitle.toLowerCase()) || 0;
+
+      return {
+        key: item.slug || item.id || safeTitle.toLowerCase(),
+        title: safeTitle,
+        tag: item.featured ? "Featured" : "Collection",
+        badge: item.featured ? "Popular now" : "",
+        icon: collectionIconFromKey(item.iconKey),
+        image: resolveAssetUrl(item.image) || getFallbackImage(safeTitle),
+        href: `/shop?category=${encodeURIComponent(safeTitle)}`,
+        description: `${safeTitle} picks arranged for faster browsing.`,
+        highlights: item.featured
+          ? ["Featured", "Popular picks", "Shop now"]
+          : ["Live catalog", "Updated", "Category"],
+        count: resolvedCount,
+        featured: Boolean(item.featured),
+      };
+    });
+  }, [shopConfig?.categories, countMap]);
+
+  const heroStats = useMemo(() => {
+    const source = normalizeStatItems(collectionsConfig?.hero?.statItems).slice(0, 3);
+    const fallback = [
+      { id: "collections", label: "Collections", value: "", hint: "Easy ways to browse" },
+      { id: "products", label: "Products", value: "", hint: "Across active categories" },
+      { id: "experience", label: "Experience", value: "Mobile first", hint: "Clean, quick and responsive" },
+    ];
+
+    const items = source.length ? source : fallback;
+
+    return items.map((item) => {
+      const labelKey = String(item.label || "").trim().toLowerCase();
+
+      if (labelKey === "collections") {
+        return {
+          ...item,
+          value: item.value || String(collections.length),
+        };
+      }
+
+      if (labelKey === "products") {
+        return {
+          ...item,
+          value:
+            item.value ||
+            String(collections.reduce((sum, entry) => sum + Number(entry.count || 0), 0)),
+        };
+      }
+
+      return item;
+    });
+  }, [collectionsConfig?.hero?.statItems, collections]);
+
+  const highlightCards = useMemo(() => {
+    const items = normalizeHighlightCards(collectionsConfig?.trustHighlights);
+    return items.length ? items : DEFAULT_HIGHLIGHTS;
+  }, [collectionsConfig?.trustHighlights]);
 
   const categories = useMemo(
     () => ["All", ...collections.map((item) => item.title)],
@@ -293,26 +436,36 @@ export default function CollectionsPage() {
   );
 
   const featuredCollection = useMemo(
-    () => collections.find((item) => item.badge) || collections[0],
+    () => collections.find((item) => item.featured) || collections[0],
     [collections]
   );
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
 
-    return collections.filter((c) => {
-      const matchesCategory = active === "All" || c.title === active;
-
+    return collections.filter((item) => {
+      const matchesCategory = active === "All" || item.title === active;
       const matchesQuery =
         !query ||
-        c.title.toLowerCase().includes(query) ||
-        c.description.toLowerCase().includes(query) ||
-        c.tag.toLowerCase().includes(query) ||
-        c.highlights.some((h) => h.toLowerCase().includes(query));
+        item.title.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query) ||
+        item.tag.toLowerCase().includes(query) ||
+        item.badge.toLowerCase().includes(query) ||
+        item.highlights.some((entry) => entry.toLowerCase().includes(query));
 
       return matchesCategory && matchesQuery;
     });
   }, [collections, q, active]);
+
+  const whyItems = useMemo(() => {
+    const items = normalizeWhyItems(collectionsConfig?.whySection?.items);
+    return items.length ? items : DEFAULT_WHY_ITEMS;
+  }, [collectionsConfig?.whySection?.items]);
+
+  const finalStats = useMemo(() => {
+    const items = normalizeStatItems(collectionsConfig?.finalCta?.statItems).slice(0, 3);
+    return items.length ? items : DEFAULT_FINAL_STATS;
+  }, [collectionsConfig?.finalCta?.statItems]);
 
   if (!featuredCollection) {
     return (
@@ -345,71 +498,61 @@ export default function CollectionsPage() {
           <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr] xl:items-stretch">
             <div className="overflow-hidden rounded-[32px] border border-black/5 bg-white/88 p-5 shadow-[0_18px_45px_rgba(15,23,42,0.06)] backdrop-blur sm:p-7 lg:p-8">
               <div className="inline-flex rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-gray-700">
-                Shop by collection
+                {collectionsConfig?.hero?.eyebrow || "Browse collections"}
               </div>
 
               <h1 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl lg:text-5xl">
-                Find what you need faster with collections made for real shopping.
+                {collectionsConfig?.hero?.title ||
+                  "Find your next pick by shopping the way people actually browse."}
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-600 sm:text-[15px]">
-                Browse by category, explore what is popular right now, and jump straight to
-                the styles that match what you are looking for.
+                {collectionsConfig?.hero?.description ||
+                  "Explore curated collections, jump into the categories that matter most, and discover what fits your style without extra steps."}
               </p>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Link
-                  to="/shop"
+                  to={collectionsConfig?.hero?.primaryCtaHref || "/shop"}
                   className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-black px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
                 >
-                  View all products <ArrowRight size={17} />
+                  {collectionsConfig?.hero?.primaryCtaLabel || "View all products"}{" "}
+                  <ArrowRight size={17} />
                 </Link>
 
                 <Link
-                  to={featuredCollection.href}
+                  to={collectionsConfig?.hero?.secondaryCtaHref || featuredCollection.href}
                   className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-gray-900 transition hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2"
                 >
-                  Shop featured collection
+                  {collectionsConfig?.hero?.secondaryCtaLabel || "Shop featured"}
                 </Link>
               </div>
 
               <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-black/5 bg-gray-50/80 p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-                    Categories
+                {heroStats.map((item, index) => (
+                  <div
+                    key={item.id || index}
+                    className="rounded-2xl border border-black/5 bg-gray-50/80 p-4"
+                  >
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
+                      {item.label}
+                    </div>
+                    <div className="mt-2 text-2xl font-bold tracking-tight text-gray-950">
+                      {item.value || "—"}
+                    </div>
+                    <div className="mt-1 text-sm text-gray-600">{item.hint}</div>
                   </div>
-                  <div className="mt-2 text-2xl font-bold tracking-tight text-gray-950">
-                    {collections.length}
-                  </div>
-                  <div className="mt-1 text-sm text-gray-600">Easy ways to browse</div>
-                </div>
-
-                <div className="rounded-2xl border border-black/5 bg-gray-50/80 p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-                    Products
-                  </div>
-                  <div className="mt-2 text-2xl font-bold tracking-tight text-gray-950">
-                    {collections.reduce((sum, item) => sum + Number(item.count || 0), 0)}
-                  </div>
-                  <div className="mt-1 text-sm text-gray-600">Across different styles</div>
-                </div>
-
-                <div className="rounded-2xl border border-black/5 bg-gray-50/80 p-4">
-                  <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-gray-400">
-                    Best on
-                  </div>
-                  <div className="mt-2 text-2xl font-bold tracking-tight text-gray-950">
-                    Mobile
-                  </div>
-                  <div className="mt-1 text-sm text-gray-600">Simple and easy to use</div>
-                </div>
+                ))}
               </div>
             </div>
 
             <div className="overflow-hidden rounded-[32px] border border-black/5 bg-white shadow-[0_18px_45px_rgba(15,23,42,0.06)]">
               <div className="relative h-full min-h-[320px] sm:min-h-[380px]">
                 <ImageWithSkeleton
-                  src={featuredCollection.image}
+                  src={
+                    resolveAssetUrl(collectionsConfig?.hero?.featuredImage) ||
+                    featuredCollection.image
+                  }
                   alt={featuredCollection.title}
                   className="h-full min-h-[320px] sm:min-h-[380px]"
                 />
@@ -418,11 +561,11 @@ export default function CollectionsPage() {
 
                 <div className="absolute left-5 right-5 top-5 flex items-center justify-between gap-3">
                   <div className="rounded-full bg-white/92 px-3 py-1.5 text-xs font-semibold text-gray-800 shadow-sm">
-                    Featured
+                    {collectionsConfig?.hero?.featuredTag || "Featured collection"}
                   </div>
 
                   <div className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur">
-                    {featuredCollection.badge || "Featured"}
+                    {collectionsConfig?.hero?.featuredBadge || featuredCollection.badge || "Popular now"}
                   </div>
                 </div>
 
@@ -450,28 +593,21 @@ export default function CollectionsPage() {
             </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <StatCard
-              icon={ShieldCheck}
-              title="Secure checkout"
-              description="Safe payment process you can trust."
-            />
-            <StatCard
-              icon={Truck}
-              title="Fast delivery"
-              description="Quick order handling and smooth delivery flow."
-            />
-            <StatCard
-              icon={RefreshCcw}
-              title="Easy returns"
-              description="Simple support when you need to return something."
-            />
-            <StatCard
-              icon={CheckCircle2}
-              title="Easy to browse"
-              description="Collections arranged to help shoppers find things quickly."
-            />
-          </div>
+          {highlightCards.length > 0 ? (
+            <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {highlightCards.map((item, index) => {
+                const Icon = highlightIconFromKey(item.iconKey);
+                return (
+                  <StatCard
+                    key={item.id || index}
+                    icon={Icon}
+                    title={item.title}
+                    description={item.description}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -482,10 +618,11 @@ export default function CollectionsPage() {
               <div className="min-w-0">
                 <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
                   <SlidersHorizontal size={14} />
-                  Filter collections
+                  {collectionsConfig?.filterPanel?.eyebrow || "Filter collections"}
                 </div>
                 <div className="mt-2 text-sm text-gray-600">
-                  Search by category or use the quick filters below.
+                  {collectionsConfig?.filterPanel?.title ||
+                    "Search by category or use the quick filters below."}
                 </div>
               </div>
 
@@ -495,7 +632,9 @@ export default function CollectionsPage() {
                   <input
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
-                    placeholder="Search collections..."
+                    placeholder={
+                      collectionsConfig?.filterPanel?.searchPlaceholder || "Search collections..."
+                    }
                     className="w-full border-0 bg-transparent text-sm text-gray-800 outline-none ring-0 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus-visible:outline-none sm:text-[15px]"
                     aria-label="Search collections"
                   />
@@ -504,16 +643,20 @@ export default function CollectionsPage() {
             </div>
 
             <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-              {categories.map((c) => (
-                <Pill key={c} active={active === c} onClick={() => setActive(c)}>
-                  {c}
+              {categories.map((entry) => (
+                <Pill
+                  key={entry}
+                  active={active === entry}
+                  onClick={() => setActive(entry)}
+                >
+                  {entry}
                 </Pill>
               ))}
             </div>
 
             <div className="mt-4 flex flex-col gap-2 text-xs text-gray-500 sm:flex-row sm:items-center sm:justify-between">
               <span>
-                Showing{" "}
+                {collectionsConfig?.filterPanel?.resultLabel || "Showing"}{" "}
                 <span className="font-semibold text-gray-900">{filtered.length}</span>{" "}
                 collection{filtered.length === 1 ? "" : "s"}
               </span>
@@ -527,7 +670,7 @@ export default function CollectionsPage() {
                     setActive("All");
                   }}
                 >
-                  Reset filters
+                  {collectionsConfig?.filterPanel?.resetLabel || "Reset filters"}
                 </button>
               )}
             </div>
@@ -544,11 +687,12 @@ export default function CollectionsPage() {
               </div>
 
               <h2 className="mt-4 text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
-                No collections found
+                {collectionsConfig?.filterPanel?.emptyTitle || "No collections found"}
               </h2>
 
               <p className="mx-auto mt-3 max-w-xl text-sm leading-7 text-gray-600 sm:text-[15px]">
-                Try a different keyword or clear the filters to see everything again.
+                {collectionsConfig?.filterPanel?.emptyDescription ||
+                  "Try a different keyword or clear the filters to see everything again."}
               </p>
 
               <button
@@ -559,7 +703,8 @@ export default function CollectionsPage() {
                   setActive("All");
                 }}
               >
-                Reset filters <ArrowRight size={16} />
+                {collectionsConfig?.filterPanel?.resetLabel || "Reset filters"}{" "}
+                <ArrowRight size={16} />
               </button>
             </div>
           ) : (
@@ -567,16 +712,16 @@ export default function CollectionsPage() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-400">
-                    Collections
+                    {collectionsConfig?.intro?.eyebrow || "Collections"}
                   </div>
                   <h2 className="mt-2 text-2xl font-bold tracking-tight text-gray-950 sm:text-3xl">
-                    Browse by category
+                    {collectionsConfig?.intro?.title || "Browse by category"}
                   </h2>
                 </div>
 
                 <p className="max-w-xl text-sm leading-7 text-gray-600">
-                  Pick a collection and jump straight into the products that fit what you
-                  want to shop.
+                  {collectionsConfig?.intro?.description ||
+                    "Pick a collection and jump straight into the products that fit what you want to shop."}
                 </p>
               </div>
 
@@ -595,25 +740,20 @@ export default function CollectionsPage() {
           <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
             <div className="rounded-[30px] border border-black/5 bg-white p-6 shadow-[0_14px_36px_rgba(15,23,42,0.05)] sm:p-7">
               <div className="inline-flex rounded-full border border-black/10 bg-gray-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-gray-700">
-                Why shop this way
+                {collectionsConfig?.whySection?.eyebrow || "Why shop this way"}
               </div>
 
               <h3 className="mt-4 text-2xl font-bold tracking-tight text-gray-950">
-                A simpler way to explore the store
+                {collectionsConfig?.whySection?.title || "A simpler way to explore the store"}
               </h3>
 
               <div className="mt-5 space-y-4">
-                {[
-                  "Find categories faster without scrolling through everything.",
-                  "Cleaner layout that feels easier to read on any screen.",
-                  "Better mobile browsing with clearer tap targets.",
-                  "Quick filters to help narrow things down right away.",
-                ].map((text) => (
-                  <div key={text} className="flex items-start gap-3">
+                {whyItems.map((item, index) => (
+                  <div key={item.id || index} className="flex items-start gap-3">
                     <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-black/5 bg-gray-50 text-gray-900">
                       <CheckCircle2 size={16} />
                     </div>
-                    <p className="text-sm leading-7 text-gray-600">{text}</p>
+                    <p className="text-sm leading-7 text-gray-600">{item.text}</p>
                   </div>
                 ))}
               </div>
@@ -621,54 +761,52 @@ export default function CollectionsPage() {
 
             <div className="overflow-hidden rounded-[30px] border border-black/5 bg-[linear-gradient(135deg,#111827_0%,#0f172a_55%,#1f2937_100%)] p-6 text-white shadow-[0_18px_40px_rgba(15,23,42,0.14)] sm:p-7 md:p-8">
               <div className="inline-flex rounded-full border border-white/10 bg-white/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-white/90">
-                Start shopping
+                {collectionsConfig?.finalCta?.eyebrow || "Start shopping"}
               </div>
 
               <h3 className="mt-4 max-w-2xl text-2xl font-bold tracking-tight sm:text-3xl">
-                Ready to explore more?
+                {collectionsConfig?.finalCta?.title || "Ready to explore more?"}
               </h3>
 
               <p className="mt-3 max-w-2xl text-sm leading-7 text-white/75 sm:text-[15px]">
-                Head over to the shop page to see all products, browse by category, and
-                continue shopping without extra steps.
+                {collectionsConfig?.finalCta?.description ||
+                  "Head over to the shop page to browse all products, compare categories, and keep shopping without extra clicks."}
               </p>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <Link
-                  to="/shop"
+                  to={collectionsConfig?.finalCta?.primaryHref || "/shop"}
                   className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/30"
                 >
-                  Go to shop <ArrowRight size={17} />
+                  {collectionsConfig?.finalCta?.primaryLabel || "Go to shop"}{" "}
+                  <ArrowRight size={17} />
                 </Link>
 
                 <Link
-                  to="/contact"
+                  to={collectionsConfig?.finalCta?.secondaryHref || "/contact"}
                   className="inline-flex min-h-[50px] items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black/30"
                 >
-                  Contact us
+                  {collectionsConfig?.finalCta?.secondaryLabel || "Contact us"}
                 </Link>
               </div>
 
-              <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-white/50">
-                    Easy browsing
-                  </div>
-                  <div className="mt-2 text-lg font-semibold text-white">Responsive</div>
+              {finalStats.length > 0 ? (
+                <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {finalStats.map((item, index) => (
+                    <div
+                      key={item.id || index}
+                      className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                    >
+                      <div className="text-[11px] uppercase tracking-[0.16em] text-white/50">
+                        {item.label}
+                      </div>
+                      <div className="mt-2 text-lg font-semibold text-white">
+                        {item.value}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-white/50">
-                    Clear layout
-                  </div>
-                  <div className="mt-2 text-lg font-semibold text-white">Clean UI</div>
-                </div>
-                <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                  <div className="text-[11px] uppercase tracking-[0.16em] text-white/50">
-                    Works best on
-                  </div>
-                  <div className="mt-2 text-lg font-semibold text-white">Mobile</div>
-                </div>
-              </div>
+              ) : null}
             </div>
           </div>
         </div>

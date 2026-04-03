@@ -164,6 +164,42 @@ function normalizeExistingImages(product) {
   return fallback.filter(Boolean);
 }
 
+function normalizeMasterCategories(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      name: String(item?.name || "").trim(),
+      slug: String(item?.slug || "").trim(),
+      isActive: item?.isActive !== false,
+      featured: Boolean(item?.featured),
+      image: String(item?.image || "").trim(),
+      iconKey: String(item?.iconKey || "").trim(),
+      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
+    }))
+    .filter((item) => item.name)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
+function normalizeBrands(input) {
+  const list = Array.isArray(input) ? input : [];
+  const seen = new Set();
+  const out = [];
+
+  for (const raw of list) {
+    const value = String(raw || "").replace(/\s+/g, " ").trim();
+    if (!value) continue;
+
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    out.push(value);
+  }
+
+  return out.sort((a, b) => a.localeCompare(b));
+}
+
 function useLockBodyScroll(active) {
   useEffect(() => {
     if (!active) return;
@@ -392,23 +428,6 @@ function ProductActionModal({
   );
 }
 
-function normalizeMasterCategories(input) {
-  const list = Array.isArray(input) ? input : [];
-  return list
-    .map((item) => ({
-      id: String(item?.id || "").trim(),
-      name: String(item?.name || "").trim(),
-      slug: String(item?.slug || "").trim(),
-      isActive: item?.isActive !== false,
-      featured: Boolean(item?.featured),
-      image: String(item?.image || "").trim(),
-      iconKey: String(item?.iconKey || "").trim(),
-      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
-    }))
-    .filter((item) => item.name)
-    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
-}
-
 function ProductModal({
   open,
   mode,
@@ -417,6 +436,7 @@ function ProductModal({
   onSubmit,
   busy,
   categories = [],
+  brands = [],
 }) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -484,6 +504,10 @@ function ProductModal({
     !categories.some(
       (item) => item.name.toLowerCase() === String(category).trim().toLowerCase()
     );
+
+  const selectedBrandMissing =
+    brand &&
+    !brands.some((item) => item.toLowerCase() === String(brand).trim().toLowerCase());
 
   function onPickFiles(event) {
     const files = Array.from(event.target.files || []);
@@ -715,12 +739,27 @@ function ProductModal({
 
                   <label className="block">
                     <div className="text-sm font-medium text-gray-800">Brand</div>
-                    <input
+                    <select
                       value={brand}
                       onChange={(e) => setBrand(e.target.value)}
-                      placeholder="Nike / Apple..."
                       className="mt-2 w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 outline-none shadow-sm transition focus:border-gray-300 focus:ring-2 focus:ring-black focus:ring-offset-2"
-                    />
+                    >
+                      <option value="">Select brand</option>
+                      {brands.map((item) => (
+                        <option key={item} value={item}>
+                          {item}
+                        </option>
+                      ))}
+                      {selectedBrandMissing ? (
+                        <option value={brand}>{brand}</option>
+                      ) : null}
+                    </select>
+
+                    {selectedBrandMissing ? (
+                      <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                        This product uses a brand that is no longer in the brand list.
+                      </div>
+                    ) : null}
                   </label>
                 </div>
 
@@ -1148,14 +1187,14 @@ function ProductCard({ product, onEdit, onDelete, onToggle, busy }) {
             </div>
 
             <div className="rounded-2xl bg-gray-50 px-3 py-2.5">
-              <div className="text-[11px] text-gray-500">Category</div>
+              <div className="text-gray-500">Category</div>
               <div className="mt-1 truncate text-sm font-semibold text-gray-900">
                 {product.category || "-"}
               </div>
             </div>
 
             <div className="rounded-2xl bg-gray-50 px-3 py-2.5">
-              <div className="text-[11px] text-gray-500">Brand</div>
+              <div className="text-gray-500">Brand</div>
               <div className="mt-1 truncate text-sm font-semibold text-gray-900">
                 {product.brand || "-"}
               </div>
@@ -1271,6 +1310,11 @@ export default function AdminProductsPage() {
   const masterCategories = useMemo(
     () => normalizeMasterCategories(shopCfgDoc?.data?.categories),
     [shopCfgDoc?.data?.categories]
+  );
+
+  const masterBrands = useMemo(
+    () => normalizeBrands(shopCfgDoc?.data?.brands),
+    [shopCfgDoc?.data?.brands]
   );
 
   useEffect(() => {
@@ -1648,8 +1692,8 @@ export default function AdminProductsPage() {
                 {isActive === ""
                   ? "All products"
                   : isActive === "true"
-                  ? "Active only"
-                  : "Inactive only"}
+                    ? "Active only"
+                    : "Inactive only"}
               </div>
             </div>
           </div>
@@ -1889,6 +1933,7 @@ export default function AdminProductsPage() {
         onSubmit={submitModal}
         busy={createMutation.isPending || updateMutation.isPending}
         categories={masterCategories}
+        brands={masterBrands}
       />
 
       <ProductActionModal

@@ -60,6 +60,7 @@ import AdminPromotionsPage from "../pages/Admin/AdminPromotionsPage";
 import AdminNewsletterPage from "../pages/Admin/AdminNewsletterPage";
 import AdminSupportPage from "../pages/Admin/AdminSupportPage";
 import AdminContactControlPage from "../pages/Admin/AdminContactControlPage";
+import AdminCollectionsControlPage from "../pages/Admin/AdminCollectionsControlPage";
 
 import { useAuth } from "../shared/hooks/useAuth";
 import api, { raw } from "../services/apiClient";
@@ -684,6 +685,14 @@ export const AppRoutes = createBrowserRouter([
         element: (
           <AdminPermissionRoute requiresAny={["settings:read", "settings:write"]}>
             <AdminContactControlPage />
+          </AdminPermissionRoute>
+        ),
+      },
+      {
+        path: "collections-control",
+        element: (
+          <AdminPermissionRoute requiresAny={["settings:read", "settings:write"]}>
+            <AdminCollectionsControlPage />
           </AdminPermissionRoute>
         ),
       },

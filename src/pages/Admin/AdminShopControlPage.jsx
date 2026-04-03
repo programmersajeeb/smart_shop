@@ -13,6 +13,7 @@ import {
   Layers3,
   Upload,
   GripVertical,
+  Tag,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "../../services/apiClient";
@@ -23,29 +24,6 @@ const SORT_OPTIONS = [
   { value: "priceLow", label: "Price: Low to High" },
   { value: "priceHigh", label: "Price: High to Low" },
 ];
-
-function uniqNormalized(list) {
-  const seen = new Set();
-  const out = [];
-  for (const raw of list || []) {
-    const value = String(raw || "").trim();
-    if (!value) continue;
-    const key = value.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    out.push(value);
-  }
-  return out;
-}
-
-function parseBrands(text) {
-  return uniqNormalized(
-    String(text || "")
-      .split(/\r?\n|,/g)
-      .map((item) => item.trim())
-      .filter(Boolean)
-  );
-}
 
 function clampNumber(value, min, max) {
   const parsed = Number.isFinite(Number(value)) ? Number(value) : min;
@@ -61,9 +39,47 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "");
 }
 
+function normalizeBrandItem(raw, index = 0) {
+  return {
+    id: String(raw?.id || `brand-${index + 1}`).trim() || `brand-${index + 1}`,
+    name: String(raw?.name || "").replace(/\s+/g, " "),
+  };
+}
+
+function sanitizeBrandItems(list) {
+  const rawList = Array.isArray(list) ? list : [];
+  return rawList.slice(0, 100).map((item, index) => ({
+    id:
+      String(item?.id || `brand-${index + 1}`).trim() || `brand-${index + 1}`,
+    name: String(item?.name || "").replace(/\s+/g, " "),
+  }));
+}
+
+function dedupeBrandItems(list) {
+  const seen = new Set();
+  const out = [];
+
+  for (const item of sanitizeBrandItems(list)) {
+    const cleanName = String(item.name || "").replace(/\s+/g, " ").trim();
+    if (!cleanName) continue;
+
+    const key = cleanName.toLowerCase();
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    out.push({
+      ...item,
+      name: cleanName,
+    });
+  }
+
+  return out.slice(0, 100);
+}
+
 function normalizeCategory(raw, index = 0) {
   const name = String(raw?.name || "").trim();
   const slug = String(raw?.slug || "").trim() || slugify(name);
+
   return {
     id:
       String(raw?.id || slug || `category-${index + 1}`).trim() ||
@@ -98,9 +114,12 @@ function dedupeCategories(list) {
 
   for (const item of sanitizeCategories(list)) {
     if (!item.name) continue;
+
     const nameKey = item.name.toLowerCase();
     const idKey = item.id.toLowerCase();
+
     if (seenName.has(nameKey) || seenId.has(idKey)) continue;
+
     seenName.add(nameKey);
     seenId.add(idKey);
     out.push(item);
@@ -161,9 +180,11 @@ async function uploadSingleImage(file) {
 
   const response = await api.post("/upload/local", formData);
   const data = response?.data || {};
+
   if (!String(data?.url || "").trim()) {
     throw new Error("Image upload failed.");
   }
+
   return String(data.url || "").trim();
 }
 
@@ -179,7 +200,7 @@ function shallowSnapshot(state) {
     emptyStateTitle: String(state.emptyStateTitle || ""),
     emptyStateSubtitle: String(state.emptyStateSubtitle || ""),
     priceMax: clampNumber(state.priceMax, 1, 1000000),
-    brandsText: String(state.brandsText || ""),
+    brands: sanitizeBrandItems(state.brands),
     categories: sanitizeCategories(state.categories),
     trustBadges: sanitizeTrustBadges(state.trustBadges),
     featuredCollections: sanitizeFeaturedCollections(state.featuredCollections),
@@ -188,6 +209,7 @@ function shallowSnapshot(state) {
 
 function buildFormState(shopDoc) {
   const config = shopDoc?.data || {};
+
   return {
     version: Number(shopDoc?.version || 0),
     heroEyebrow: String(config?.heroEyebrow || ""),
@@ -200,7 +222,10 @@ function buildFormState(shopDoc) {
     emptyStateTitle: String(config?.emptyStateTitle || ""),
     emptyStateSubtitle: String(config?.emptyStateSubtitle || ""),
     priceMax: clampNumber(config?.priceMax ?? 5000, 1, 1000000),
-    brandsText: (Array.isArray(config?.brands) ? config.brands : []).join("\n"),
+    brands: (Array.isArray(config?.brands) ? config.brands : []).map((item, index) => ({
+      id: `brand-${index + 1}`,
+      name: String(item || ""),
+    })),
     categories: sanitizeCategories(config?.categories),
     trustBadges: sanitizeTrustBadges(config?.trustBadges),
     featuredCollections: sanitizeFeaturedCollections(config?.featuredCollections),
@@ -228,9 +253,7 @@ function SectionCard({ title, description, icon: Icon, children }) {
         ) : null}
         <div>
           <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-          {description ? (
-            <p className="mt-1 text-sm text-gray-600">{description}</p>
-          ) : null}
+          {description ? <p className="mt-1 text-sm text-gray-600">{description}</p> : null}
         </div>
       </div>
       <div className="mt-5">{children}</div>
@@ -340,7 +363,7 @@ export default function AdminShopControlPage() {
   const [emptyStateSubtitle, setEmptyStateSubtitle] = useState("");
 
   const [priceMax, setPriceMax] = useState(5000);
-  const [brandsText, setBrandsText] = useState("");
+  const [brands, setBrands] = useState([]);
 
   const [categories, setCategories] = useState([]);
   const [trustBadges, setTrustBadges] = useState([]);
@@ -355,11 +378,12 @@ export default function AdminShopControlPage() {
     () => sanitizeFeaturedCollections(featuredCollections),
     [featuredCollections]
   );
-  const brandsSafe = useMemo(() => parseBrands(brandsText), [brandsText]);
+  const brandItems = useMemo(() => sanitizeBrandItems(brands), [brands]);
 
   const isDirty = useMemo(() => {
     const snapshot = initialSnapshotRef.current;
     if (!snapshot) return false;
+
     return (
       shallowSnapshot({
         heroEyebrow,
@@ -372,7 +396,7 @@ export default function AdminShopControlPage() {
         emptyStateTitle,
         emptyStateSubtitle,
         priceMax,
-        brandsText,
+        brands,
         categories,
         trustBadges,
         featuredCollections,
@@ -389,7 +413,7 @@ export default function AdminShopControlPage() {
     emptyStateTitle,
     emptyStateSubtitle,
     priceMax,
-    brandsText,
+    brands,
     categories,
     trustBadges,
     featuredCollections,
@@ -409,7 +433,7 @@ export default function AdminShopControlPage() {
     setEmptyStateSubtitle(next.emptyStateSubtitle);
 
     setPriceMax(next.priceMax);
-    setBrandsText(next.brandsText);
+    setBrands(sanitizeBrandItems(next.brands));
 
     setCategories(sanitizeCategories(next.categories));
     setTrustBadges(sanitizeTrustBadges(next.trustBadges));
@@ -417,6 +441,7 @@ export default function AdminShopControlPage() {
 
     initialStateRef.current = {
       ...next,
+      brands: sanitizeBrandItems(next.brands),
       categories: sanitizeCategories(next.categories),
       trustBadges: sanitizeTrustBadges(next.trustBadges),
       featuredCollections: sanitizeFeaturedCollections(next.featuredCollections),
@@ -446,6 +471,7 @@ export default function AdminShopControlPage() {
       event.preventDefault();
       event.returnValue = "";
     }
+
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [isDirty]);
@@ -470,6 +496,32 @@ export default function AdminShopControlPage() {
     },
   });
 
+  function addBrand() {
+    setBrands((prev) => [
+      ...(Array.isArray(prev) ? prev : []),
+      {
+        id: `brand-${Date.now()}`,
+        name: "",
+      },
+    ]);
+  }
+
+  function updateBrand(index, value) {
+    setBrands((prev) => {
+      const next = [...(Array.isArray(prev) ? prev : [])];
+      next[index] = {
+        ...(next[index] || {}),
+        id: next[index]?.id || `brand-${index + 1}`,
+        name: value,
+      };
+      return next;
+    });
+  }
+
+  function removeBrand(index) {
+    setBrands((prev) => (Array.isArray(prev) ? prev : []).filter((_, i) => i !== index));
+  }
+
   function addCategory() {
     setCategories((prev) => [
       ...(Array.isArray(prev) ? prev : []),
@@ -491,9 +543,11 @@ export default function AdminShopControlPage() {
     setCategories((prev) => {
       const next = [...(Array.isArray(prev) ? prev : [])];
       const merged = normalizeCategory({ ...(next[index] || {}), ...patch }, index);
+
       if (patch.name != null && !patch.slug) {
         merged.slug = slugify(merged.name);
       }
+
       next[index] = merged;
       return next;
     });
@@ -598,7 +652,10 @@ export default function AdminShopControlPage() {
       .map((item, index) => normalizeCollection(item, index))
       .filter((item) => item.title);
 
-    if (!cleanHeroTitle) return { ok: false, message: "Hero title is required." };
+    if (!cleanHeroTitle) {
+      return { ok: false, message: "Hero title is required." };
+    }
+
     if (uniqueCategories.some((category) => !category.slug)) {
       return { ok: false, message: "Each category must have a valid slug." };
     }
@@ -617,7 +674,7 @@ export default function AdminShopControlPage() {
       emptyStateSubtitle: cleanEmptyStateSubtitle,
 
       priceMax: cleanPriceMax,
-      brands: brandsSafe,
+      brands: dedupeBrandItems(brands).map((item) => item.name),
       categories: uniqueCategories,
       trustBadges: uniqueTrustBadges,
       featuredCollections: cleanCollections,
@@ -637,6 +694,7 @@ export default function AdminShopControlPage() {
       toast.error("Validation failed", { description: result.message });
       return;
     }
+
     mutation.mutate(result.payload);
   }
 
@@ -692,6 +750,7 @@ export default function AdminShopControlPage() {
   const saveDisabled = mutation.isPending || !isDirty;
   const normalizedPreviewCategories = dedupeCategories(categoriesSafe);
   const normalizedPreviewTrustBadges = dedupeTrustBadges(trustBadgesSafe);
+  const uniqueBrandCount = dedupeBrandItems(brandItems).length;
 
   return (
     <div className="space-y-5">
@@ -708,7 +767,7 @@ export default function AdminShopControlPage() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm text-gray-600">
-              Manage hero content, collections, filters, and the master category registry used across shop pages.
+              Manage hero content, collections, filters, brands, and the master category registry used across shop pages.
             </p>
 
             {isDirty ? (
@@ -766,20 +825,22 @@ export default function AdminShopControlPage() {
           </div>
         </div>
 
-        {isFetching ? (
-          <div className="mt-3 text-xs text-gray-500">Updating data...</div>
-        ) : null}
+        {isFetching ? <div className="mt-3 text-xs text-gray-500">Updating data...</div> : null}
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
         <SummaryCard label="Hero title" value={heroTitle.trim() || "—"} hint="Main shop heading" />
-        <SummaryCard label="Allowed brands" value={brandsSafe.length || 0} hint="Unique brand entries" />
+        <SummaryCard label="Allowed brands" value={uniqueBrandCount || 0} hint="Dropdown source list" />
         <SummaryCard
           label="Active categories"
           value={normalizedPreviewCategories.filter((c) => c.isActive).length || 0}
           hint="Visible in storefront"
         />
-        <SummaryCard label="Trust badges" value={normalizedPreviewTrustBadges.length || 0} hint="Discovery support chips" />
+        <SummaryCard
+          label="Trust badges"
+          value={normalizedPreviewTrustBadges.length || 0}
+          hint="Discovery support chips"
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
@@ -908,15 +969,67 @@ export default function AdminShopControlPage() {
             />
           </label>
 
-          <label className="mt-4 block">
-            <div className="text-sm font-medium text-gray-800">Brand allowlist</div>
-            <textarea
-              className="mt-2 min-h-[160px] w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm outline-none shadow-sm transition focus:ring-2 focus:ring-black focus:ring-offset-2"
-              value={brandsText}
-              onChange={(e) => setBrandsText(e.target.value)}
-              placeholder={"Nike\nApple\nChanel"}
-            />
-          </label>
+          <div className="mt-5 rounded-[24px] border border-gray-200 bg-gray-50 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-gray-800">Brands</div>
+                <div className="mt-1 text-xs text-gray-500">
+                  These brands will appear in the product form dropdown.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={addBrand}
+                className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                disabled={brandItems.length >= 100}
+              >
+                <Plus size={18} />
+                Add brand
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {brandItems.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-5 text-sm text-gray-500">
+                  No brands added yet. Add the brands you want to use in product posting.
+                </div>
+              ) : (
+                brandItems.map((item, index) => (
+                  <div
+                    key={item.id || index}
+                    className="grid grid-cols-1 gap-3 rounded-[20px] border border-gray-200 bg-white p-3 md:grid-cols-[1fr_auto]"
+                  >
+                    <div>
+                      <label className="block text-sm font-medium text-gray-800">
+                        Brand name
+                      </label>
+                      <div className="mt-2 flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
+                        <Tag size={16} className="text-gray-500" />
+                        <input
+                          className="w-full bg-transparent text-sm outline-none"
+                          value={item.name}
+                          onChange={(e) => updateBrand(index, e.target.value)}
+                          placeholder="Enter brand name"
+                          maxLength={60}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-end">
+                      <button
+                        type="button"
+                        onClick={() => removeBrand(index)}
+                        className="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-3 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </SectionCard>
 
         <SectionCard
@@ -1145,23 +1258,69 @@ export default function AdminShopControlPage() {
                   </select>
                 </label>
 
-                <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={category.isActive}
-                    onChange={(e) => updateCategory(index, { isActive: e.target.checked })}
-                  />
-                  <span className="text-sm font-medium text-gray-800">Active in storefront</span>
-                </label>
+                <button
+                  type="button"
+                  onClick={() => updateCategory(index, { isActive: !category.isActive })}
+                  className={[
+                    "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
+                    category.isActive
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                  ].join(" ")}
+                >
+                  <div>
+                    <div className="text-sm font-medium">Active in storefront</div>
+                    <div className="mt-1 text-xs opacity-80">
+                      {category.isActive
+                        ? "This category is visible on the collections page."
+                        : "This category is currently hidden from the collections page."}
+                    </div>
+                  </div>
 
-                <label className="flex items-center gap-3 rounded-2xl border border-gray-200 bg-white px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={category.featured}
-                    onChange={(e) => updateCategory(index, { featured: e.target.checked })}
-                  />
-                  <span className="text-sm font-medium text-gray-800">Featured collection</span>
-                </label>
+                  <div
+                    className={[
+                      "inline-flex min-w-[74px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold",
+                      category.isActive
+                        ? "bg-emerald-600 text-white"
+                        : "bg-gray-100 text-gray-600",
+                    ].join(" ")}
+                  >
+                    {category.isActive ? "Active" : "Inactive"}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => updateCategory(index, { featured: !category.featured })}
+                  className={[
+                    "flex items-center justify-between gap-3 rounded-2xl border px-4 py-3 text-left transition",
+                    "focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
+                    category.featured
+                      ? "border-amber-200 bg-amber-50 text-amber-900"
+                      : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50",
+                  ].join(" ")}
+                >
+                  <div>
+                    <div className="text-sm font-medium">Featured collection</div>
+                    <div className="mt-1 text-xs opacity-80">
+                      {category.featured
+                        ? "This category gets featured styling in collection sections."
+                        : "This category is not marked as featured yet."}
+                    </div>
+                  </div>
+
+                  <div
+                    className={[
+                      "inline-flex min-w-[74px] items-center justify-center rounded-full px-3 py-1.5 text-xs font-semibold",
+                      category.featured
+                        ? "bg-amber-500 text-white"
+                        : "bg-gray-100 text-gray-600",
+                    ].join(" ")}
+                  >
+                    {category.featured ? "Featured" : "Normal"}
+                  </div>
+                </button>
               </div>
 
               <div className="mt-4">
@@ -1192,7 +1351,7 @@ export default function AdminShopControlPage() {
             saveDisabled
               ? "cursor-not-allowed bg-gray-200 text-gray-600"
               : "bg-black text-white hover:bg-gray-900",
-            "focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus-visible:ring-offset-2",
+            "focus:outline-none focus-visible:ring-2 focus-visible:ring-black focus:ring-offset-2",
           ].join(" ")}
           disabled={saveDisabled}
         >

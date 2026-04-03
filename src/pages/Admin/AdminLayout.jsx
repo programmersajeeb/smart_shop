@@ -23,6 +23,7 @@ import {
   Home,
   Mail,
   Phone,
+  Layers3,
 } from "lucide-react";
 import { useAuth } from "../../shared/hooks/useAuth";
 
@@ -394,6 +395,12 @@ export default function AdminLayout() {
         to: "/admin/contact-control",
         icon: Phone,
         label: "Contact Control",
+        requiresAny: ["settings:read", "settings:write"],
+      },
+      {
+        to: "/admin/collections-control",
+        icon: Layers3,
+        label: "Collections Control",
         requiresAny: ["settings:read", "settings:write"],
       },
     ].filter((it) => canAccessNav(ctx, it));
