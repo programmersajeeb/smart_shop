@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ClipboardList,
   RefreshCw,
+  ShoppingBag,
 } from "lucide-react";
 
 import api from "../../../services/apiClient";
@@ -52,6 +53,64 @@ function getErrorMessage(error) {
   return serverMessage ? String(serverMessage) : "Something went wrong.";
 }
 
+function MobileOrderHistoryCards({ orders = [] }) {
+  return (
+    <div className="space-y-3 md:hidden">
+      {orders.map((o) => (
+        <div key={o._id} className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-sm font-semibold text-gray-900">
+                #{String(o._id).slice(-6).toUpperCase()}
+              </div>
+              <div className="mt-1 truncate text-xs text-gray-500">{String(o._id)}</div>
+            </div>
+
+            <span
+              className={cx(
+                "inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
+                statusBadgeClass(o.status)
+              )}
+            >
+              {o.status}
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-3 gap-3">
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                Date
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">{formatDate(o.createdAt)}</div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                Items
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">{o.items?.length || 0}</div>
+            </div>
+
+            <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3 text-right">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                Total
+              </div>
+              <div className="mt-1 text-sm font-semibold text-gray-900">{formatMoney(o.total)}</div>
+            </div>
+          </div>
+
+          <Link
+            to={`/account/orders/${o._id}`}
+            className="mt-4 inline-flex w-full items-center justify-center rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            View order
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function OrderHistoryPage() {
   const [sp, setSp] = useSearchParams();
 
@@ -93,13 +152,16 @@ export default function OrderHistoryPage() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-sm text-gray-500">My account</div>
-            <div className="mt-1 flex items-center gap-3">
-              <h2 className="text-2xl font-bold tracking-tight text-gray-900">
-                Orders
+      <div className="rounded-[30px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+              My account
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl font-bold tracking-tight text-gray-900 md:text-[30px]">
+                Order history
               </h2>
 
               {isUpdating ? (
@@ -109,16 +171,21 @@ export default function OrderHistoryPage() {
                 </span>
               ) : null}
             </div>
+
             <div className="mt-2 text-sm text-gray-600">
-              Total orders: <span className="font-semibold text-gray-900">{total}</span>
+              Review your purchases, track delivery progress, and open any order in one tap.
+            </div>
+
+            <div className="mt-4 inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-semibold text-gray-700">
+              Total orders: {total}
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <button
               type="button"
               onClick={() => q.refetch()}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               <RefreshCw size={16} />
               Refresh
@@ -126,23 +193,23 @@ export default function OrderHistoryPage() {
 
             <Link
               to="/account"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               <ArrowLeft size={16} />
-              Back
+              Back to overview
             </Link>
           </div>
         </div>
       </div>
 
       <div className="overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-gray-100 p-5">
+        <div className="flex flex-col gap-4 border-b border-gray-100 p-5 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
             <ClipboardList size={18} />
-            Order history
+            Orders
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-start md:self-auto">
             <button
               type="button"
               className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
@@ -156,7 +223,7 @@ export default function OrderHistoryPage() {
               <ChevronLeft size={16} />
             </button>
 
-            <div className="min-w-[72px] text-center text-sm font-semibold text-gray-700">
+            <div className="min-w-[82px] rounded-2xl border border-gray-200 bg-gray-50 px-3 py-2 text-center text-sm font-semibold text-gray-700">
               {pageLabel}
             </div>
 
@@ -194,9 +261,12 @@ export default function OrderHistoryPage() {
         ) : orders.length === 0 ? (
           <div className="p-6">
             <div className="rounded-2xl border bg-gray-50 p-5">
-              <div className="font-semibold text-gray-900">No orders found</div>
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <ShoppingBag size={18} />
+                No orders yet
+              </div>
               <div className="mt-1 text-sm text-gray-600">
-                You don’t have any orders yet.
+                Your purchases will appear here after checkout.
               </div>
               <Link
                 to="/shop"
@@ -208,7 +278,11 @@ export default function OrderHistoryPage() {
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto p-6">
+            <div className="p-4 md:hidden">
+              <MobileOrderHistoryCards orders={orders} />
+            </div>
+
+            <div className="hidden overflow-x-auto p-6 md:block">
               <table className="w-full min-w-[820px]">
                 <thead>
                   <tr className="border-b border-gray-100 text-left text-xs uppercase tracking-[0.14em] text-gray-500">
@@ -228,9 +302,7 @@ export default function OrderHistoryPage() {
                         <div className="font-medium text-gray-900">
                           #{String(o._id).slice(-6).toUpperCase()}
                         </div>
-                        <div className="mt-1 truncate text-xs text-gray-500">
-                          {String(o._id)}
-                        </div>
+                        <div className="mt-1 truncate text-xs text-gray-500">{String(o._id)}</div>
                       </td>
                       <td className="px-4 py-4 text-gray-700">{formatDate(o.createdAt)}</td>
                       <td className="px-4 py-4 text-gray-700">{o.items?.length || 0}</td>

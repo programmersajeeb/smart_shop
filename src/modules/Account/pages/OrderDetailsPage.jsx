@@ -7,6 +7,7 @@ import {
   MapPin,
   Package2,
   RefreshCw,
+  ShieldCheck,
 } from "lucide-react";
 
 import api from "../../../services/apiClient";
@@ -74,13 +75,15 @@ export default function OrderDetailsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="text-sm text-gray-500">Order details</div>
+      <div className="rounded-[30px] border border-gray-200 bg-white p-5 shadow-sm md:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="min-w-0">
+            <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+              Order details
+            </div>
 
-            <div className="mt-1 flex items-center gap-3">
-              <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <h2 className="text-2xl font-bold tracking-tight text-gray-900 md:text-[30px]">
                 #{String(id || "").slice(-6).toUpperCase()}
               </h2>
 
@@ -91,13 +94,17 @@ export default function OrderDetailsPage() {
                 </span>
               ) : null}
             </div>
+
+            <div className="mt-2 text-sm text-gray-600">
+              Review items, payment total, and shipping information in one place.
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <button
               type="button"
               onClick={() => q.refetch()}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               <RefreshCw size={16} />
               Refresh
@@ -105,7 +112,7 @@ export default function OrderDetailsPage() {
 
             <Link
               to="/account/orders"
-              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
             >
               <ArrowLeft size={16} />
               Back to orders
@@ -142,7 +149,7 @@ export default function OrderDetailsPage() {
           <div className="rounded-2xl border bg-gray-50 p-5">
             <div className="font-semibold text-gray-900">Order not found</div>
             <div className="mt-1 text-sm text-gray-600">
-              This order may have been removed or the ID is incorrect.
+              This order may have been removed or the ID may be incorrect.
             </div>
             <Link
               to="/account/orders"
@@ -153,101 +160,100 @@ export default function OrderDetailsPage() {
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-12">
-          <div className="lg:col-span-5">
-            <div className="space-y-5">
-              <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                    <ReceiptText size={18} />
-                    Summary
-                  </div>
-
-                  <span
-                    className={cx(
-                      "inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
-                      statusBadgeClass(order.status)
-                    )}
-                  >
-                    {order.status}
-                  </span>
+        <div className="grid grid-cols-1 gap-5 xl:grid-cols-12">
+          <div className="space-y-5 xl:col-span-5">
+            <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <ReceiptText size={18} />
+                  Order summary
                 </div>
 
-                <div className="mt-5 space-y-3 text-sm text-gray-600">
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Placed</span>
-                    <span className="font-medium text-gray-900">
-                      {formatDate(order.createdAt)}
-                    </span>
-                  </div>
+                <span
+                  className={cx(
+                    "inline-flex rounded-full border px-3 py-1 text-xs font-semibold",
+                    statusBadgeClass(order.status)
+                  )}
+                >
+                  {order.status}
+                </span>
+              </div>
 
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Order ID</span>
-                    <span className="font-medium text-gray-900">
-                      #{String(order._id || "").slice(-8).toUpperCase()}
-                    </span>
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                    Placed
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-gray-900">
+                    {formatDate(order.createdAt)}
                   </div>
                 </div>
 
-                <div className="my-5 h-px bg-gray-100" />
-
-                <div className="space-y-3 text-sm text-gray-600">
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Subtotal</span>
-                    <span className="font-medium text-gray-900">
-                      {formatMoney(order.subtotal)}
-                    </span>
+                <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                    Order ID
                   </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Shipping</span>
-                    <span className="font-medium text-gray-900">
-                      {formatMoney(order.shipping)}
-                    </span>
+                  <div className="mt-1 text-sm font-semibold text-gray-900">
+                    #{String(order._id || "").slice(-8).toUpperCase()}
                   </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Discount</span>
-                    <span className="font-medium text-gray-900">
-                      - {formatMoney(order.discount)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="my-5 h-px bg-gray-100" />
-
-                <div className="flex items-center justify-between gap-3">
-                  <span className="font-semibold text-gray-900">Total</span>
-                  <span className="text-lg font-bold text-gray-900">
-                    {formatMoney(order.total)}
-                  </span>
                 </div>
               </div>
 
-              <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm">
-                <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                  <MapPin size={18} />
-                  Shipping address
-                </div>
+              <div className="my-5 h-px bg-gray-100" />
 
-                <div className="mt-4 space-y-2 text-sm text-gray-700">
-                  <div className="font-medium text-gray-900">
-                    {order.shippingAddress?.name || "—"}
-                  </div>
-                  <div>{order.shippingAddress?.phone || "—"}</div>
-                  <div>{order.shippingAddress?.addressLine || "—"}</div>
-                  <div>
-                    {[order.shippingAddress?.city, order.shippingAddress?.country]
-                      .filter(Boolean)
-                      .join(", ") || "—"}
-                    {order.shippingAddress?.postalCode
-                      ? ` - ${order.shippingAddress.postalCode}`
-                      : ""}
-                  </div>
+              <div className="space-y-3 text-sm text-gray-600">
+                <div className="flex items-center justify-between gap-3">
+                  <span>Subtotal</span>
+                  <span className="font-medium text-gray-900">{formatMoney(order.subtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>Shipping</span>
+                  <span className="font-medium text-gray-900">{formatMoney(order.shipping)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span>Discount</span>
+                  <span className="font-medium text-gray-900">- {formatMoney(order.discount)}</span>
+                </div>
+              </div>
+
+              <div className="my-5 h-px bg-gray-100" />
+
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-gray-900">Total</span>
+                <span className="text-lg font-bold text-gray-900">{formatMoney(order.total)}</span>
+              </div>
+
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
+                <ShieldCheck size={14} />
+                Secure order record
+              </div>
+            </div>
+
+            <div className="rounded-[30px] border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                <MapPin size={18} />
+                Shipping address
+              </div>
+
+              <div className="mt-4 space-y-2 text-sm text-gray-700">
+                <div className="font-medium text-gray-900">
+                  {order.shippingAddress?.name || "—"}
+                </div>
+                <div>{order.shippingAddress?.phone || "—"}</div>
+                <div>{order.shippingAddress?.addressLine || "—"}</div>
+                <div>
+                  {[order.shippingAddress?.city, order.shippingAddress?.country]
+                    .filter(Boolean)
+                    .join(", ") || "—"}
+                  {order.shippingAddress?.postalCode
+                    ? ` - ${order.shippingAddress.postalCode}`
+                    : ""}
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="lg:col-span-7">
+          <div className="xl:col-span-7">
             <div className="overflow-hidden rounded-[30px] border border-gray-200 bg-white shadow-sm">
               <div className="border-b border-gray-100 p-6">
                 <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
@@ -255,38 +261,60 @@ export default function OrderDetailsPage() {
                   Items
                 </div>
                 <div className="mt-1 text-xs text-gray-500">
-                  {order.items?.length || 0} item(s)
+                  {order.items?.length || 0} item(s) in this order
                 </div>
               </div>
 
-              <div className="space-y-4 p-6">
+              <div className="space-y-4 p-4 md:p-6">
                 {(order.items || []).map((it, idx) => (
                   <div
                     key={`${it.product}-${idx}`}
-                    className="flex items-center gap-4 rounded-2xl border border-gray-200 p-4"
+                    className="rounded-3xl border border-gray-200 p-4"
                   >
-                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
-                      {it.image ? (
-                        <img
-                          src={it.image}
-                          alt={it.title}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : null}
-                    </div>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-semibold text-gray-900">
-                        {it.title}
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                      <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
+                        {it.image ? (
+                          <img
+                            src={it.image}
+                            alt={it.title}
+                            className="h-full w-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : null}
                       </div>
-                      <div className="mt-1 text-sm text-gray-500">
-                        Qty: {it.qty} • Price: {formatMoney(it.price)}
-                      </div>
-                    </div>
 
-                    <div className="text-right font-bold text-gray-900">
-                      {formatMoney((it.price || 0) * (it.qty || 0))}
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-base font-semibold text-gray-900">
+                          {it.title}
+                        </div>
+
+                        <div className="mt-2 grid grid-cols-2 gap-3 sm:max-w-md">
+                          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                              Quantity
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-gray-900">{it.qty}</div>
+                          </div>
+
+                          <div className="rounded-2xl border border-gray-200 bg-gray-50 p-3">
+                            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                              Unit price
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-gray-900">
+                              {formatMoney(it.price)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="sm:text-right">
+                        <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-gray-500">
+                          Line total
+                        </div>
+                        <div className="mt-1 text-base font-bold text-gray-900">
+                          {formatMoney((it.price || 0) * (it.qty || 0))}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
