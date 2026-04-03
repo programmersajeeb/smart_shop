@@ -404,8 +404,8 @@ export default function ShopPage() {
       sortBy === "priceLow"
         ? "price_asc"
         : sortBy === "priceHigh"
-        ? "price_desc"
-        : "";
+          ? "price_desc"
+          : "";
 
     const p = {
       page,
@@ -497,8 +497,8 @@ export default function ShopPage() {
     sortBy === "priceLow"
       ? "Price: Low to High"
       : sortBy === "priceHigh"
-      ? "Price: High to Low"
-      : "Newest";
+        ? "Price: High to Low"
+        : "Newest";
 
   const combinedErrorMessage =
     productsError || facetsError || shopCfgError
@@ -585,7 +585,7 @@ export default function ShopPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="border-b border-black/5 bg-gradient-to-b from-white via-white to-gray-50">
-        <div className="site-shell py-6 sm:py-8">
+        <div className="site-shell py-5 sm:py-7 lg:py-8">
           <div className="flex items-center gap-2 text-sm text-gray-500">
             <Home size={16} />
             <Link to="/" className="transition hover:text-black hover:underline">
@@ -595,21 +595,21 @@ export default function ShopPage() {
             <span className="font-medium text-gray-700">Shop</span>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-5 xl:grid-cols-12">
-            <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-7 xl:col-span-8">
+          <div className="mt-4 grid grid-cols-1 gap-5 xl:grid-cols-12">
+            <div className="rounded-[28px] border border-black/5 bg-white p-4 shadow-sm sm:p-7 xl:col-span-8">
               <div className="max-w-3xl">
                 <div className="inline-flex items-center gap-2 rounded-full border border-black/5 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-600">
                   <ShoppingBag size={14} />
                   {cfg?.heroEyebrow || "Premium catalog"}
                 </div>
 
-                <h1 className="mt-4 text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl">
+                <h1 className="mt-4 text-[2rem] font-bold tracking-tight text-gray-950 sm:text-4xl">
                   {cfg?.heroTitle || "Shop All Products"}
                 </h1>
 
                 <p className="mt-3 max-w-2xl text-sm leading-7 text-gray-600 sm:text-base">
                   {cfg?.heroSubtitle ||
-                    "Discover our latest collections, trending fashion, accessories, and more. Explore a cleaner, faster and more premium storefront experience."}
+                    "Discover the latest pieces from our live catalog, explore curated categories, and shop with a cleaner, more comfortable browsing experience."}
                 </p>
               </div>
 
@@ -632,28 +632,30 @@ export default function ShopPage() {
                 </div>
               ) : null}
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                {categoryPills.map((pill) => {
-                  const Icon = pill.icon;
-                  const active = category === pill.name;
+              <div className="mt-6">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:flex xl:flex-wrap xl:gap-3">
+                  {categoryPills.map((pill) => {
+                    const Icon = pill.icon;
+                    const active = category === pill.name;
 
-                  return (
-                    <button
-                      key={pill.name}
-                      type="button"
-                      onClick={() => handleCategoryChange(pill.name)}
-                      className={[
-                        "inline-flex items-center gap-2 rounded-full border px-4 py-2.5 text-sm font-medium transition",
-                        active
-                          ? "border-black bg-black text-white shadow-sm"
-                          : "border-black/10 bg-white text-gray-700 hover:bg-gray-100 hover:text-black",
-                      ].join(" ")}
-                    >
-                      <Icon size={17} />
-                      <span>{pill.name}</span>
-                    </button>
-                  );
-                })}
+                    return (
+                      <button
+                        key={pill.name}
+                        type="button"
+                        onClick={() => handleCategoryChange(pill.name)}
+                        className={[
+                          "inline-flex min-w-0 items-center justify-center gap-2 rounded-full border px-3 py-2.5 text-sm font-medium transition sm:px-4",
+                          active
+                            ? "border-black bg-black text-white shadow-sm"
+                            : "border-black/10 bg-white text-gray-700 hover:bg-gray-100 hover:text-black",
+                        ].join(" ")}
+                      >
+                        <Icon size={16} className="shrink-0" />
+                        <span className="truncate">{pill.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
@@ -663,7 +665,7 @@ export default function ShopPage() {
                   <img
                     src={heroImageSrc}
                     alt={cfg?.heroTitle || "Shop hero"}
-                    className="h-[180px] w-full object-cover"
+                    className="h-[180px] w-full object-cover sm:h-[220px]"
                     onError={(e) => {
                       e.currentTarget.src = FALLBACK_IMAGE;
                     }}
@@ -682,7 +684,7 @@ export default function ShopPage() {
 
               <p className="mt-2 text-sm leading-7 text-gray-600">
                 {cfg?.promoText ||
-                  "Browse a cleaner, faster and more premium shopping experience with refined filters and structured discovery."}
+                  "Browse a cleaner, faster, and more premium shopping experience with refined filters and simpler product discovery."}
               </p>
 
               <div className="mt-4 flex flex-wrap gap-2">
@@ -697,7 +699,7 @@ export default function ShopPage() {
           </div>
 
           {featuredCollections.length > 0 ? (
-            <div className="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+            <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
               {featuredCollections.slice(0, 6).map((item, index) => {
                 const title = String(item?.title || "").trim();
                 if (!title) return null;
@@ -729,6 +731,7 @@ export default function ShopPage() {
                       <div className="text-lg font-semibold tracking-tight text-gray-950">
                         {title}
                       </div>
+
                       {description ? (
                         <p className="mt-2 text-sm leading-6 text-gray-600">{description}</p>
                       ) : null}
@@ -745,7 +748,7 @@ export default function ShopPage() {
         </div>
       </div>
 
-      <div className="site-shell grid grid-cols-1 gap-8 py-8 lg:grid-cols-12 lg:py-10">
+      <div className="site-shell grid grid-cols-1 gap-8 py-6 sm:py-8 lg:grid-cols-12 lg:py-10">
         <aside className="hidden lg:col-span-3 lg:block">
           <div className="sticky top-28 space-y-5">
             <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm">
@@ -755,7 +758,8 @@ export default function ShopPage() {
               </div>
 
               <p className="mt-2 text-sm text-gray-500">
-                Narrow down the catalog with cleaner, faster filtering controls.
+                Narrow down the catalog with clearer categories, brand filters, and stock-aware
+                browsing.
               </p>
 
               {isInitialLoading ? (
@@ -764,6 +768,17 @@ export default function ShopPage() {
                 </div>
               ) : (
                 <div className="mt-5 space-y-6">
+                  <FilterRadio
+                    title="Category"
+                    options={categoryPills.map((pill) => ({
+                      value: pill.name,
+                      label: pill.name,
+                      count: null,
+                    }))}
+                    value={category}
+                    onChange={handleCategoryChange}
+                  />
+
                   <FilterRadio
                     title="Brand"
                     options={[{ value: "", label: "All brands" }, ...facetBrands]}
@@ -837,128 +852,130 @@ export default function ShopPage() {
 
         <section className="lg:col-span-9">
           <div className="rounded-[28px] border border-black/5 bg-white p-4 shadow-sm sm:p-5">
-            <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                <div className="flex w-full items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 sm:max-w-md">
-                  <Search size={18} className="text-gray-500" />
-                  <input
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    placeholder="Search products..."
-                    className="w-full bg-transparent text-sm text-gray-700 outline-none"
-                  />
-                  {searchInput ? (
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-4">
+                  <div className="flex w-full items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 lg:min-w-[320px] lg:max-w-md">
+                    <Search size={18} className="text-gray-500" />
+                    <input
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      placeholder="Search by product name, brand, or category..."
+                      className="w-full bg-transparent text-sm text-gray-700 outline-none"
+                    />
+                    {searchInput ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSearchInput("");
+                          setSearch("");
+                          setPage(1);
+                        }}
+                        className="text-gray-500 transition hover:text-black"
+                        aria-label="Clear search"
+                      >
+                        <X size={16} />
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3 sm:flex sm:items-center">
+                    <div className="relative col-span-1 min-w-0 sm:min-w-[220px]">
+                      <select
+                        value={sortBy}
+                        onChange={(e) => handleSortChange(e.target.value)}
+                        className="w-full appearance-none rounded-2xl border border-black/10 bg-white px-4 py-3 pr-10 text-sm font-medium text-gray-800 outline-none transition focus:ring-2 focus:ring-black/10"
+                      >
+                        <option value="newest">Newest</option>
+                        <option value="priceLow">Price: Low to High</option>
+                        <option value="priceHigh">Price: High to Low</option>
+                      </select>
+                      <ChevronDown
+                        size={16}
+                        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
+                      />
+                    </div>
+
                     <button
                       type="button"
-                      onClick={() => {
-                        setSearchInput("");
-                        setSearch("");
-                        setPage(1);
-                      }}
-                      className="text-gray-500 transition hover:text-black"
-                      aria-label="Clear search"
+                      onClick={() => setMobileFilterOpen(true)}
+                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 lg:hidden"
                     >
-                      <X size={16} />
+                      <SlidersHorizontal size={18} />
+                      Filters
+                      {activeFilterCount > 0 ? (
+                        <span className="rounded-full bg-black px-2 py-0.5 text-xs text-white">
+                          {activeFilterCount}
+                        </span>
+                      ) : null}
                     </button>
-                  ) : null}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="relative min-w-[200px]">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => handleSortChange(e.target.value)}
-                      className="w-full appearance-none rounded-2xl border border-black/10 bg-white px-4 py-3 pr-10 text-sm font-medium text-gray-800 outline-none transition focus:ring-2 focus:ring-black/10"
-                    >
-                      <option value="newest">Newest</option>
-                      <option value="priceLow">Price: Low to High</option>
-                      <option value="priceHigh">Price: High to Low</option>
-                    </select>
-                    <ChevronDown
-                      size={16}
-                      className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-gray-500"
+                <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                  <span className="rounded-full bg-gray-50 px-3 py-1.5 font-medium text-gray-700">
+                    Sort: {sortLabel}
+                  </span>
+                  {isUpdating ? (
+                    <span className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5">
+                      <span className="h-2 w-2 animate-pulse rounded-full bg-black" />
+                      Updating
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+
+              {activeFilterCount > 0 ? (
+                <div className="flex flex-wrap items-center gap-2 border-t border-black/5 pt-4">
+                  <span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
+                    Active
+                  </span>
+
+                  {search ? (
+                    <ActiveFilterChip
+                      label={`Search: ${search}`}
+                      onRemove={() => clearSingleFilter("search")}
                     />
-                  </div>
+                  ) : null}
+
+                  {category !== "All" ? (
+                    <ActiveFilterChip
+                      label={`Category: ${category}`}
+                      onRemove={() => clearSingleFilter("category")}
+                    />
+                  ) : null}
+
+                  {brand ? (
+                    <ActiveFilterChip
+                      label={`Brand: ${brand}`}
+                      onRemove={() => clearSingleFilter("brand")}
+                    />
+                  ) : null}
+
+                  {inStockOnly ? (
+                    <ActiveFilterChip
+                      label="In stock only"
+                      onRemove={() => clearSingleFilter("stock")}
+                    />
+                  ) : null}
+
+                  {hasPriceFilter ? (
+                    <ActiveFilterChip
+                      label={`Up to ${formatMoney(displayedMaxPrice)}`}
+                      onRemove={() => clearSingleFilter("price")}
+                    />
+                  ) : null}
 
                   <button
                     type="button"
-                    onClick={() => setMobileFilterOpen(true)}
-                    className="inline-flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm font-semibold text-gray-800 transition hover:bg-gray-50 lg:hidden"
+                    onClick={clearFilters}
+                    className="ml-1 text-sm font-medium text-gray-600 transition hover:text-black"
                   >
-                    <SlidersHorizontal size={18} />
-                    Filters
-                    {activeFilterCount > 0 ? (
-                      <span className="rounded-full bg-black px-2 py-0.5 text-xs text-white">
-                        {activeFilterCount}
-                      </span>
-                    ) : null}
+                    Clear all
                   </button>
                 </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
-                <span className="rounded-full bg-gray-50 px-3 py-1.5 font-medium text-gray-700">
-                  Sort: {sortLabel}
-                </span>
-                {isUpdating ? (
-                  <span className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5">
-                    <span className="h-2 w-2 animate-pulse rounded-full bg-black" />
-                    Updating
-                  </span>
-                ) : null}
-              </div>
+              ) : null}
             </div>
-
-            {activeFilterCount > 0 ? (
-              <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-black/5 pt-4">
-                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-gray-500">
-                  Active
-                </span>
-
-                {search ? (
-                  <ActiveFilterChip
-                    label={`Search: ${search}`}
-                    onRemove={() => clearSingleFilter("search")}
-                  />
-                ) : null}
-
-                {category !== "All" ? (
-                  <ActiveFilterChip
-                    label={`Category: ${category}`}
-                    onRemove={() => clearSingleFilter("category")}
-                  />
-                ) : null}
-
-                {brand ? (
-                  <ActiveFilterChip
-                    label={`Brand: ${brand}`}
-                    onRemove={() => clearSingleFilter("brand")}
-                  />
-                ) : null}
-
-                {inStockOnly ? (
-                  <ActiveFilterChip
-                    label="In stock only"
-                    onRemove={() => clearSingleFilter("stock")}
-                  />
-                ) : null}
-
-                {hasPriceFilter ? (
-                  <ActiveFilterChip
-                    label={`Up to ${formatMoney(displayedMaxPrice)}`}
-                    onRemove={() => clearSingleFilter("price")}
-                  />
-                ) : null}
-
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="ml-1 text-sm font-medium text-gray-600 transition hover:text-black"
-                >
-                  Clear all
-                </button>
-              </div>
-            ) : null}
           </div>
 
           <div className="mt-4 flex flex-col gap-3 rounded-[24px] border border-black/5 bg-white px-4 py-4 text-sm shadow-sm sm:flex-row sm:items-center sm:justify-between">
@@ -972,11 +989,16 @@ export default function ShopPage() {
                   <span className="font-semibold text-gray-900">{total}</span> products
                 </>
               ) : (
-                <>No products found</>
+                <>No matching products right now</>
               )}
             </div>
 
-            <div className="flex items-center gap-2 text-gray-500">
+            <div className="flex flex-wrap items-center gap-2 text-gray-500">
+              <span className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5">
+                Page <span className="font-semibold text-gray-700">{page}</span> of{" "}
+                <span className="font-semibold text-gray-700">{totalPages}</span>
+              </span>
+
               {activeFilterCount > 0 ? (
                 <span className="inline-flex items-center gap-2 rounded-full bg-gray-50 px-3 py-1.5">
                   <SlidersHorizontal size={14} />
@@ -1005,7 +1027,10 @@ export default function ShopPage() {
 
           <div className="mt-6">
             {isInitialLoading ? (
-              <ProductGridSkeleton />
+              <ProductGridSkeleton
+                count={6}
+                gridClassName="grid grid-cols-2 gap-4 lg:grid-cols-2 xl:grid-cols-3 xl:gap-5"
+              />
             ) : products.length === 0 ? (
               <div className="rounded-[28px] border border-black/5 bg-white p-8 text-center shadow-sm sm:p-10">
                 <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-100 text-gray-700">
@@ -1018,7 +1043,7 @@ export default function ShopPage() {
 
                 <p className="mx-auto mt-2 max-w-md text-sm leading-7 text-gray-600">
                   {cfg?.emptyStateSubtitle ||
-                    "Try removing a filter, changing your search, or browsing the full catalog again."}
+                    "Try clearing a filter, changing your search, or browsing the full catalog again."}
                 </p>
 
                 <button
@@ -1030,7 +1055,7 @@ export default function ShopPage() {
                 </button>
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-2 gap-4 lg:grid-cols-2 xl:grid-cols-3 xl:gap-5">
                 {products.map((product) => (
                   <ProductCard key={product?._id || product?.id} p={product} />
                 ))}
@@ -1113,8 +1138,8 @@ export default function ShopPage() {
             onClick={() => setMobileFilterOpen(false)}
           />
 
-          <div className="absolute right-0 top-0 h-full w-[88%] max-w-sm overflow-y-auto border-l border-black/5 bg-white p-5 shadow-2xl">
-            <div className="flex items-center justify-between">
+          <div className="absolute right-0 top-0 flex h-full w-[90%] max-w-sm flex-col overflow-hidden border-l border-black/5 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-black/5 px-5 py-4">
               <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-950">
                 <SlidersHorizontal size={18} />
                 Filters
@@ -1130,79 +1155,85 @@ export default function ShopPage() {
               </button>
             </div>
 
-            {isInitialLoading ? (
-              <div className="mt-6">
-                <SidebarFiltersSkeleton />
-              </div>
-            ) : (
-              <div className="mt-6 space-y-6">
-                <FilterRadio
-                  title="Category"
-                  options={categoryPills.map((pill) => ({
-                    value: pill.name,
-                    label: pill.name,
-                    count: null,
-                  }))}
-                  value={draftCategory}
-                  onChange={setDraftCategory}
-                />
-
-                <FilterRadio
-                  title="Brand"
-                  options={[{ value: "", label: "All brands" }, ...facetBrands]}
-                  value={draftBrand}
-                  onChange={setDraftBrand}
-                />
-
-                <div>
-                  <div className="mb-2 flex items-center justify-between gap-3">
-                    <p className="font-medium text-gray-900">Max price</p>
-                    <span className="text-sm font-semibold text-gray-700">
-                      {draftMaxPrice != null ? formatMoney(displayedDraftMaxPrice) : "Any"}
-                    </span>
-                  </div>
-
-                  <input
-                    type="range"
-                    min={0}
-                    max={Math.max(1, sliderMax)}
-                    value={displayedDraftMaxPrice}
-                    onChange={(e) =>
-                      setDraftMaxPrice(normalizeMaxPriceValue(e.target.value, sliderMax))
-                    }
-                    className="range range-sm"
-                  />
-
-                  <div className="mt-2 flex justify-between text-xs text-gray-500">
-                    <span>৳0</span>
-                    <span>{formatMoney(sliderMax)}</span>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setDraftMaxPrice(null)}
-                    className="mt-3 text-xs font-medium text-gray-600 transition hover:text-black"
-                  >
-                    Reset price
-                  </button>
+            <div className="flex-1 overflow-y-auto p-5">
+              {isInitialLoading ? (
+                <div className="mt-1">
+                  <SidebarFiltersSkeleton />
                 </div>
-
-                <label className="flex items-start gap-3 rounded-2xl border border-black/5 bg-gray-50 px-4 py-3">
-                  <input
-                    type="checkbox"
-                    checked={draftInStockOnly}
-                    onChange={(e) => setDraftInStockOnly(e.target.checked)}
-                    className="mt-1"
+              ) : (
+                <div className="space-y-6">
+                  <FilterRadio
+                    title="Category"
+                    options={categoryPills.map((pill) => ({
+                      value: pill.name,
+                      label: pill.name,
+                      count: null,
+                    }))}
+                    value={draftCategory}
+                    onChange={setDraftCategory}
                   />
-                  <span className="min-w-0">
-                    <span className="block text-sm font-medium text-gray-900">In stock only</span>
-                    <span className="block text-xs text-gray-500">
-                      Hide products that are currently unavailable.
-                    </span>
-                  </span>
-                </label>
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <FilterRadio
+                    title="Brand"
+                    options={[{ value: "", label: "All brands" }, ...facetBrands]}
+                    value={draftBrand}
+                    onChange={setDraftBrand}
+                  />
+
+                  <div>
+                    <div className="mb-2 flex items-center justify-between gap-3">
+                      <p className="font-medium text-gray-900">Max price</p>
+                      <span className="text-sm font-semibold text-gray-700">
+                        {draftMaxPrice != null ? formatMoney(displayedDraftMaxPrice) : "Any"}
+                      </span>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={0}
+                      max={Math.max(1, sliderMax)}
+                      value={displayedDraftMaxPrice}
+                      onChange={(e) =>
+                        setDraftMaxPrice(normalizeMaxPriceValue(e.target.value, sliderMax))
+                      }
+                      className="range range-sm"
+                    />
+
+                    <div className="mt-2 flex justify-between text-xs text-gray-500">
+                      <span>৳0</span>
+                      <span>{formatMoney(sliderMax)}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setDraftMaxPrice(null)}
+                      className="mt-3 text-xs font-medium text-gray-600 transition hover:text-black"
+                    >
+                      Reset price
+                    </button>
+                  </div>
+
+                  <label className="flex items-start gap-3 rounded-2xl border border-black/5 bg-gray-50 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={draftInStockOnly}
+                      onChange={(e) => setDraftInStockOnly(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-gray-900">In stock only</span>
+                      <span className="block text-xs text-gray-500">
+                        Hide products that are currently unavailable.
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {!isInitialLoading ? (
+              <div className="border-t border-black/5 p-5">
+                <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={clearMobileDraftFilters}
@@ -1220,7 +1251,7 @@ export default function ShopPage() {
                   </button>
                 </div>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
       ) : null}
@@ -1251,14 +1282,14 @@ function FilterRadio({ title, options, value, onChange }) {
                   : "border-black/5 bg-gray-50 text-gray-700 hover:bg-white",
               ].join(" ")}
             >
-              <span className="inline-flex items-center gap-3">
+              <span className="inline-flex min-w-0 items-center gap-3">
                 <input
                   type="radio"
                   checked={checked}
                   onChange={() => onChange(optionValue)}
                   className="sr-only"
                 />
-                <span>{label}</span>
+                <span className="truncate">{label}</span>
               </span>
 
               {option?.count != null ? (
@@ -1317,18 +1348,18 @@ function ProductCard({ p }) {
   return (
     <Link
       to={href}
-      className="group overflow-hidden rounded-[28px] border border-black/5 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+      className="group overflow-hidden rounded-[24px] border border-black/5 bg-white shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg"
     >
       <div className="relative overflow-hidden bg-gray-100">
         <img
           src={imgSrc}
-          className="h-[260px] w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+          className="h-[220px] w-full object-cover transition duration-300 group-hover:scale-[1.03] sm:h-[250px] xl:h-[270px]"
           alt={title}
           loading="lazy"
           onError={() => setImgSrc(FALLBACK_IMAGE)}
         />
 
-        <div className="absolute left-4 top-4 flex flex-wrap gap-2">
+        <div className="absolute left-3 top-3 flex max-w-[calc(100%-24px)] flex-wrap gap-2">
           <span
             className={[
               "rounded-full px-3 py-1 text-[11px] font-semibold shadow-sm",
@@ -1346,7 +1377,7 @@ function ProductCard({ p }) {
         </div>
       </div>
 
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         <div className="mb-2 flex min-h-[20px] items-center gap-2">
           {brand ? (
             <span className="rounded-full bg-gray-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
@@ -1355,19 +1386,19 @@ function ProductCard({ p }) {
           ) : null}
         </div>
 
-        <h3 className="line-clamp-2 text-base font-semibold tracking-tight text-gray-950">
+        <h3 className="line-clamp-2 text-sm font-semibold tracking-tight text-gray-950 sm:text-base">
           {title}
         </h3>
 
         {p?.description ? (
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">{p.description}</p>
         ) : (
-          <p className="mt-2 text-sm text-gray-400">Premium catalog listing</p>
+          <p className="mt-2 text-sm text-gray-400">A premium catalog pick from our live store.</p>
         )}
 
         <div className="mt-4 flex items-end justify-between gap-4">
           <div>
-            <div className="text-lg font-bold text-gray-950">{formatMoney(price)}</div>
+            <div className="text-base font-bold text-gray-950 sm:text-lg">{formatMoney(price)}</div>
             {hasComparePrice ? (
               <div className="mt-1 text-sm text-gray-400 line-through">
                 {formatMoney(compareAtPrice)}

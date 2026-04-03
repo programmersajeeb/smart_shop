@@ -50,10 +50,10 @@ function lockBodyScroll(lock) {
 
   if (lock) {
     body.style.overflow = "hidden";
-    body.style.touchAction = "none";
+    body.style.overscrollBehavior = "none";
   } else {
     body.style.overflow = "";
-    body.style.touchAction = "";
+    body.style.overscrollBehavior = "";
   }
 }
 
@@ -860,217 +860,224 @@ export default function Header() {
 
           <div
             ref={menuPanelRef}
-            className="absolute right-0 top-0 flex h-full w-[88%] max-w-sm flex-col border-l border-black/5 bg-white shadow-2xl animate-[drawerIn_0.22s_ease-out]"
+            className="absolute right-0 top-0 flex h-full w-[88%] max-w-sm flex-col overflow-hidden border-l border-black/5 bg-white shadow-2xl animate-[drawerIn_0.22s_ease-out]"
           >
-            <div className="flex items-center justify-between border-b border-black/5 px-5 py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-sm font-bold text-white">
-                  SS
-                </div>
-                <div>
-                  <div className="font-semibold text-gray-950">SmartShop</div>
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
-                    {isInAdmin ? "Admin Console" : "Storefront"}
+            <div className="shrink-0 border-b border-black/5 px-5 py-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-black text-sm font-bold text-white">
+                    SS
+                  </div>
+                  <div>
+                    <div className="font-semibold text-gray-950">SmartShop</div>
+                    <div className="text-[11px] uppercase tracking-[0.18em] text-gray-400">
+                      {isInAdmin ? "Admin Console" : "Storefront"}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <button
-                type="button"
-                className="rounded-2xl p-2 transition hover:bg-gray-100"
-                onClick={() => setOpenMenu(false)}
-                aria-label="Close menu"
-              >
-                <X size={22} />
-              </button>
+                <button
+                  type="button"
+                  className="rounded-2xl p-2 transition hover:bg-gray-100"
+                  onClick={() => setOpenMenu(false)}
+                  aria-label="Close menu"
+                >
+                  <X size={22} />
+                </button>
+              </div>
             </div>
 
-            <div className="border-b border-black/5 px-5 py-4">
-              {booting ? (
-                <div className="space-y-2">
-                  <div className="skeleton h-4 w-40 rounded-lg" />
-                  <div className="skeleton h-3 w-52 rounded-lg" />
-                  <div className="skeleton h-10 w-full rounded-2xl" />
-                </div>
-              ) : !isAuthed ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <Link
-                    to="/signin"
-                    state={{ from: returnTo }}
-                    onClick={() => setOpenMenu(false)}
-                    className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold transition hover:bg-gray-50"
-                  >
-                    Sign in
-                  </Link>
-                  <Link
-                    to="/signup"
-                    state={{ from: returnTo }}
-                    onClick={() => setOpenMenu(false)}
-                    className="rounded-2xl bg-black px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-gray-900"
-                  >
-                    Sign up
-                  </Link>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                      <span>Signed in</span>
-                      <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
-                        {roleLabel}
-                      </span>
-                      {isAdmin ? (
-                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
-                          Level {roleLevel}
-                        </span>
-                      ) : null}
-                    </div>
-
-                    <div className="mt-2 truncate text-sm font-semibold text-gray-900">
-                      {displayName || "Account"}
-                    </div>
-
-                    {displayEmail ? (
-                      <div className="truncate text-xs text-gray-500">{displayEmail}</div>
-                    ) : null}
+            <div
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              <div className="border-b border-black/5 px-5 py-4">
+                {booting ? (
+                  <div className="space-y-2">
+                    <div className="skeleton h-4 w-40 rounded-lg" />
+                    <div className="skeleton h-3 w-52 rounded-lg" />
+                    <div className="skeleton h-10 w-full rounded-2xl" />
                   </div>
-
+                ) : !isAuthed ? (
                   <div className="grid grid-cols-2 gap-3">
                     <Link
-                      to={primaryHref}
+                      to="/signin"
+                      state={{ from: returnTo }}
+                      onClick={() => setOpenMenu(false)}
+                      className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold transition hover:bg-gray-50"
+                    >
+                      Sign in
+                    </Link>
+                    <Link
+                      to="/signup"
+                      state={{ from: returnTo }}
                       onClick={() => setOpenMenu(false)}
                       className="rounded-2xl bg-black px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-gray-900"
                     >
-                      {primaryLabel}
+                      Sign up
                     </Link>
-
-                    <button
-                      type="button"
-                      onClick={handleLogout}
-                      className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-red-600 transition hover:bg-gray-50"
-                    >
-                      Logout
-                    </button>
                   </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                        <span>Signed in</span>
+                        <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
+                          {roleLabel}
+                        </span>
+                        {isAdmin ? (
+                          <span className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-[11px] font-semibold text-gray-700">
+                            Level {roleLevel}
+                          </span>
+                        ) : null}
+                      </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <Link
-                      to={profileHref}
-                      onClick={() => setOpenMenu(false)}
-                      className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
-                    >
-                      {isAdmin ? "Settings" : "Profile"}
-                    </Link>
+                      <div className="mt-2 truncate text-sm font-semibold text-gray-900">
+                        {displayName || "Account"}
+                      </div>
 
-                    {isInAdmin ? (
-                      <Link
-                        to="/"
-                        onClick={() => setOpenMenu(false)}
-                        className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
-                      >
-                        View store
-                      </Link>
-                    ) : isAdmin ? (
-                      <Link
-                        to="/admin"
-                        onClick={() => setOpenMenu(false)}
-                        className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
-                      >
-                        Admin
-                      </Link>
-                    ) : (
-                      <Link
-                        to="/account/orders"
-                        onClick={() => setOpenMenu(false)}
-                        className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
-                      >
-                        Orders
-                      </Link>
-                    )}
-                  </div>
-
-                  {(menuSections.personal.length ||
-                    menuSections.manage.length ||
-                    menuSections.system.length) ? (
-                    <div className="space-y-4 border-t border-black/5 pt-4">
-                      {menuSections.personal.length ? (
-                        <div className="space-y-2">
-                          <MenuSectionTitle>Account</MenuSectionTitle>
-                          <div className="space-y-1">
-                            {menuSections.personal.map((item) => (
-                              <UserMenuLink
-                                key={`mobile-${item.to}`}
-                                {...item}
-                                onClick={() => setOpenMenu(false)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {menuSections.manage.length ? (
-                        <div className="space-y-2">
-                          <MenuSectionTitle>Workspace</MenuSectionTitle>
-                          <div className="space-y-1">
-                            {menuSections.manage.map((item) => (
-                              <UserMenuLink
-                                key={`mobile-${item.to}`}
-                                {...item}
-                                onClick={() => setOpenMenu(false)}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      ) : null}
-
-                      {menuSections.system.length ? (
-                        <div className="space-y-2">
-                          <MenuSectionTitle>System</MenuSectionTitle>
-                          <div className="space-y-1">
-                            {menuSections.system.map((item) => (
-                              <UserMenuLink
-                                key={`mobile-${item.to}`}
-                                {...item}
-                                onClick={() => setOpenMenu(false)}
-                              />
-                            ))}
-                          </div>
-                        </div>
+                      {displayEmail ? (
+                        <div className="truncate text-xs text-gray-500">{displayEmail}</div>
                       ) : null}
                     </div>
-                  ) : null}
-                </div>
-              )}
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Link
+                        to={primaryHref}
+                        onClick={() => setOpenMenu(false)}
+                        className="rounded-2xl bg-black px-4 py-3 text-center text-sm font-semibold text-white transition hover:bg-gray-900"
+                      >
+                        {primaryLabel}
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={handleLogout}
+                        className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-red-600 transition hover:bg-gray-50"
+                      >
+                        Logout
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <Link
+                        to={profileHref}
+                        onClick={() => setOpenMenu(false)}
+                        className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+                      >
+                        {isAdmin ? "Settings" : "Profile"}
+                      </Link>
+
+                      {isInAdmin ? (
+                        <Link
+                          to="/"
+                          onClick={() => setOpenMenu(false)}
+                          className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+                        >
+                          View store
+                        </Link>
+                      ) : isAdmin ? (
+                        <Link
+                          to="/admin"
+                          onClick={() => setOpenMenu(false)}
+                          className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+                        >
+                          Admin
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/account/orders"
+                          onClick={() => setOpenMenu(false)}
+                          className="rounded-2xl border border-black/10 px-4 py-3 text-center text-sm font-semibold text-gray-800 transition hover:bg-gray-50"
+                        >
+                          Orders
+                        </Link>
+                      )}
+                    </div>
+
+                    {(menuSections.personal.length ||
+                      menuSections.manage.length ||
+                      menuSections.system.length) ? (
+                      <div className="space-y-4 border-t border-black/5 pt-4">
+                        {menuSections.personal.length ? (
+                          <div className="space-y-2">
+                            <MenuSectionTitle>Account</MenuSectionTitle>
+                            <div className="space-y-1">
+                              {menuSections.personal.map((item) => (
+                                <UserMenuLink
+                                  key={`mobile-${item.to}`}
+                                  {...item}
+                                  onClick={() => setOpenMenu(false)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {menuSections.manage.length ? (
+                          <div className="space-y-2">
+                            <MenuSectionTitle>Workspace</MenuSectionTitle>
+                            <div className="space-y-1">
+                              {menuSections.manage.map((item) => (
+                                <UserMenuLink
+                                  key={`mobile-${item.to}`}
+                                  {...item}
+                                  onClick={() => setOpenMenu(false)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {menuSections.system.length ? (
+                          <div className="space-y-2">
+                            <MenuSectionTitle>System</MenuSectionTitle>
+                            <div className="space-y-1">
+                              {menuSections.system.map((item) => (
+                                <UserMenuLink
+                                  key={`mobile-${item.to}`}
+                                  {...item}
+                                  onClick={() => setOpenMenu(false)}
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+
+              <nav className="flex flex-col gap-2 px-5 py-5">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Link
+                      key={item.name}
+                      to={item.path}
+                      onClick={() => setOpenMenu(false)}
+                      className={[
+                        "flex items-center gap-3 rounded-2xl px-4 py-3 text-left text-base transition",
+                        isActive(item.path)
+                          ? "bg-black text-white font-semibold shadow-sm"
+                          : "text-gray-800 hover:bg-gray-50",
+                      ].join(" ")}
+                    >
+                      {Icon ? (
+                        <Icon
+                          size={18}
+                          className={isActive(item.path) ? "text-white" : "text-gray-500"}
+                        />
+                      ) : null}
+                      {item.name}
+                    </Link>
+                  );
+                })}
+              </nav>
             </div>
 
-            <nav className="flex flex-col gap-2 overflow-auto px-5 py-5">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Link
-                    key={item.name}
-                    to={item.path}
-                    onClick={() => setOpenMenu(false)}
-                    className={[
-                      "flex items-center gap-3 rounded-2xl px-4 py-3 text-left text-base transition",
-                      isActive(item.path)
-                        ? "bg-black text-white font-semibold shadow-sm"
-                        : "text-gray-800 hover:bg-gray-50",
-                    ].join(" ")}
-                  >
-                    {Icon ? (
-                      <Icon
-                        size={18}
-                        className={isActive(item.path) ? "text-white" : "text-gray-500"}
-                      />
-                    ) : null}
-                    {item.name}
-                  </Link>
-                );
-              })}
-            </nav>
-
-            <div className="mt-auto border-t border-black/5 px-5 py-5 text-xs text-gray-500">
+            <div className="shrink-0 border-t border-black/5 px-5 py-5 text-xs text-gray-500">
               Tip: Press <span className="font-semibold">Esc</span> to close
             </div>
           </div>

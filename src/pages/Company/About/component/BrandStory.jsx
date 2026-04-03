@@ -4,7 +4,7 @@ function BrandStory() {
       <div className="site-shell grid grid-cols-1 items-center gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-14">
         <div className="overflow-hidden rounded-[28px] border border-black/5 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.05)]">
           <img
-            src="https://images.unsplash.com/photo-1523170380059-3fdfb1235f79?auto=format&fit=crop&w=900&q=80"
+            src="https://images.unsplash.com/photo-1441986300917-64674bd600d8?auto=format&fit=crop&w=900&q=80"
             alt="Smart Shop brand story"
             className="h-[320px] w-full object-cover md:h-[440px]"
           />
