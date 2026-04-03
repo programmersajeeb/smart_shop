@@ -44,19 +44,48 @@ function safeWrite(items) {
   }
 }
 
+function extractImageUrl(value) {
+  if (!value) return "";
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const url = extractImageUrl(item);
+      if (url) return url;
+    }
+    return "";
+  }
+
+  if (typeof value === "object") {
+    const directUrl = String(value.url || "").trim();
+    if (directUrl) return directUrl;
+
+    const nestedImage = extractImageUrl(value.image);
+    if (nestedImage) return nestedImage;
+
+    const nestedImages = extractImageUrl(value.images);
+    if (nestedImages) return nestedImages;
+  }
+
+  return "";
+}
+
 function normalizeItem(input) {
   const id = input?.id || input?._id;
   if (!id) return null;
 
   const title = String(input?.title || input?.name || "Untitled Product");
   const price = Number(input?.price ?? 0);
-  const image = input?.image || input?.images?.[0] || "";
+  const image = extractImageUrl(input?.image) || extractImageUrl(input?.images);
 
   return {
     id: String(id),
     title,
     price: Number.isFinite(price) ? price : 0,
-    image: String(image || ""),
+    image,
     qty: Math.max(1, Number(input?.qty ?? 1) || 1),
     cartItemId: input?.cartItemId ? String(input.cartItemId) : undefined,
   };
@@ -75,7 +104,7 @@ function mapServerCartItems(cart) {
         cartItemId: String(it._id),
         title: String(it.titleSnapshot || "Untitled Product"),
         price: Number(it.priceSnapshot || 0),
-        image: String(it.imageSnapshot || ""),
+        image: extractImageUrl(it.imageSnapshot),
         qty: Math.max(1, Number(it.qty || 1)),
       };
     })
@@ -115,7 +144,11 @@ export default function CartProvider({ children }) {
 
   useEffect(() => {
     const initial = safeRead();
-    setItems(Array.isArray(initial) ? initial : []);
+    const normalized = Array.isArray(initial)
+      ? initial.map(normalizeItem).filter(Boolean)
+      : [];
+
+    setItems(normalized);
     setHydrated(true);
   }, []);
 
@@ -154,9 +187,9 @@ export default function CartProvider({ children }) {
         let cart = res.data;
 
         const local = safeRead();
-        const unsynced = (Array.isArray(local) ? local : []).filter(
-          (x) => x && x.id && !x.cartItemId
-        );
+        const unsynced = (Array.isArray(local) ? local : [])
+          .map(normalizeItem)
+          .filter((x) => x && x.id && !x.cartItemId);
 
         if (unsynced.length) {
           const tasks = unsynced.map((it) => async () => {
@@ -232,7 +265,11 @@ export default function CartProvider({ children }) {
         const idx = next.findIndex((x) => x.id === base.id);
 
         if (idx >= 0) {
-          next[idx] = { ...next[idx], qty: next[idx].qty + base.qty };
+          next[idx] = {
+            ...next[idx],
+            qty: next[idx].qty + base.qty,
+            image: next[idx].image || base.image,
+          };
           return next;
         }
 
@@ -251,8 +288,9 @@ export default function CartProvider({ children }) {
         const cartItemId = it?.cartItemId;
 
         if (!cartItemId) {
-          setItems((prev) => prev.filter((x) => String(x.id) !== id));
-          safeWrite(items.filter((x) => String(x.id) !== id));
+          const next = items.filter((x) => String(x.id) !== id);
+          setItems(next);
+          safeWrite(next);
           toast.success("Removed from cart");
           return;
         }
@@ -303,7 +341,7 @@ export default function CartProvider({ children }) {
               _id: id,
               title: it.title,
               price: it.price,
-              images: [it.image],
+              images: it.image ? [{ url: it.image }] : [],
             },
             q
           );
