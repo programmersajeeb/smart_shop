@@ -19,6 +19,8 @@ import {
   ExternalLink,
   ShieldAlert,
   ListChecks,
+  Upload,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -109,7 +111,8 @@ function setDeep(prev, path, value) {
 
   for (let i = 0; i < path.length - 1; i++) {
     const key = path[i];
-    const base = current[key] && typeof current[key] === "object" ? current[key] : {};
+    const base =
+      current[key] && typeof current[key] === "object" ? current[key] : {};
     current[key] = { ...base };
     current = current[key];
   }
@@ -228,6 +231,37 @@ function normalizePriceItems(items) {
       ];
 }
 
+function normalizeHighlights(items, fallback = []) {
+  const input = Array.isArray(items) ? items : [];
+  const normalized = input
+    .map((item) =>
+      sanitizeText(typeof item === "string" ? item : item?.label, 40)
+    )
+    .filter(Boolean)
+    .slice(0, 6);
+
+  return normalized.length ? normalized : fallback;
+}
+
+function normalizeStoryStats(items) {
+  const input = Array.isArray(items) ? items : [];
+  const normalized = input
+    .map((item) => ({
+      label: sanitizeText(item?.label, 40),
+      value: sanitizeText(item?.value, 40),
+    }))
+    .filter((item) => item.label || item.value)
+    .slice(0, 4);
+
+  return normalized.length
+    ? normalized
+    : [
+        { label: "Curated catalog", value: "Live" },
+        { label: "Storefront", value: "Premium" },
+        { label: "Experience", value: "Responsive" },
+      ];
+}
+
 function defaultHomeConfig() {
   return {
     hero: {
@@ -240,6 +274,10 @@ function defaultHomeConfig() {
       primaryCtaHref: "",
       secondaryCtaLabel: "Explore latest",
       secondaryCtaHref: "/shop?sort=latest",
+      featureBadge: "Featured selection",
+      featureText:
+        "A premium first impression built around strong presentation and cleaner discovery.",
+      highlights: ["Fresh arrivals", "Thoughtful edits", "Reliable delivery"],
       stats: [
         { label: "Active products", value: "" },
         { label: "Collections", value: "" },
@@ -311,6 +349,12 @@ function defaultHomeConfig() {
       image: "",
       ctaLabel: "Shop seasonal picks",
       ctaHref: "/shop?sort=latest",
+      secondaryCtaLabel: "Explore latest",
+      secondaryCtaHref: "/shop?sort=latest",
+      featureBadge: "Seasonal spotlight",
+      featureText:
+        "A campaign-led section that keeps the homepage feeling current and elevated.",
+      highlights: ["Limited edit", "Premium textures", "Modern silhouettes"],
     },
 
     shopByPrice: {
@@ -339,6 +383,13 @@ function defaultHomeConfig() {
       image: "",
       ctaLabel: "Explore the catalog",
       ctaHref: "/shop",
+      secondaryCtaLabel: "View latest arrivals",
+      secondaryCtaHref: "/shop?sort=latest",
+      featureBadge: "Brand story",
+      featureText:
+        "A stronger brand section helps the storefront feel more trustworthy, premium, and memorable.",
+      highlights: ["Curated catalog", "Cleaner discovery", "Premium storefront"],
+      stats: normalizeStoryStats([]),
     },
 
     newsletter: {
@@ -388,6 +439,18 @@ function normalizeHomeConfig(input) {
   data.hero.secondaryCtaHref = normalizeUrl(
     data.hero.secondaryCtaHref || base.hero.secondaryCtaHref
   );
+  data.hero.featureBadge = sanitizeText(
+    data.hero.featureBadge || base.hero.featureBadge,
+    40
+  );
+  data.hero.featureText = sanitizeText(
+    data.hero.featureText || base.hero.featureText,
+    180
+  );
+  data.hero.highlights = normalizeHighlights(
+    data.hero.highlights,
+    base.hero.highlights
+  );
   data.hero.stats = normalizeStats(data.hero.stats);
 
   data.collections.title = sanitizeText(
@@ -408,7 +471,9 @@ function normalizeHomeConfig(input) {
     data.trending.ctaLabel || base.trending.ctaLabel,
     40
   );
-  data.trending.ctaHref = normalizeUrl(data.trending.ctaHref || base.trending.ctaHref);
+  data.trending.ctaHref = normalizeUrl(
+    data.trending.ctaHref || base.trending.ctaHref
+  );
   data.trending.enabled = data.trending.enabled !== false;
   data.trending.hideWhenEmpty = data.trending.hideWhenEmpty !== false;
   data.trending.maxItems = clampInt(
@@ -455,7 +520,8 @@ function normalizeHomeConfig(input) {
     12,
     base.bestSellers.minItems
   );
-  data.bestSellers.excludeDuplicates = data.bestSellers.excludeDuplicates !== false;
+  data.bestSellers.excludeDuplicates =
+    data.bestSellers.excludeDuplicates !== false;
   data.bestSellers.requireInStock = data.bestSellers.requireInStock !== false;
 
   data.flashSale.title = sanitizeText(
@@ -521,6 +587,27 @@ function normalizeHomeConfig(input) {
   data.seasonalBanner.ctaHref = normalizeUrl(
     data.seasonalBanner.ctaHref || base.seasonalBanner.ctaHref
   );
+  data.seasonalBanner.secondaryCtaLabel = sanitizeText(
+    data.seasonalBanner.secondaryCtaLabel ||
+      base.seasonalBanner.secondaryCtaLabel,
+    40
+  );
+  data.seasonalBanner.secondaryCtaHref = normalizeUrl(
+    data.seasonalBanner.secondaryCtaHref ||
+      base.seasonalBanner.secondaryCtaHref
+  );
+  data.seasonalBanner.featureBadge = sanitizeText(
+    data.seasonalBanner.featureBadge || base.seasonalBanner.featureBadge,
+    40
+  );
+  data.seasonalBanner.featureText = sanitizeText(
+    data.seasonalBanner.featureText || base.seasonalBanner.featureText,
+    180
+  );
+  data.seasonalBanner.highlights = normalizeHighlights(
+    data.seasonalBanner.highlights,
+    base.seasonalBanner.highlights
+  );
 
   data.shopByPrice.title = sanitizeText(
     data.shopByPrice.title || base.shopByPrice.title,
@@ -570,6 +657,26 @@ function normalizeHomeConfig(input) {
   data.brandStory.ctaHref = normalizeUrl(
     data.brandStory.ctaHref || base.brandStory.ctaHref
   );
+  data.brandStory.secondaryCtaLabel = sanitizeText(
+    data.brandStory.secondaryCtaLabel || base.brandStory.secondaryCtaLabel,
+    40
+  );
+  data.brandStory.secondaryCtaHref = normalizeUrl(
+    data.brandStory.secondaryCtaHref || base.brandStory.secondaryCtaHref
+  );
+  data.brandStory.featureBadge = sanitizeText(
+    data.brandStory.featureBadge || base.brandStory.featureBadge,
+    40
+  );
+  data.brandStory.featureText = sanitizeText(
+    data.brandStory.featureText || base.brandStory.featureText,
+    180
+  );
+  data.brandStory.highlights = normalizeHighlights(
+    data.brandStory.highlights,
+    base.brandStory.highlights
+  );
+  data.brandStory.stats = normalizeStoryStats(data.brandStory.stats);
 
   data.newsletter.title = sanitizeText(
     data.newsletter.title || base.newsletter.title,
@@ -613,6 +720,37 @@ function makeApiPath(path) {
   const hasV1 = base.includes("/api/v1");
   const prefix = hasV1 ? "" : "/api/v1";
   return `${prefix}${path}`;
+}
+
+async function uploadSingleImage(file) {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  try {
+    const response = await api.post(makeApiPath("/upload/local"), formData);
+    const data = response?.data || {};
+
+    if (!String(data?.url || "").trim()) {
+      throw new Error("Image upload failed.");
+    }
+
+    return {
+      fileId: data?.fileId ? String(data.fileId).trim() : null,
+      url: String(data.url || "").trim(),
+      filename: data?.filename ? String(data.filename).trim() : null,
+      mimetype: data?.mimetype ? String(data.mimetype).trim() : null,
+      size: Number.isFinite(Number(data?.size)) ? Number(data.size) : 0,
+      width: Number.isFinite(Number(data?.width)) ? Number(data.width) : null,
+      height: Number.isFinite(Number(data?.height)) ? Number(data.height) : null,
+      format: data?.format ? String(data.format).trim() : null,
+    };
+  } catch (err) {
+    throw new Error(
+      err?.response?.data?.message ||
+        err?.message ||
+        "Failed to upload image."
+    );
+  }
 }
 
 function collectValidationIssues(config) {
@@ -660,8 +798,16 @@ function collectValidationIssues(config) {
   addUrlIssue("Flash Sale CTA href", config?.flashSale?.ctaHref);
   addUrlIssue("Seasonal banner image URL", config?.seasonalBanner?.image);
   addUrlIssue("Seasonal banner CTA href", config?.seasonalBanner?.ctaHref);
+  addUrlIssue(
+    "Seasonal banner secondary CTA href",
+    config?.seasonalBanner?.secondaryCtaHref
+  );
   addUrlIssue("Brand story image URL", config?.brandStory?.image);
   addUrlIssue("Brand story CTA href", config?.brandStory?.ctaHref);
+  addUrlIssue(
+    "Brand story secondary CTA href",
+    config?.brandStory?.secondaryCtaHref
+  );
 
   const merchSections = [
     { key: "trending", label: "Trending" },
@@ -687,7 +833,9 @@ function collectValidationIssues(config) {
       Number.isFinite(maxItems) &&
       minItems > maxItems
     ) {
-      issues.push(`${section.label} minimum items cannot be greater than max items.`);
+      issues.push(
+        `${section.label} minimum items cannot be greater than max items.`
+      );
     }
   }
 
@@ -697,13 +845,25 @@ function collectValidationIssues(config) {
     }
   }
 
-  for (const [index, item] of (config?.whyChooseUs?.items || []).slice(0, 3).entries()) {
+  for (const [index, item] of (config?.hero?.highlights || [])
+    .slice(0, 3)
+    .entries()) {
+    if (!String(item || "").trim()) {
+      issues.push(`Hero highlight ${index + 1} cannot be empty.`);
+    }
+  }
+
+  for (const [index, item] of (config?.whyChooseUs?.items || [])
+    .slice(0, 3)
+    .entries()) {
     if (!String(item?.title || "").trim()) {
       issues.push(`Why Choose Us item ${index + 1} title is required.`);
     }
   }
 
-  for (const [index, item] of (config?.testimonials?.items || []).slice(0, 3).entries()) {
+  for (const [index, item] of (config?.testimonials?.items || [])
+    .slice(0, 3)
+    .entries()) {
     if (!String(item?.name || "").trim()) {
       issues.push(`Testimonial ${index + 1} name is required.`);
     }
@@ -716,11 +876,21 @@ function collectValidationIssues(config) {
     }
   }
 
-  for (const [index, item] of (config?.shopByPrice?.items || []).slice(0, 3).entries()) {
+  for (const [index, item] of (config?.shopByPrice?.items || [])
+    .slice(0, 3)
+    .entries()) {
     if (!String(item?.label || "").trim()) {
       issues.push(`Shop by Price item ${index + 1} label is required.`);
     }
     addUrlIssue(`Shop by Price item ${index + 1} href`, item?.href);
+  }
+
+  for (const [index, item] of (config?.brandStory?.stats || [])
+    .slice(0, 3)
+    .entries()) {
+    if (!String(item?.label || "").trim()) {
+      issues.push(`Brand story stat ${index + 1} label is required.`);
+    }
   }
 
   return Array.from(new Set(issues));
@@ -744,7 +914,9 @@ function getDirtySections(initialString, currentString, normalizedForm) {
   ) {
     sections.push("Merchandising");
   }
-  if (current.whyChooseUs || current.testimonials) sections.push("Trust & testimonials");
+  if (current.whyChooseUs || current.testimonials) {
+    sections.push("Trust & testimonials");
+  }
   if (current.seasonalBanner) sections.push("Campaign banner");
   if (current.brandStory) sections.push("Brand story");
   if (current.newsletter) sections.push("Newsletter");
@@ -849,12 +1021,217 @@ function Textarea({
   );
 }
 
+function TextListEditor({
+  title,
+  helper,
+  items,
+  disabled,
+  onChange,
+  placeholders = [],
+  maxItems = 3,
+}) {
+  const safeItems = Array.isArray(items) ? items : [];
+  const rows = Array.from({ length: maxItems }, (_, index) => safeItems[index] || "");
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+      <div className="text-sm font-semibold text-gray-900">{title}</div>
+      {helper ? <div className="mt-1 text-xs text-gray-500">{helper}</div> : null}
+
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {rows.map((item, index) => (
+          <Input
+            key={`${title}-${index}`}
+            label={`${title} ${index + 1}`}
+            value={item}
+            onChange={(e) => {
+              const next = [...rows];
+              next[index] = e.target.value;
+              onChange(next);
+            }}
+            placeholder={placeholders[index] || `Item ${index + 1}`}
+            disabled={disabled}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StatsEditor({
+  title,
+  helper,
+  items,
+  disabled,
+  onChange,
+  maxItems = 3,
+  labelPlaceholder = "Label",
+  valuePlaceholder = "Value",
+}) {
+  const safeItems = Array.isArray(items) ? items : [];
+  const rows = Array.from({ length: maxItems }, (_, index) => {
+    return safeItems[index] || { label: "", value: "" };
+  });
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+      <div className="text-sm font-semibold text-gray-900">{title}</div>
+      {helper ? <div className="mt-1 text-xs text-gray-500">{helper}</div> : null}
+
+      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+        {rows.map((item, index) => (
+          <div key={`${title}-${index}`} className="space-y-3">
+            <Input
+              label={`${title} ${index + 1} label`}
+              value={item?.label || ""}
+              onChange={(e) => {
+                const next = [...rows];
+                next[index] = { ...(next[index] || {}), label: e.target.value };
+                onChange(next);
+              }}
+              placeholder={labelPlaceholder}
+              disabled={disabled}
+            />
+            <Input
+              label={`${title} ${index + 1} value`}
+              value={item?.value || ""}
+              onChange={(e) => {
+                const next = [...rows];
+                next[index] = { ...(next[index] || {}), value: e.target.value };
+                onChange(next);
+              }}
+              placeholder={valuePlaceholder}
+              disabled={disabled}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ImageUploadField({
+  label,
+  value,
+  onChange,
+  onUpload,
+  uploading = false,
+  disabled = false,
+  helper,
+  emptyHelper,
+}) {
+  const fileInputRef = useRef(null);
+  const safeValue = String(value || "").trim();
+  const hasImage = Boolean(safeValue);
+
+  return (
+    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-gray-800">{label}</div>
+          {helper ? <div className="mt-1 text-xs text-gray-500">{helper}</div> : null}
+        </div>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+
+            await onUpload(file);
+
+            if (fileInputRef.current) {
+              fileInputRef.current.value = "";
+            }
+          }}
+          disabled={disabled || uploading}
+        />
+
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled || uploading}
+          className="inline-flex shrink-0 items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {uploading ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              Uploading...
+            </>
+          ) : (
+            <>
+              <Upload size={16} />
+              Upload image
+            </>
+          )}
+        </button>
+      </div>
+
+      <div className="mt-4">
+        <Input
+          label="Image URL"
+          value={safeValue}
+          onChange={onChange}
+          placeholder="https://... or /path"
+          disabled={disabled || uploading}
+          invalid={Boolean(safeValue) && !isSafeUrl(safeValue)}
+          helper={emptyHelper}
+        />
+      </div>
+
+      <div className="mt-4">
+        {hasImage && isSafeUrl(safeValue) ? (
+          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+            <div className="aspect-[16/10] w-full bg-gray-100">
+              <img
+                src={safeValue}
+                alt={label}
+                className="h-full w-full object-cover"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 p-3">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-xs font-medium text-gray-700">
+                  {safeValue}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => onChange({ target: { value: "" } })}
+                disabled={disabled || uploading}
+                className="inline-flex items-center gap-2 rounded-2xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60"
+              >
+                <X size={14} />
+                Clear
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-dashed border-gray-300 bg-white px-4 py-8 text-center text-xs text-gray-500">
+            No image selected yet.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminHomeConfigPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
   const [active, setActive] = useState("hero");
   const [form, setForm] = useState(() => normalizeHomeConfig({}));
+  const [uploading, setUploading] = useState({
+    hero: false,
+    seasonalBanner: false,
+    brandStory: false,
+  });
 
   const initialRef = useRef(stableStringify(normalizeHomeConfig({})));
   const versionRef = useRef(null);
@@ -896,7 +1273,7 @@ export default function AdminHomeConfigPage() {
     queryKey: ["homeConfig"],
     enabled: Boolean(canRead),
     queryFn: async () => {
-      const response = await api.get(makeApiPath("/page-config/home"));
+      const response = await api.get(makeApiPath("/page-config/home/admin"));
       return response.data;
     },
     staleTime: 30_000,
@@ -989,7 +1366,8 @@ export default function AdminHomeConfigPage() {
   });
 
   const busy = saveMutation.isPending;
-  const inputDisabled = busy || readOnly;
+  const anyUploading = Object.values(uploading).some(Boolean);
+  const inputDisabled = busy || readOnly || anyUploading;
 
   const meta = configQuery.data
     ? {
@@ -1017,8 +1395,40 @@ export default function AdminHomeConfigPage() {
     setForm(normalizeHomeConfig(defaultHomeConfig()));
   }
 
+  async function handleImageUpload(sectionKey, path, file) {
+    if (readOnly || !file) return;
+
+    const isAllowedType = ["image/jpeg", "image/png", "image/webp"].includes(
+      String(file?.type || "").toLowerCase()
+    );
+
+    if (!isAllowedType) {
+      toast.error("Invalid image", {
+        description: "Only JPG, PNG, and WEBP images are allowed.",
+      });
+      return;
+    }
+
+    setUploading((prev) => ({ ...prev, [sectionKey]: true }));
+
+    try {
+      const uploaded = await uploadSingleImage(file);
+      setForm((prev) => setDeep(prev, path, uploaded.url));
+
+      toast.success("Image uploaded", {
+        description: "Image uploaded successfully. Save changes to publish it on homepage.",
+      });
+    } catch (error) {
+      toast.error("Upload failed", {
+        description: getErrorMessage(error),
+      });
+    } finally {
+      setUploading((prev) => ({ ...prev, [sectionKey]: false }));
+    }
+  }
+
   function onSave() {
-    if (readOnly || busy || !isDirty) return;
+    if (readOnly || busy || !isDirty || anyUploading) return;
 
     if (hasValidationIssues) {
       toast.error("Fix validation issues first", {
@@ -1269,7 +1679,7 @@ export default function AdminHomeConfigPage() {
             id="hero"
             icon={Home}
             title="Hero"
-            description="Headline, CTA, image and optional stats shown above the fold."
+            description="Headline, CTA, image, highlights, feature card and optional stats shown above the fold."
           >
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <Input
@@ -1282,20 +1692,20 @@ export default function AdminHomeConfigPage() {
                 disabled={inputDisabled}
               />
 
-              <Input
-                label="Hero image URL"
-                value={form?.hero?.image}
-                onChange={(e) =>
-                  setForm((prev) => setDeep(prev, ["hero", "image"], e.target.value))
-                }
-                placeholder="https://... or /path"
-                helper="Leave empty to let the storefront use a dynamic catalog image."
-                disabled={inputDisabled}
-                invalid={
-                  Boolean(String(form?.hero?.image || "").trim()) &&
-                  !isSafeUrl(form?.hero?.image)
-                }
-              />
+              <div className="md:col-span-2">
+                <ImageUploadField
+                  label="Hero image"
+                  value={form?.hero?.image}
+                  onChange={(e) =>
+                    setForm((prev) => setDeep(prev, ["hero", "image"], e.target.value))
+                  }
+                  onUpload={(file) => handleImageUpload("hero", ["hero", "image"], file)}
+                  uploading={uploading.hero}
+                  disabled={readOnly || busy}
+                  helper="Upload a hero image or paste a valid URL."
+                  emptyHelper="Leave empty to let the storefront use a dynamic catalog image."
+                />
+              </div>
 
               <div className="md:col-span-2">
                 <Input
@@ -1381,42 +1791,61 @@ export default function AdminHomeConfigPage() {
                 }
               />
 
-              <div className="md:col-span-2 rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                <div className="text-sm font-semibold text-gray-900">Hero stats</div>
-                <div className="mt-1 text-xs text-gray-500">
-                  Leave values empty to let backend auto-fill catalog counts.
-                </div>
+              <Input
+                label="Feature badge"
+                value={form?.hero?.featureBadge}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(prev, ["hero", "featureBadge"], e.target.value)
+                  )
+                }
+                placeholder="Featured selection"
+                disabled={inputDisabled}
+              />
 
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
-                  {(form?.hero?.stats || []).slice(0, 3).map((item, index) => (
-                    <div key={`hero-stat-${index}`} className="space-y-3">
-                      <Input
-                        label={`Stat ${index + 1} label`}
-                        value={item?.label || ""}
-                        onChange={(e) => {
-                          const next = [...(form?.hero?.stats || [])];
-                          next[index] = { ...(next[index] || {}), label: e.target.value };
-                          setForm((prev) => setDeep(prev, ["hero", "stats"], next));
-                        }}
-                        placeholder="Active products"
-                        disabled={inputDisabled}
-                        invalid={!String(item?.label || "").trim()}
-                      />
+              <Input
+                label="Feature text"
+                value={form?.hero?.featureText}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(prev, ["hero", "featureText"], e.target.value)
+                  )
+                }
+                placeholder="Short supporting text"
+                disabled={inputDisabled}
+              />
 
-                      <Input
-                        label={`Stat ${index + 1} value`}
-                        value={item?.value || ""}
-                        onChange={(e) => {
-                          const next = [...(form?.hero?.stats || [])];
-                          next[index] = { ...(next[index] || {}), value: e.target.value };
-                          setForm((prev) => setDeep(prev, ["hero", "stats"], next));
-                        }}
-                        placeholder="Leave blank for auto"
-                        disabled={inputDisabled}
-                      />
-                    </div>
-                  ))}
-                </div>
+              <div className="md:col-span-2">
+                <TextListEditor
+                  title="Hero highlights"
+                  helper="Small premium chips shown under hero actions."
+                  items={form?.hero?.highlights}
+                  disabled={inputDisabled}
+                  onChange={(next) =>
+                    setForm((prev) => setDeep(prev, ["hero", "highlights"], next))
+                  }
+                  placeholders={[
+                    "Fresh arrivals",
+                    "Thoughtful edits",
+                    "Reliable delivery",
+                  ]}
+                  maxItems={3}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <StatsEditor
+                  title="Hero stats"
+                  helper="Leave values empty to let backend auto-fill catalog counts."
+                  items={form?.hero?.stats}
+                  disabled={inputDisabled}
+                  onChange={(next) =>
+                    setForm((prev) => setDeep(prev, ["hero", "stats"], next))
+                  }
+                  maxItems={3}
+                  labelPlaceholder="Active products"
+                  valuePlaceholder="Leave blank for auto"
+                />
               </div>
             </div>
           </SectionCard>
@@ -1897,22 +2326,24 @@ export default function AdminHomeConfigPage() {
                 disabled={inputDisabled}
               />
 
-              <Input
-                label="Image URL"
-                value={form?.seasonalBanner?.image}
-                onChange={(e) =>
-                  setForm((prev) =>
-                    setDeep(prev, ["seasonalBanner", "image"], e.target.value)
-                  )
-                }
-                placeholder="https://... or /path"
-                helper="Leave empty to allow a dynamic product-driven banner image."
-                disabled={inputDisabled}
-                invalid={
-                  Boolean(String(form?.seasonalBanner?.image || "").trim()) &&
-                  !isSafeUrl(form?.seasonalBanner?.image)
-                }
-              />
+              <div className="md:col-span-2">
+                <ImageUploadField
+                  label="Campaign banner image"
+                  value={form?.seasonalBanner?.image}
+                  onChange={(e) =>
+                    setForm((prev) =>
+                      setDeep(prev, ["seasonalBanner", "image"], e.target.value)
+                    )
+                  }
+                  onUpload={(file) =>
+                    handleImageUpload("seasonalBanner", ["seasonalBanner", "image"], file)
+                  }
+                  uploading={uploading.seasonalBanner}
+                  disabled={readOnly || busy}
+                  helper="Upload a campaign image or paste a valid URL."
+                  emptyHelper="Leave empty to allow a dynamic product-driven banner image."
+                />
+              </div>
 
               <div className="md:col-span-2">
                 <Input
@@ -1944,7 +2375,7 @@ export default function AdminHomeConfigPage() {
               </div>
 
               <Input
-                label="CTA label"
+                label="Primary CTA label"
                 value={form?.seasonalBanner?.ctaLabel}
                 onChange={(e) =>
                   setForm((prev) =>
@@ -1956,7 +2387,7 @@ export default function AdminHomeConfigPage() {
               />
 
               <Input
-                label="CTA href"
+                label="Primary CTA href"
                 value={form?.seasonalBanner?.ctaHref}
                 onChange={(e) =>
                   setForm((prev) =>
@@ -1970,6 +2401,86 @@ export default function AdminHomeConfigPage() {
                   !isSafeUrl(form?.seasonalBanner?.ctaHref)
                 }
               />
+
+              <Input
+                label="Secondary CTA label"
+                value={form?.seasonalBanner?.secondaryCtaLabel}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(
+                      prev,
+                      ["seasonalBanner", "secondaryCtaLabel"],
+                      e.target.value
+                    )
+                  )
+                }
+                placeholder="Explore latest"
+                disabled={inputDisabled}
+              />
+
+              <Input
+                label="Secondary CTA href"
+                value={form?.seasonalBanner?.secondaryCtaHref}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(
+                      prev,
+                      ["seasonalBanner", "secondaryCtaHref"],
+                      e.target.value
+                    )
+                  )
+                }
+                placeholder="/shop?sort=latest"
+                disabled={inputDisabled}
+                invalid={
+                  Boolean(String(form?.seasonalBanner?.secondaryCtaHref || "").trim()) &&
+                  !isSafeUrl(form?.seasonalBanner?.secondaryCtaHref)
+                }
+              />
+
+              <Input
+                label="Feature badge"
+                value={form?.seasonalBanner?.featureBadge}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(prev, ["seasonalBanner", "featureBadge"], e.target.value)
+                  )
+                }
+                placeholder="Seasonal spotlight"
+                disabled={inputDisabled}
+              />
+
+              <Input
+                label="Feature text"
+                value={form?.seasonalBanner?.featureText}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(prev, ["seasonalBanner", "featureText"], e.target.value)
+                  )
+                }
+                placeholder="Short supporting text"
+                disabled={inputDisabled}
+              />
+
+              <div className="md:col-span-2">
+                <TextListEditor
+                  title="Seasonal highlights"
+                  helper="Small chips for campaign mood, focus or benefits."
+                  items={form?.seasonalBanner?.highlights}
+                  disabled={inputDisabled}
+                  onChange={(next) =>
+                    setForm((prev) =>
+                      setDeep(prev, ["seasonalBanner", "highlights"], next)
+                    )
+                  }
+                  placeholders={[
+                    "Limited edit",
+                    "Premium textures",
+                    "Modern silhouettes",
+                  ]}
+                  maxItems={3}
+                />
+              </div>
             </div>
           </SectionCard>
 
@@ -1990,20 +2501,22 @@ export default function AdminHomeConfigPage() {
                 disabled={inputDisabled}
               />
 
-              <Input
-                label="Image URL"
-                value={form?.brandStory?.image}
-                onChange={(e) =>
-                  setForm((prev) => setDeep(prev, ["brandStory", "image"], e.target.value))
-                }
-                placeholder="https://... or /path"
-                helper="Leave empty to use a dynamic catalog image fallback."
-                disabled={inputDisabled}
-                invalid={
-                  Boolean(String(form?.brandStory?.image || "").trim()) &&
-                  !isSafeUrl(form?.brandStory?.image)
-                }
-              />
+              <div className="md:col-span-2">
+                <ImageUploadField
+                  label="Brand story image"
+                  value={form?.brandStory?.image}
+                  onChange={(e) =>
+                    setForm((prev) => setDeep(prev, ["brandStory", "image"], e.target.value))
+                  }
+                  onUpload={(file) =>
+                    handleImageUpload("brandStory", ["brandStory", "image"], file)
+                  }
+                  uploading={uploading.brandStory}
+                  disabled={readOnly || busy}
+                  helper="Upload a story image or paste a valid URL."
+                  emptyHelper="Leave empty to use a dynamic catalog image fallback."
+                />
+              </div>
 
               <div className="md:col-span-2">
                 <Input
@@ -2033,7 +2546,7 @@ export default function AdminHomeConfigPage() {
               </div>
 
               <Input
-                label="CTA label"
+                label="Primary CTA label"
                 value={form?.brandStory?.ctaLabel}
                 onChange={(e) =>
                   setForm((prev) =>
@@ -2045,7 +2558,7 @@ export default function AdminHomeConfigPage() {
               />
 
               <Input
-                label="CTA href"
+                label="Primary CTA href"
                 value={form?.brandStory?.ctaHref}
                 onChange={(e) =>
                   setForm((prev) =>
@@ -2059,6 +2572,101 @@ export default function AdminHomeConfigPage() {
                   !isSafeUrl(form?.brandStory?.ctaHref)
                 }
               />
+
+              <Input
+                label="Secondary CTA label"
+                value={form?.brandStory?.secondaryCtaLabel}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(
+                      prev,
+                      ["brandStory", "secondaryCtaLabel"],
+                      e.target.value
+                    )
+                  )
+                }
+                placeholder="View latest arrivals"
+                disabled={inputDisabled}
+              />
+
+              <Input
+                label="Secondary CTA href"
+                value={form?.brandStory?.secondaryCtaHref}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(
+                      prev,
+                      ["brandStory", "secondaryCtaHref"],
+                      e.target.value
+                    )
+                  )
+                }
+                placeholder="/shop?sort=latest"
+                disabled={inputDisabled}
+                invalid={
+                  Boolean(String(form?.brandStory?.secondaryCtaHref || "").trim()) &&
+                  !isSafeUrl(form?.brandStory?.secondaryCtaHref)
+                }
+              />
+
+              <Input
+                label="Feature badge"
+                value={form?.brandStory?.featureBadge}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(prev, ["brandStory", "featureBadge"], e.target.value)
+                  )
+                }
+                placeholder="Brand story"
+                disabled={inputDisabled}
+              />
+
+              <Input
+                label="Feature text"
+                value={form?.brandStory?.featureText}
+                onChange={(e) =>
+                  setForm((prev) =>
+                    setDeep(prev, ["brandStory", "featureText"], e.target.value)
+                  )
+                }
+                placeholder="Short supporting text"
+                disabled={inputDisabled}
+              />
+
+              <div className="md:col-span-2">
+                <TextListEditor
+                  title="Brand story highlights"
+                  helper="Short chips to reinforce brand value and premium feel."
+                  items={form?.brandStory?.highlights}
+                  disabled={inputDisabled}
+                  onChange={(next) =>
+                    setForm((prev) =>
+                      setDeep(prev, ["brandStory", "highlights"], next)
+                    )
+                  }
+                  placeholders={[
+                    "Curated catalog",
+                    "Cleaner discovery",
+                    "Premium storefront",
+                  ]}
+                  maxItems={3}
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <StatsEditor
+                  title="Brand story stats"
+                  helper="Small supporting stats or proof points shown with the story block."
+                  items={form?.brandStory?.stats}
+                  disabled={inputDisabled}
+                  onChange={(next) =>
+                    setForm((prev) => setDeep(prev, ["brandStory", "stats"], next))
+                  }
+                  maxItems={3}
+                  labelPlaceholder="Curated catalog"
+                  valuePlaceholder="Live"
+                />
+              </div>
             </div>
           </SectionCard>
 
@@ -2188,13 +2796,13 @@ export default function AdminHomeConfigPage() {
                     type="button"
                     className="rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
                     onClick={() => {
-                      if (busy) return;
+                      if (busy || anyUploading) return;
                       resetToInitial();
                       toast.info("Reverted", {
                         description: "Home config changes have been discarded.",
                       });
                     }}
-                    disabled={!isDirty || busy || readOnly}
+                    disabled={!isDirty || busy || readOnly || anyUploading}
                   >
                     Discard
                   </button>
@@ -2203,10 +2811,10 @@ export default function AdminHomeConfigPage() {
                     type="button"
                     className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-60"
                     onClick={() => {
-                      if (busy || readOnly) return;
+                      if (busy || readOnly || anyUploading) return;
                       resetToDefaults();
                     }}
-                    disabled={busy || readOnly}
+                    disabled={busy || readOnly || anyUploading}
                   >
                     <RotateCcw size={16} />
                     Reset form
@@ -2216,12 +2824,12 @@ export default function AdminHomeConfigPage() {
                     type="button"
                     className={cx(
                       "inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold transition",
-                      !readOnly && isDirty && !busy && !hasValidationIssues
+                      !readOnly && isDirty && !busy && !hasValidationIssues && !anyUploading
                         ? "bg-black text-white hover:bg-gray-900"
                         : "bg-gray-200 text-gray-500"
                     )}
                     onClick={onSave}
-                    disabled={readOnly || !isDirty || busy || hasValidationIssues}
+                    disabled={readOnly || !isDirty || busy || hasValidationIssues || anyUploading}
                   >
                     {saveMutation.isPending ? (
                       <>

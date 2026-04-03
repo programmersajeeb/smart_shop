@@ -419,50 +419,99 @@ const CollectionCard = memo(function CollectionCard({ item }) {
   );
 });
 
+function SkeletonBlock({ className = "" }) {
+  return <div className={`rounded-2xl bg-gray-100 ${className}`} />;
+}
+
+function SkeletonPill({ className = "" }) {
+  return <div className={`h-10 rounded-full bg-gray-100 ${className}`} />;
+}
+
 function CollectionsPageSkeleton() {
   return (
     <div className="w-full animate-pulse">
       <section className="border-b border-black/5">
-        <div className="site-shell py-8 sm:py-10 lg:py-12">
-          <div className="mb-5 h-5 w-40 rounded-full bg-gray-100" />
+        <div className="site-shell py-6 sm:py-8 lg:py-12">
+          <SkeletonBlock className="mb-5 h-5 w-32 sm:w-40" />
 
-          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-            <div className="rounded-[32px] border border-black/5 bg-white p-5 shadow-sm sm:p-7 lg:p-8">
-              <div className="h-8 w-36 rounded-full bg-gray-100" />
-              <div className="mt-4 h-10 w-full max-w-2xl rounded-2xl bg-gray-100" />
-              <div className="mt-3 h-10 w-5/6 max-w-xl rounded-2xl bg-gray-100" />
-              <div className="mt-6 flex gap-3">
-                <div className="h-12 w-40 rounded-2xl bg-gray-100" />
-                <div className="h-12 w-36 rounded-2xl bg-gray-100" />
+          <div className="grid grid-cols-1 gap-5 lg:gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-[28px] border border-black/5 bg-white p-4 shadow-sm sm:rounded-[32px] sm:p-6 lg:p-8">
+              <SkeletonBlock className="h-8 w-32 rounded-full sm:w-40" />
+              <SkeletonBlock className="mt-4 h-10 w-full max-w-[92%] sm:h-12" />
+              <SkeletonBlock className="mt-3 h-10 w-full max-w-[75%] sm:h-12" />
+
+              <div className="mt-5 space-y-3">
+                <SkeletonBlock className="h-4 w-full max-w-[95%]" />
+                <SkeletonBlock className="h-4 w-full max-w-[88%]" />
+                <SkeletonBlock className="h-4 w-full max-w-[65%]" />
               </div>
-              <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <div className="h-24 rounded-2xl bg-gray-100" />
-                <div className="h-24 rounded-2xl bg-gray-100" />
-                <div className="h-24 rounded-2xl bg-gray-100" />
+
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <SkeletonBlock className="h-12 w-full rounded-2xl sm:w-40" />
+                <SkeletonBlock className="h-12 w-full rounded-2xl sm:w-36" />
+              </div>
+
+              <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="rounded-2xl border border-black/5 bg-gray-50/80 p-4"
+                  >
+                    <SkeletonBlock className="h-3 w-20" />
+                    <SkeletonBlock className="mt-3 h-8 w-16" />
+                    <SkeletonBlock className="mt-3 h-4 w-full max-w-[140px]" />
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="min-h-[320px] rounded-[32px] border border-black/5 bg-gray-100 sm:min-h-[380px]" />
+            <div className="overflow-hidden rounded-[28px] border border-black/5 bg-white shadow-sm sm:rounded-[32px]">
+              <SkeletonBlock className="h-[320px] w-full sm:h-[380px] lg:h-full lg:min-h-[420px]" />
+            </div>
           </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="h-28 rounded-[26px] bg-gray-100" />
-            <div className="h-28 rounded-[26px] bg-gray-100" />
-            <div className="h-28 rounded-[26px] bg-gray-100" />
-            <div className="h-28 rounded-[26px] bg-gray-100" />
+          <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div
+                key={index}
+                className="rounded-[24px] border border-black/5 bg-white/90 p-4 shadow-sm sm:rounded-[26px] sm:p-5"
+              >
+                <div className="flex items-start gap-3">
+                  <SkeletonBlock className="h-11 w-11 rounded-2xl" />
+                  <div className="flex-1">
+                    <SkeletonBlock className="h-4 w-28" />
+                    <SkeletonBlock className="mt-3 h-3 w-full max-w-[180px]" />
+                    <SkeletonBlock className="mt-2 h-3 w-full max-w-[150px]" />
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       <section className="border-b border-black/5 bg-white/70">
         <div className="site-shell py-5">
-          <div className="rounded-[28px] border border-black/5 bg-white p-4 shadow-sm sm:p-5">
-            <div className="h-6 w-44 rounded-xl bg-gray-100" />
-            <div className="mt-4 h-14 w-full rounded-[22px] bg-gray-100" />
-            <div className="mt-4 flex gap-2">
-              <div className="h-10 w-24 rounded-full bg-gray-100" />
-              <div className="h-10 w-24 rounded-full bg-gray-100" />
-              <div className="h-10 w-28 rounded-full bg-gray-100" />
+          <div className="rounded-[24px] border border-black/5 bg-white p-4 shadow-sm sm:rounded-[28px] sm:p-5">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <SkeletonBlock className="h-4 w-32" />
+                <SkeletonBlock className="mt-3 h-4 w-full max-w-[260px] sm:max-w-[340px]" />
+              </div>
+
+              <SkeletonBlock className="h-14 w-full rounded-[22px] lg:max-w-md" />
+            </div>
+
+            <div className="mt-4 flex gap-2 overflow-hidden">
+              <SkeletonPill className="w-20" />
+              <SkeletonPill className="w-24" />
+              <SkeletonPill className="w-28" />
+              <SkeletonPill className="hidden sm:block w-24" />
+            </div>
+
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <SkeletonBlock className="h-4 w-32" />
+              <SkeletonBlock className="h-8 w-24 rounded-full" />
             </div>
           </div>
         </div>
@@ -470,40 +519,83 @@ function CollectionsPageSkeleton() {
 
       <section className="py-10 sm:py-12 lg:py-14">
         <div className="site-shell">
-          <div className="h-8 w-56 rounded-xl bg-gray-100" />
-          <div className="mt-2 h-6 w-full max-w-xl rounded-xl bg-gray-100" />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <SkeletonBlock className="h-3 w-24" />
+              <SkeletonBlock className="mt-3 h-8 w-48 sm:w-56" />
+            </div>
+            <SkeletonBlock className="h-4 w-full max-w-xl" />
+          </div>
 
           <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-            <div className="overflow-hidden rounded-[30px] border border-black/5 bg-white">
-              <div className="h-[300px] bg-gray-100" />
-              <div className="p-5 sm:p-6">
-                <div className="flex gap-2">
-                  <div className="h-8 w-20 rounded-full bg-gray-100" />
-                  <div className="h-8 w-24 rounded-full bg-gray-100" />
+            {Array.from({ length: 6 }).map((_, index) => (
+              <div
+                key={index}
+                className="overflow-hidden rounded-[28px] border border-black/5 bg-white shadow-sm sm:rounded-[30px]"
+              >
+                <SkeletonBlock className="h-[240px] w-full sm:h-[280px] md:h-[300px]" />
+                <div className="p-5 sm:p-6">
+                  <div className="flex flex-wrap gap-2">
+                    <SkeletonPill className="w-20 h-8" />
+                    <SkeletonPill className="w-24 h-8" />
+                    <SkeletonPill className="w-16 h-8" />
+                  </div>
+
+                  <div className="mt-5 flex items-center justify-between gap-4 border-t border-black/5 pt-5">
+                    <div className="flex-1">
+                      <SkeletonBlock className="h-3 w-24" />
+                      <SkeletonBlock className="mt-3 h-4 w-20" />
+                    </div>
+                    <SkeletonBlock className="h-11 w-28 rounded-2xl" />
+                  </div>
                 </div>
-                <div className="mt-5 h-12 rounded-xl bg-gray-100" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="pb-10 sm:pb-12 lg:pb-16">
+        <div className="site-shell">
+          <div className="grid grid-cols-1 gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+            <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:rounded-[30px] sm:p-7">
+              <SkeletonBlock className="h-8 w-36 rounded-full" />
+              <SkeletonBlock className="mt-4 h-8 w-full max-w-[280px]" />
+
+              <div className="mt-5 space-y-4">
+                {Array.from({ length: 4 }).map((_, index) => (
+                  <div key={index} className="flex items-start gap-3">
+                    <SkeletonBlock className="h-8 w-8 rounded-xl" />
+                    <div className="flex-1">
+                      <SkeletonBlock className="h-4 w-full max-w-[260px]" />
+                      <SkeletonBlock className="mt-2 h-4 w-full max-w-[220px]" />
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
-            <div className="overflow-hidden rounded-[30px] border border-black/5 bg-white">
-              <div className="h-[300px] bg-gray-100" />
-              <div className="p-5 sm:p-6">
-                <div className="flex gap-2">
-                  <div className="h-8 w-20 rounded-full bg-gray-100" />
-                  <div className="h-8 w-24 rounded-full bg-gray-100" />
-                </div>
-                <div className="mt-5 h-12 rounded-xl bg-gray-100" />
-              </div>
-            </div>
+            <div className="rounded-[28px] border border-black/5 bg-[#111827] p-5 shadow-sm sm:rounded-[30px] sm:p-7 md:p-8">
+              <SkeletonBlock className="h-8 w-32 rounded-full bg-white/10" />
+              <SkeletonBlock className="mt-4 h-8 w-full max-w-[300px] bg-white/10" />
+              <SkeletonBlock className="mt-3 h-4 w-full max-w-[420px] bg-white/10" />
+              <SkeletonBlock className="mt-2 h-4 w-full max-w-[360px] bg-white/10" />
 
-            <div className="overflow-hidden rounded-[30px] border border-black/5 bg-white">
-              <div className="h-[300px] bg-gray-100" />
-              <div className="p-5 sm:p-6">
-                <div className="flex gap-2">
-                  <div className="h-8 w-20 rounded-full bg-gray-100" />
-                  <div className="h-8 w-24 rounded-full bg-gray-100" />
-                </div>
-                <div className="mt-5 h-12 rounded-xl bg-gray-100" />
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <SkeletonBlock className="h-12 w-full rounded-2xl bg-white/10 sm:w-36" />
+                <SkeletonBlock className="h-12 w-full rounded-2xl bg-white/10 sm:w-36" />
+              </div>
+
+              <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div
+                    key={index}
+                    className="rounded-2xl border border-white/10 bg-white/5 p-4"
+                  >
+                    <SkeletonBlock className="h-3 w-16 bg-white/10" />
+                    <SkeletonBlock className="mt-3 h-5 w-24 bg-white/10" />
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -527,7 +619,10 @@ export default function CollectionsPage() {
     staleTime: 60000,
   });
 
-  const { data: shopDoc, isLoading: shopLoading } = useQuery({
+  const {
+    data: shopDoc,
+    isLoading: shopLoading,
+  } = useQuery({
     queryKey: ["page-config", "shop"],
     queryFn: async () => (await api.get("/page-config/shop")).data,
     staleTime: 60000,
@@ -613,26 +708,26 @@ export default function CollectionsPage() {
       const labelKey = String(item.label || "").trim().toLowerCase();
 
       if (labelKey === "collections") {
-  return {
-    ...item,
-    value:
-      String(item.value || "").trim() && String(item.value).trim() !== "0"
-        ? item.value
-        : String(collections.length),
-  };
-}
+        return {
+          ...item,
+          value:
+            String(item.value || "").trim() && String(item.value).trim() !== "0"
+              ? item.value
+              : String(collections.length),
+        };
+      }
 
-if (labelKey === "products") {
-  return {
-    ...item,
-    value:
-      String(item.value || "").trim() && String(item.value).trim() !== "0"
-        ? item.value
-        : String(
-            collections.reduce((sum, entry) => sum + Number(entry.count || 0), 0)
-          ),
-  };
-}
+      if (labelKey === "products") {
+        return {
+          ...item,
+          value:
+            String(item.value || "").trim() && String(item.value).trim() !== "0"
+              ? item.value
+              : String(
+                  collections.reduce((sum, entry) => sum + Number(entry.count || 0), 0)
+                ),
+        };
+      }
 
       return item;
     });
@@ -643,7 +738,10 @@ if (labelKey === "products") {
     return items.length ? items : DEFAULT_HIGHLIGHTS;
   }, [collectionsConfig?.trustHighlights]);
 
-  const categories = useMemo(() => ["All", ...collections.map((item) => item.title)], [collections]);
+  const categories = useMemo(
+    () => ["All", ...collections.map((item) => item.title)],
+    [collections]
+  );
 
   const featuredCollection = useMemo(
     () => collections.find((item) => item.featured) || collections[0],
@@ -786,9 +884,7 @@ if (labelKey === "products") {
                   </div>
 
                   <div className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur">
-                    {collectionsConfig?.hero?.featuredBadge ||
-                      featuredCollection.badge ||
-                      "Popular now"}
+                    {collectionsConfig?.hero?.featuredBadge || featuredCollection.badge || "Popular now"}
                   </div>
                 </div>
 
@@ -860,8 +956,7 @@ if (labelKey === "products") {
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                     placeholder={
-                      collectionsConfig?.filterPanel?.searchPlaceholder ||
-                      "Search collections..."
+                      collectionsConfig?.filterPanel?.searchPlaceholder || "Search collections..."
                     }
                     className="w-full border-0 bg-transparent text-sm text-gray-800 outline-none ring-0 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus-visible:outline-none sm:text-[15px]"
                     aria-label="Search collections"

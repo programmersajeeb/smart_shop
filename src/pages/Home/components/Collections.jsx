@@ -3,35 +3,40 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import api from "../../../services/apiClient";
 
-import men from "../../../assets/men.png";
-import women from "../../../assets/women.png";
-import accessories from "../../../assets/accessories.png";
-
 const fallbackCollections = [
   {
     id: "women",
     title: "Women",
-    image: women,
+    image:
+      "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1400&q=80",
     href: "/shop?category=Women",
     count: null,
+    badge: "Most loved",
+    description:
+      "Everyday staples and statement pieces for a more polished wardrobe.",
   },
   {
     id: "men",
     title: "Men",
-    image: men,
+    image:
+      "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1400&q=80",
     href: "/shop?category=Men",
     count: null,
+    badge: "Popular pick",
+    description:
+      "Well-balanced essentials designed for smart daily styling.",
   },
   {
     id: "accessories",
     title: "Accessories",
-    image: accessories,
+    image:
+      "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=1400&q=80",
     href: "/shop?category=Accessories",
     count: null,
+    badge: "Easy finishing touches",
+    description: "The details that help every look feel complete.",
   },
 ];
-
-const FALLBACK_CARD_IMAGE = women;
 
 function normalizeText(value, fallback = "") {
   const text = String(value || "").replace(/\s+/g, " ").trim();
@@ -61,7 +66,7 @@ function resolveAssetUrl(rawUrl) {
   }
 }
 
-function normalizeImage(value, fallback = FALLBACK_CARD_IMAGE) {
+function normalizeImage(value, fallback) {
   if (typeof value === "string" && value.trim()) {
     return resolveAssetUrl(value.trim());
   }
@@ -87,10 +92,10 @@ function CollectionsSkeleton() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="h-[360px] animate-pulse rounded-[30px] bg-gray-200 sm:h-[430px] lg:h-[500px]" />
+        <div className="h-[360px] animate-pulse rounded-[30px] bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200 sm:h-[430px] lg:h-[500px]" />
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-1">
-          <div className="h-[210px] animate-pulse rounded-[30px] bg-gray-200" />
-          <div className="h-[210px] animate-pulse rounded-[30px] bg-gray-200" />
+          <div className="h-[210px] animate-pulse rounded-[30px] bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200" />
+          <div className="h-[210px] animate-pulse rounded-[30px] bg-gradient-to-br from-gray-200 via-gray-100 to-gray-200" />
         </div>
       </div>
     </section>
@@ -98,7 +103,7 @@ function CollectionsSkeleton() {
 }
 
 function CollectionCard({ item, featured = false }) {
-  const fallbackImage = item?.fallbackImage || FALLBACK_CARD_IMAGE;
+  const fallbackImage = item?.fallbackImage || fallbackCollections[0].image;
   const [imgSrc, setImgSrc] = useState(item?.image || fallbackImage);
 
   useEffect(() => {
@@ -108,18 +113,14 @@ function CollectionCard({ item, featured = false }) {
   return (
     <Link
       to={item?.href || "/shop"}
-      className={[
-        "group relative block overflow-hidden rounded-[30px] border border-black/5 bg-neutral-100",
-        "shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition-all duration-300",
-        "hover:-translate-y-1 hover:shadow-[0_22px_50px_rgba(15,23,42,0.12)]",
-      ].join(" ")}
+      className="group relative block overflow-hidden rounded-[30px] border border-black/5 bg-neutral-100 shadow-[0_10px_30px_rgba(15,23,42,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_22px_50px_rgba(15,23,42,0.12)]"
       aria-label={`Explore ${item?.title || "collection"}`}
     >
       <div
         className={`relative w-full ${
           featured
             ? "h-[360px] sm:h-[430px] lg:h-[500px]"
-            : "h-[210px] sm:h-[220px] xl:h-[238px]"
+            : "h-[220px] sm:h-[240px] xl:h-[238px]"
         }`}
       >
         <img
@@ -131,17 +132,16 @@ function CollectionCard({ item, featured = false }) {
         />
 
         <div
-          className={[
-            "absolute inset-0",
+          className={`absolute inset-0 ${
             featured
-              ? "bg-gradient-to-t from-black/72 via-black/16 to-transparent"
-              : "bg-gradient-to-t from-black/70 via-black/12 to-transparent",
-          ].join(" ")}
+              ? "bg-gradient-to-t from-black/72 via-black/18 to-transparent"
+              : "bg-gradient-to-t from-black/70 via-black/14 to-transparent"
+          }`}
         />
 
         <div className="absolute left-4 right-4 top-4 flex items-center justify-between gap-3">
           <span className="rounded-full bg-white/90 px-3 py-1 text-[11px] font-medium text-gray-900 shadow-sm">
-            Popular
+            {item?.badge || "Collection"}
           </span>
 
           {item?.count != null ? (
@@ -161,11 +161,12 @@ function CollectionCard({ item, featured = false }) {
           </h3>
 
           <p className="mt-2 max-w-md text-sm leading-6 text-white/82">
-            Discover standout pieces from our most popular collection.
+            {item?.description ||
+              "Curated pieces from one of the store’s most visited collections."}
           </p>
 
           <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-white px-4 py-2.5 text-sm font-semibold text-gray-900 transition group-hover:bg-gray-100">
-            Shop now <ArrowRight size={14} />
+            Explore collection <ArrowRight size={14} />
           </div>
         </div>
       </div>
@@ -177,7 +178,7 @@ export default function Collections({ data, loading, error }) {
   const sectionTitle = normalizeText(data?.title, "Popular Collections");
   const sectionSubtitle = normalizeText(
     data?.subtitle,
-    "Explore the collections customers visit most, then browse the full range from our collections page."
+    "Discover the collections customers browse most often, each arranged to make product discovery feel faster and more natural."
   );
 
   const items = useMemo(() => {
@@ -188,26 +189,28 @@ export default function Collections({ data, loading, error }) {
         const fallbackItem =
           fallbackCollections[index % fallbackCollections.length];
 
-        const rawTitle = normalizeText(item?.title, "");
-        const resolvedTitle =
-          rawTitle ||
-          normalizeText(item?.name, "") ||
-          normalizeText(item?.label, "Collection");
+        const rawTitle = normalizeText(
+          item?.title || item?.name || item?.label,
+          "Collection"
+        );
 
         return {
           id: item?.id || item?._id || `collection-${index + 1}`,
-          title: resolvedTitle,
+          title: rawTitle,
           image: normalizeImage(item?.image, fallbackItem.image),
           fallbackImage: fallbackItem.image,
           href: normalizeHref(
             item?.href,
-            resolvedTitle
-              ? `/shop?category=${encodeURIComponent(resolvedTitle)}`
-              : "/shop"
+            `/shop?category=${encodeURIComponent(rawTitle)}`
           ),
           count: Number.isFinite(Number(item?.count))
             ? Number(item.count)
             : null,
+          badge: normalizeText(
+            item?.badge,
+            index === 0 ? "Most loved" : "Popular pick"
+          ),
+          description: normalizeText(item?.description, fallbackItem.description),
         };
       });
     }
@@ -218,11 +221,7 @@ export default function Collections({ data, loading, error }) {
     }));
   }, [data]);
 
-  const featured = items[0] || {
-    ...fallbackCollections[0],
-    fallbackImage: fallbackCollections[0].image,
-  };
-
+  const featured = items[0] || fallbackCollections[0];
   const secondary = items.slice(1, 3);
 
   if (loading && !items.length) {
@@ -231,7 +230,7 @@ export default function Collections({ data, loading, error }) {
 
   return (
     <section className="site-shell my-16 md:my-20" aria-label="Popular collections">
-      <div className="mb-10 md:mb-12 text-center">
+      <div className="mb-10 text-center md:mb-12">
         <h2 className="text-3xl font-semibold tracking-tight text-gray-950 md:text-4xl">
           {sectionTitle}
         </h2>
@@ -252,26 +251,9 @@ export default function Collections({ data, loading, error }) {
         <CollectionCard item={featured} featured />
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-1">
-          {secondary.length > 0 ? (
-            secondary.map((item, index) => (
-              <CollectionCard key={item?.id || index} item={item} />
-            ))
-          ) : (
-            <>
-              <CollectionCard
-                item={{
-                  ...fallbackCollections[1],
-                  fallbackImage: fallbackCollections[1].image,
-                }}
-              />
-              <CollectionCard
-                item={{
-                  ...fallbackCollections[2],
-                  fallbackImage: fallbackCollections[2].image,
-                }}
-              />
-            </>
-          )}
+          {secondary.map((item, index) => (
+            <CollectionCard key={item?.id || index} item={item} />
+          ))}
         </div>
       </div>
 
@@ -280,7 +262,7 @@ export default function Collections({ data, loading, error }) {
           to="/collections"
           className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-6 py-3 text-sm font-semibold text-gray-900 shadow-sm transition hover:bg-gray-50 hover:shadow-md"
         >
-          View All Collections
+          View all collections
           <ArrowRight size={16} />
         </Link>
       </div>
