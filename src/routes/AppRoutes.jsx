@@ -38,6 +38,10 @@ import CartPage from "../modules/Cart/pages/CartPage";
 import ForgotPasswordPage from "../modules/Auth/pages/ForgotPasswordPage";
 import TermsOfServicePage from "../pages/Legal/TermsOfServicePage";
 import PrivacyPolicyPage from "../pages/Legal/PrivacyPolicyPage";
+import FAQPage from "../pages/Support/FAQPage";
+import ReturnRefundPage from "../pages/Support/ReturnRefundPage";
+import ShippingPolicyPage from "../pages/Support/ShippingPolicyPage";
+import TrackOrderPage from "../pages/Support/TrackOrderPage";
 
 // Checkout
 import CheckoutPage from "../modules/Checkout/pages/CheckoutPage";
@@ -533,6 +537,10 @@ export const AppRoutes = createBrowserRouter([
       { path: "collections", Component: CollectionsPage },
       { path: "about", Component: AboutUsPage },
       { path: "contact", Component: ContactUsPage },
+      { path: "faq", Component: FAQPage },
+      { path: "returns", Component: ReturnRefundPage },
+      { path: "shipping-policy", Component: ShippingPolicyPage },
+      { path: "track-order", Component: TrackOrderPage },
 
       { path: "cart", Component: CartPage },
       { path: "checkout", Component: CheckoutPage },
