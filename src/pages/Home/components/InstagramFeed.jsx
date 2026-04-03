@@ -43,10 +43,7 @@ function FeedCard({
   loading = false,
   imagePosition = "center center",
 }) {
-  const resolvedImage = normalizeText(
-    item?.image || item?.img,
-    fallbackImage
-  );
+  const resolvedImage = normalizeText(item?.image || item?.img, fallbackImage);
   const [imgSrc, setImgSrc] = useState(resolvedImage);
 
   useEffect(() => {
@@ -57,8 +54,8 @@ function FeedCard({
   const description = normalizeText(
     item?.description,
     featured
-      ? "Discover a curated visual story built around standout catalog moments and elevated styling."
-      : "A refined inspiration point designed to guide faster product discovery."
+      ? "Discover a curated visual story built around standout catalog moments."
+      : "A refined inspiration point for faster product discovery."
   );
   const href = normalizeHref(item?.href, "/shop");
   const badge = normalizeText(item?.eyebrow, "Inspired edit");
@@ -78,8 +75,8 @@ function FeedCard({
       <div
         className={`relative w-full ${
           featured
-            ? "h-[380px] sm:h-[440px] md:h-[520px]"
-            : "h-[240px] sm:h-[260px] md:h-[248px]"
+            ? "h-[340px] sm:h-[400px] md:h-[480px]"
+            : "h-[220px] sm:h-[235px] md:h-[240px]"
         }`}
       >
         {loading ? (
@@ -95,18 +92,25 @@ function FeedCard({
           />
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/18 to-black/5 transition duration-300 group-hover:from-black/80" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,0.02),rgba(0,0,0,0.18))]" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-black/5 transition duration-300 group-hover:from-black/76" />
 
-        <div className="absolute inset-x-0 bottom-0 z-10 p-5 sm:p-6 md:p-7">
-          <div className="inline-flex max-w-full rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur-md sm:text-[11px]">
+        <div className="absolute inset-x-0 bottom-0 z-10 p-4 sm:p-5 md:p-6">
+          <div className="inline-flex max-w-full rounded-full bg-white/15 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-md sm:text-[11px]">
             <span className="truncate">{badge}</span>
           </div>
 
-          <div className="mt-3 max-w-[92%] rounded-[20px] bg-white/92 px-4 py-4 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md sm:px-5">
+          <div
+            className={`mt-3 rounded-[18px] bg-white/92 shadow-[0_8px_30px_rgba(0,0,0,0.08)] backdrop-blur-md ${
+              featured
+                ? "max-w-[78%] px-4 py-4 sm:max-w-[72%] sm:px-5 sm:py-4 md:max-w-[68%]"
+                : "max-w-[86%] px-3.5 py-3.5 sm:max-w-[88%] sm:px-4 sm:py-4"
+            }`}
+          >
             <h3
-              className={`font-semibold leading-tight text-gray-950 ${
-                featured ? "text-lg sm:text-xl md:text-2xl" : "text-base"
+              className={`font-semibold tracking-tight text-gray-950 ${
+                featured
+                  ? "line-clamp-2 text-[20px] leading-[1.25] sm:text-[22px] md:text-[24px]"
+                  : "line-clamp-2 text-[15px] leading-[1.4] sm:text-[16px]"
               }`}
             >
               {title}
@@ -115,14 +119,20 @@ function FeedCard({
             <p
               className={`mt-2 text-gray-600 ${
                 featured
-                  ? "text-sm leading-6 sm:text-[15px]"
-                  : "text-sm leading-5"
+                  ? "line-clamp-2 text-xs leading-5 sm:text-sm sm:leading-6"
+                  : "line-clamp-2 text-xs leading-5"
               }`}
             >
               {description}
             </p>
 
-            <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-black px-4 py-2 text-sm font-semibold text-white transition duration-300 group-hover:bg-gray-900">
+            <div
+              className={`mt-4 inline-flex items-center gap-2 rounded-full bg-black font-semibold text-white transition duration-300 group-hover:bg-gray-900 ${
+                featured
+                  ? "px-4 py-2 text-sm"
+                  : "px-3.5 py-2 text-[13px]"
+              }`}
+            >
               Shop this mood <ArrowRight size={14} />
             </div>
           </div>
@@ -144,12 +154,12 @@ function FeedSkeleton() {
       </div>
 
       <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-[1.02fr_0.98fr]">
-        <div className="h-[380px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[440px] md:h-[520px] md:rounded-[28px]" />
+        <div className="h-[340px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[400px] md:h-[480px] md:rounded-[28px]" />
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-2">
-          <div className="h-[240px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[260px] md:h-[248px] md:rounded-[28px]" />
-          <div className="h-[240px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[260px] md:h-[248px] md:rounded-[28px]" />
-          <div className="h-[240px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[260px] md:h-[248px] md:rounded-[28px]" />
-          <div className="h-[240px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[260px] md:h-[248px] md:rounded-[28px]" />
+          <div className="h-[220px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[235px] md:h-[240px] md:rounded-[28px]" />
+          <div className="h-[220px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[235px] md:h-[240px] md:rounded-[28px]" />
+          <div className="h-[220px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[235px] md:h-[240px] md:rounded-[28px]" />
+          <div className="h-[220px] animate-pulse rounded-[24px] bg-gray-200 sm:h-[235px] md:h-[240px] md:rounded-[28px]" />
         </div>
       </div>
     </section>

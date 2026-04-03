@@ -8,8 +8,6 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  ShieldCheck,
-  Sparkles,
   Loader2,
   AlertTriangle,
   CheckCircle2,
@@ -182,22 +180,6 @@ function resolvePostAuthTarget({ user, returnTo, returnToSource }) {
   return rt || "/account";
 }
 
-function AuthFeature({ icon: Icon, title, text }) {
-  return (
-    <div className="rounded-[24px] border border-gray-200 bg-white/80 p-4 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-gray-50 text-gray-800">
-          <Icon size={18} />
-        </div>
-        <div>
-          <div className="text-sm font-semibold text-gray-900">{title}</div>
-          <div className="mt-1 text-sm leading-6 text-gray-600">{text}</div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AuthInput({
   label,
   icon: Icon,
@@ -216,7 +198,7 @@ function AuthInput({
       <div className="text-sm font-medium text-gray-800">{label}</div>
       <div
         className={[
-          "mt-2 flex items-center gap-3 rounded-[22px] border bg-white px-4 py-3 shadow-sm transition",
+          "mt-2 flex items-center gap-3 rounded-[20px] border bg-white px-4 py-3.5 shadow-sm transition md:rounded-[22px]",
           "focus-within:border-gray-300 focus-within:ring-2 focus-within:ring-black focus-within:ring-offset-2",
           error ? "border-red-300" : "border-gray-200",
         ].join(" ")}
@@ -230,7 +212,7 @@ function AuthInput({
           placeholder={placeholder}
           autoComplete={autoComplete}
           autoFocus={autoFocus}
-          className="w-full bg-transparent text-gray-900 outline-none placeholder:text-gray-400"
+          className="w-full bg-transparent text-[15px] text-gray-900 outline-none placeholder:text-gray-400"
         />
         {rightSlot ? <div className="shrink-0">{rightSlot}</div> : null}
       </div>
@@ -428,7 +410,7 @@ export default function SignUpPage() {
   return (
     <div className="auth-shell min-h-[calc(100vh-64px)]">
       <div className="border-b border-gray-200 bg-white/80 backdrop-blur-xl">
-        <div className="site-shell py-4">
+        <div className="site-shell py-3 md:py-4">
           <div className="breadcrumbs text-sm text-gray-600">
             <ul>
               <li>
@@ -443,305 +425,316 @@ export default function SignUpPage() {
         </div>
       </div>
 
-      <div className="site-shell py-10 md:py-14">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-10">
-          <div className="auth-panel auth-panel-dark rounded-[32px] border border-gray-200 p-8 shadow-sm md:p-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-white/90">
-              <Sparkles size={16} />
-              Create your account
-            </div>
-
-            <h1 className="mt-5 text-3xl font-bold tracking-tight text-white md:text-4xl">
-              Join with confidence
-            </h1>
-
-            <p className="mt-3 max-w-xl text-sm leading-7 text-gray-300 md:text-base">
-              Create your account to save preferences, manage orders and enjoy a cleaner,
-              faster and more secure shopping flow.
-            </p>
-
-            <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <AuthFeature
-                icon={ShieldCheck}
-                title="Protected account"
-                text="Strong authentication flow designed for real-world production use."
-              />
-              <AuthFeature
-                icon={CheckCircle2}
-                title="Better shopping flow"
-                text="Save your details and track your activity from one account."
-              />
-            </div>
-
-            <div className="mt-8 rounded-[28px] border border-white/10 bg-white/5 p-6">
-              <div className="text-sm font-semibold text-white">Password tips</div>
-              <ul className="mt-3 space-y-2 text-sm leading-6 text-gray-300">
-                <li>Use at least 8 characters.</li>
-                <li>Mix uppercase, lowercase and numbers.</li>
-                <li>Add a symbol for stronger account security.</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="auth-panel rounded-[32px] border border-gray-200 bg-white p-8 shadow-sm md:p-10">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight text-gray-900">Sign up</h2>
-                <p className="mt-1 text-sm text-gray-500">Create your account in a few steps.</p>
-              </div>
-
-              <Link
-                to="/signin"
-                className="text-sm font-medium text-gray-700 underline decoration-gray-300 underline-offset-4 transition hover:text-gray-900"
-              >
-                Already have an account?
-              </Link>
-            </div>
-
-            {success ? (
-              <div className="mt-6 flex gap-3 rounded-[24px] border border-green-200 bg-green-50 p-4 text-sm text-green-800">
-                <CheckCircle2 className="mt-0.5 shrink-0" size={18} />
-                <div>
-                  <div className="font-semibold">Success</div>
-                  <div className="mt-1">{success}</div>
+      <div className="site-shell py-6 md:py-10 lg:py-14">
+        <div className="mx-auto w-full max-w-[560px] lg:max-w-[1180px]">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_560px] lg:gap-10">
+            <div className="hidden lg:flex lg:min-h-full">
+              <div className="auth-panel auth-panel-dark w-full rounded-[32px] border border-gray-200 p-10 shadow-sm">
+                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-sm text-white/90">
+                  Create your account
                 </div>
-              </div>
-            ) : null}
 
-            {error ? (
-              <div className="mt-6 flex gap-3 rounded-[24px] border border-red-200 bg-red-50 p-4 text-sm text-red-800">
-                <AlertTriangle className="mt-0.5 shrink-0" size={18} />
-                <div>
-                  <div className="font-semibold">Couldn’t create account</div>
-                  <div className="mt-1">{error}</div>
-                </div>
-              </div>
-            ) : null}
+                <h1 className="mt-5 text-4xl font-bold tracking-tight text-white">
+                  Join with confidence
+                </h1>
 
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={onGoogleSignup}
-                disabled={isBusy}
-                className="auth-social-btn inline-flex w-full items-center justify-center gap-3 rounded-[22px] border border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-900 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {googleLoading ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 className="animate-spin" size={18} />
-                    Please wait...
-                  </span>
-                ) : (
-                  <>
-                    <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-                      <path
-                        fill="#FFC107"
-                        d="M43.611 20.083H42V20H24v8h11.303C33.651 32.657 29.223 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.651-.389-3.917z"
-                      />
-                      <path
-                        fill="#FF3D00"
-                        d="M6.306 14.691l6.571 4.819C14.655 16.108 19.003 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
-                      />
-                      <path
-                        fill="#4CAF50"
-                        d="M24 44c5.122 0 9.807-1.963 13.335-5.154l-6.164-5.214C29.136 35.091 26.715 36 24 36c-5.202 0-9.617-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
-                      />
-                      <path
-                        fill="#1976D2"
-                        d="M43.611 20.083H42V20H24v8h11.303a12.02 12.02 0 0 1-4.132 5.632l.003-.002 6.164 5.214C36.905 39.308 44 34 44 24c0-1.341-.138-2.651-.389-3.917z"
-                      />
-                    </svg>
-                    Continue with Google
-                  </>
-                )}
-              </button>
+                <p className="mt-4 max-w-xl text-base leading-7 text-gray-300">
+                  Create your account to save preferences, manage orders, and enjoy a cleaner,
+                  faster, and more secure shopping flow.
+                </p>
 
-              <div className="my-6 flex items-center gap-3">
-                <div className="h-px flex-1 bg-gray-200" />
-                <span className="text-xs font-medium uppercase tracking-[0.16em] text-gray-400">
-                  Or create account with email
-                </span>
-                <div className="h-px flex-1 bg-gray-200" />
-              </div>
-            </div>
-
-            <form onSubmit={onSubmit} className={isBusy ? "pointer-events-none opacity-90" : ""}>
-              <div className="space-y-4">
-                <AuthInput
-                  label="Full name"
-                  icon={User}
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  onBlur={() => setTouched((s) => ({ ...s, fullName: true }))}
-                  placeholder="Your full name"
-                  autoComplete="name"
-                  autoFocus
-                  error={touched.fullName && !nameOk ? "Name must be at least 2 characters." : ""}
-                />
-
-                <AuthInput
-                  label="Email address"
-                  icon={Mail}
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setTouched((s) => ({ ...s, email: true }))}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  error={touched.email && !emailOk ? "Please enter a valid email." : ""}
-                />
-
-                <div>
-                  <AuthInput
-                    label="Password"
-                    icon={Lock}
-                    type={showPass ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    onBlur={() => setTouched((s) => ({ ...s, password: true }))}
-                    placeholder="Create a strong password"
-                    autoComplete="new-password"
-                    error={
-                      touched.password && !passMinOk
-                        ? "Password must be at least 8 characters."
-                        : ""
-                    }
-                    rightSlot={
-                      <button
-                        type="button"
-                        className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-800"
-                        onClick={() => setShowPass((v) => !v)}
-                        aria-label={showPass ? "Hide password" : "Show password"}
-                      >
-                        {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
-                      </button>
-                    }
-                  />
-
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <div className="text-xs text-gray-600">
-                      Strength: <span className="font-semibold text-gray-900">{strength.label}</span>
+                <div className="mt-10 space-y-4">
+                  <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
+                    <div className="text-sm font-semibold text-white">Protected account</div>
+                    <div className="mt-2 text-sm leading-6 text-gray-300">
+                      Strong authentication flow designed for real-world production use.
                     </div>
-                    <div className="text-xs text-gray-500">{strength.hint}</div>
                   </div>
 
-                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
-                    <div
-                      className="h-full rounded-full bg-black transition-all duration-300"
-                      style={{
-                        width:
-                          strength.score <= 0
-                            ? "0%"
-                            : strength.score === 1
-                              ? "20%"
-                              : strength.score === 2
-                                ? "40%"
-                                : strength.score === 3
-                                  ? "60%"
-                                  : strength.score === 4
-                                    ? "80%"
-                                    : "100%",
-                      }}
-                    />
+                  <div className="rounded-[24px] border border-white/10 bg-white/5 p-5">
+                    <div className="text-sm font-semibold text-white">Better shopping flow</div>
+                    <div className="mt-2 text-sm leading-6 text-gray-300">
+                      Save your details and keep order activity in one place.
+                    </div>
+                  </div>
+
+                  <div className="rounded-[28px] border border-white/10 bg-white/5 p-6">
+                    <div className="text-sm font-semibold text-white">Password tips</div>
+                    <ul className="mt-3 space-y-2 text-sm leading-6 text-gray-300">
+                      <li>Use at least 8 characters.</li>
+                      <li>Mix uppercase, lowercase and numbers.</li>
+                      <li>Add a symbol for stronger account security.</li>
+                    </ul>
                   </div>
                 </div>
+              </div>
+            </div>
 
-                <AuthInput
-                  label="Confirm password"
-                  icon={Lock}
-                  type={showConfirm ? "text" : "password"}
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  onBlur={() => setTouched((s) => ({ ...s, confirm: true }))}
-                  placeholder="Re-enter your password"
-                  autoComplete="new-password"
-                  error={touched.confirm && !matchOk ? "Passwords do not match." : ""}
-                  rightSlot={
-                    <button
-                      type="button"
-                      className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-800"
-                      onClick={() => setShowConfirm((v) => !v)}
-                      aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
-                    >
-                      {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  }
-                />
-
-                <div className="flex items-center justify-between gap-3">
-                  <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 select-none">
-                    <input
-                      type="checkbox"
-                      className="checkbox checkbox-sm"
-                      checked={remember}
-                      onChange={(e) => setRemember(e.target.checked)}
-                    />
-                    Remember me
-                  </label>
+            <div className="auth-panel rounded-[28px] border border-gray-200 bg-white p-5 shadow-sm sm:p-6 md:rounded-[32px] md:p-8 lg:p-10">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <div className="auth-eyebrow">Create account</div>
+                  <h2 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 md:text-[30px]">
+                    Sign up
+                  </h2>
+                  <p className="mt-2 text-sm leading-6 text-gray-500">
+                    Create your account in a few simple steps.
+                  </p>
                 </div>
 
-                <label className="flex items-start gap-3 text-sm text-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    className="checkbox checkbox-sm mt-1"
-                    checked={agree}
-                    onChange={(e) => setAgree(e.target.checked)}
-                  />
-                  <span className="leading-6">
-                    I agree to the{" "}
-                    <Link className="font-medium underline decoration-gray-300 underline-offset-4" to="/terms">
-                      Terms
-                    </Link>{" "}
-                    and{" "}
-                    <Link
-                      className="font-medium underline decoration-gray-300 underline-offset-4"
-                      to="/privacy"
-                    >
-                      Privacy Policy
-                    </Link>
-                    .
-                  </span>
-                </label>
-
-                <button
-                  type="submit"
-                  disabled={!canSubmit}
-                  className={[
-                    "inline-flex w-full items-center justify-center gap-2 rounded-[22px] px-6 py-4 text-sm font-semibold transition",
-                    canSubmit
-                      ? "bg-black text-white hover:bg-gray-900"
-                      : "cursor-not-allowed bg-gray-200 text-gray-500",
-                  ].join(" ")}
+                <Link
+                  to="/signin"
+                  className="auth-top-link text-sm font-medium text-gray-700 underline decoration-gray-300 underline-offset-4 transition hover:text-gray-900"
                 >
-                  {emailLoading ? (
-                    <>
+                  Already have an account?
+                </Link>
+              </div>
+
+              {success ? (
+                <div className="mt-5 flex gap-3 rounded-[22px] border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                  <CheckCircle2 className="mt-0.5 shrink-0" size={18} />
+                  <div>
+                    <div className="font-semibold">Success</div>
+                    <div className="mt-1">{success}</div>
+                  </div>
+                </div>
+              ) : null}
+
+              {error ? (
+                <div className="mt-5 flex gap-3 rounded-[22px] border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                  <AlertTriangle className="mt-0.5 shrink-0" size={18} />
+                  <div>
+                    <div className="font-semibold">Couldn’t create account</div>
+                    <div className="mt-1">{error}</div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={onGoogleSignup}
+                  disabled={isBusy}
+                  className="auth-social-btn inline-flex w-full items-center justify-center gap-3 rounded-[20px] border border-gray-200 bg-white px-4 py-3.5 text-sm font-semibold text-gray-900 shadow-sm transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-70 md:rounded-[22px]"
+                >
+                  {googleLoading ? (
+                    <span className="inline-flex items-center gap-2">
                       <Loader2 className="animate-spin" size={18} />
-                      Creating account...
-                    </>
+                      Please wait...
+                    </span>
                   ) : (
                     <>
-                      Create account
-                      <ArrowRight size={18} />
+                      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+                        <path
+                          fill="#FFC107"
+                          d="M43.611 20.083H42V20H24v8h11.303C33.651 32.657 29.223 36 24 36c-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.651-.389-3.917z"
+                        />
+                        <path
+                          fill="#FF3D00"
+                          d="M6.306 14.691l6.571 4.819C14.655 16.108 19.003 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"
+                        />
+                        <path
+                          fill="#4CAF50"
+                          d="M24 44c5.122 0 9.807-1.963 13.335-5.154l-6.164-5.214C29.136 35.091 26.715 36 24 36c-5.202 0-9.617-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"
+                        />
+                        <path
+                          fill="#1976D2"
+                          d="M43.611 20.083H42V20H24v8h11.303a12.02 12.02 0 0 1-4.132 5.632l.003-.002 6.164 5.214C36.905 39.308 44 34 44 24c0-1.341-.138-2.651-.389-3.917z"
+                        />
+                      </svg>
+                      Continue with Google
                     </>
                   )}
                 </button>
 
-                <p className="text-sm text-gray-600">
-                  Already have an account?{" "}
-                  <Link
-                    className="font-medium text-gray-900 underline decoration-gray-300 underline-offset-4"
-                    to="/signin"
-                  >
-                    Sign in
-                  </Link>
-                </p>
+                <div className="my-5 flex items-center gap-3 md:my-6">
+                  <div className="h-px flex-1 bg-gray-200" />
+                  <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-gray-400">
+                    Or create account with email
+                  </span>
+                  <div className="h-px flex-1 bg-gray-200" />
+                </div>
               </div>
-            </form>
 
-            {isBusy ? (
-              <div className="mt-4 text-xs text-gray-500">
-                Please wait — your request is being processed.
-              </div>
-            ) : null}
+              <form onSubmit={onSubmit} className={isBusy ? "pointer-events-none opacity-90" : ""}>
+                <div className="space-y-4">
+                  <AuthInput
+                    label="Full name"
+                    icon={User}
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    onBlur={() => setTouched((s) => ({ ...s, fullName: true }))}
+                    placeholder="Your full name"
+                    autoComplete="name"
+                    autoFocus
+                    error={touched.fullName && !nameOk ? "Name must be at least 2 characters." : ""}
+                  />
+
+                  <AuthInput
+                    label="Email address"
+                    icon={Mail}
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onBlur={() => setTouched((s) => ({ ...s, email: true }))}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                    error={touched.email && !emailOk ? "Please enter a valid email." : ""}
+                  />
+
+                  <div>
+                    <AuthInput
+                      label="Password"
+                      icon={Lock}
+                      type={showPass ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onBlur={() => setTouched((s) => ({ ...s, password: true }))}
+                      placeholder="Create a strong password"
+                      autoComplete="new-password"
+                      error={
+                        touched.password && !passMinOk
+                          ? "Password must be at least 8 characters."
+                          : ""
+                      }
+                      rightSlot={
+                        <button
+                          type="button"
+                          className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-800"
+                          onClick={() => setShowPass((v) => !v)}
+                          aria-label={showPass ? "Hide password" : "Show password"}
+                        >
+                          {showPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      }
+                    />
+
+                    <div className="mt-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="text-xs text-gray-600">
+                        Strength: <span className="font-semibold text-gray-900">{strength.label}</span>
+                      </div>
+                      <div className="text-xs text-gray-500">{strength.hint}</div>
+                    </div>
+
+                    <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100">
+                      <div
+                        className="h-full rounded-full bg-black transition-all duration-300"
+                        style={{
+                          width:
+                            strength.score <= 0
+                              ? "0%"
+                              : strength.score === 1
+                                ? "20%"
+                                : strength.score === 2
+                                  ? "40%"
+                                  : strength.score === 3
+                                    ? "60%"
+                                    : strength.score === 4
+                                      ? "80%"
+                                      : "100%",
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <AuthInput
+                    label="Confirm password"
+                    icon={Lock}
+                    type={showConfirm ? "text" : "password"}
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    onBlur={() => setTouched((s) => ({ ...s, confirm: true }))}
+                    placeholder="Re-enter your password"
+                    autoComplete="new-password"
+                    error={touched.confirm && !matchOk ? "Passwords do not match." : ""}
+                    rightSlot={
+                      <button
+                        type="button"
+                        className="rounded-xl p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-800"
+                        onClick={() => setShowConfirm((v) => !v)}
+                        aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
+                      >
+                        {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    }
+                  />
+
+                  <div className="flex items-center justify-between gap-3">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-700 select-none">
+                      <input
+                        type="checkbox"
+                        className="checkbox checkbox-sm"
+                        checked={remember}
+                        onChange={(e) => setRemember(e.target.checked)}
+                      />
+                      Remember me
+                    </label>
+                  </div>
+
+                  <label className="flex items-start gap-3 text-sm text-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-sm mt-1"
+                      checked={agree}
+                      onChange={(e) => setAgree(e.target.checked)}
+                    />
+                    <span className="leading-6">
+                      I agree to the{" "}
+                      <Link className="font-medium underline decoration-gray-300 underline-offset-4" to="/terms">
+                        Terms
+                      </Link>{" "}
+                      and{" "}
+                      <Link
+                        className="font-medium underline decoration-gray-300 underline-offset-4"
+                        to="/privacy"
+                      >
+                        Privacy Policy
+                      </Link>
+                      .
+                    </span>
+                  </label>
+
+                  <button
+                    type="submit"
+                    disabled={!canSubmit}
+                    className={[
+                      "inline-flex min-h-[54px] w-full items-center justify-center gap-2 rounded-[20px] px-6 py-4 text-sm font-semibold transition md:rounded-[22px]",
+                      canSubmit
+                        ? "bg-black text-white hover:bg-gray-900"
+                        : "cursor-not-allowed bg-gray-200 text-gray-500",
+                    ].join(" ")}
+                  >
+                    {emailLoading ? (
+                      <>
+                        <Loader2 className="animate-spin" size={18} />
+                        Creating account...
+                      </>
+                    ) : (
+                      <>
+                        Create account
+                        <ArrowRight size={18} />
+                      </>
+                    )}
+                  </button>
+
+                  <p className="text-sm leading-6 text-gray-600">
+                    Already have an account?{" "}
+                    <Link
+                      className="font-medium text-gray-900 underline decoration-gray-300 underline-offset-4"
+                      to="/signin"
+                    >
+                      Sign in
+                    </Link>
+                  </p>
+                </div>
+              </form>
+
+              {isBusy ? (
+                <div className="mt-4 text-xs text-gray-500">
+                  Please wait — your request is being processed.
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </div>

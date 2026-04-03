@@ -102,7 +102,6 @@ select {
   -webkit-appearance: none;
 }
 
-/* Safer global focus handling */
 a:focus-visible,
 button:focus-visible,
 [role="button"]:focus-visible,
@@ -111,7 +110,6 @@ summary:focus-visible {
   outline-offset: 2px;
 }
 
-/* Prevent double focus styles on form fields */
 input:focus,
 input:focus-visible,
 textarea:focus,
@@ -155,7 +153,6 @@ select:focus-visible {
   background: transparent;
 }
 
-/* Shared site shell for consistent browser-safe page width */
 .site-shell {
   width: min(100% - (var(--site-shell-gutter) * 2), var(--site-shell-max));
   margin-inline: auto;
@@ -173,7 +170,6 @@ select:focus-visible {
   }
 }
 
-/* Enterprise utility classes */
 .admin-glass {
   background: rgba(255, 255, 255, 0.84);
   backdrop-filter: blur(14px);
@@ -212,7 +208,6 @@ select:focus-visible {
     0 0 0 4px var(--ring-soft);
 }
 
-/* Auth pages */
 .auth-shell {
   color: var(--text-strong);
 }
@@ -241,7 +236,40 @@ select:focus-visible {
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
 }
 
-/* User dashboard helpers */
+.auth-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(17, 24, 39, 0.08);
+  background: #f9fafb;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b7280;
+}
+
+.auth-top-link {
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .auth-shell .breadcrumbs {
+    overflow-x: auto;
+  }
+
+  .auth-shell .breadcrumbs ul {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  .auth-panel {
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+}
+
 .account-shell {
   color: var(--text-strong);
 }
@@ -266,7 +294,6 @@ select:focus-visible {
   z-index: 1;
 }
 
-/* Fix DaisyUI form color consistency */
 .input,
 .textarea,
 .select {
@@ -308,7 +335,6 @@ select:-webkit-autofill:focus {
   transition: background-color 9999s ease-out 0s;
 }
 
-/* Breadcrumb */
 .breadcrumbs {
   color: #6b7280;
 }
@@ -317,13 +343,11 @@ select:-webkit-autofill:focus {
   color: inherit;
 }
 
-/* Badge stability */
 .badge {
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
-/* Table polish */
 .table th {
   color: #6b7280;
   font-weight: 600;
@@ -334,7 +358,6 @@ select:-webkit-autofill:focus {
   vertical-align: middle;
 }
 
-/* Skeleton polish */
 .skeleton {
   position: relative;
   overflow: hidden;
@@ -360,7 +383,6 @@ select:-webkit-autofill:focus {
   }
 }
 
-/* Card hover polish for dashboard UIs */
 .dashboard-card-hover {
   transition:
     transform 0.22s ease,
@@ -375,7 +397,6 @@ select:-webkit-autofill:focus {
   border-color: rgba(17, 24, 39, 0.12);
 }
 
-/* Sticky header anchor offset */
 [id] {
   scroll-margin-top: 96px;
 }

@@ -6,6 +6,11 @@ import {
   ShieldCheck,
   AlertTriangle,
   TicketPercent,
+  MapPin,
+  Phone,
+  User,
+  CreditCard,
+  PackageCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -69,6 +74,40 @@ function normalizeText(value) {
 function isPhoneValid(value) {
   const phone = normalizeText(value).replace(/\s+/g, "");
   return /^(\+?\d{10,15})$/.test(phone);
+}
+
+function FieldLabel({ icon: Icon, children, required = false }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-sm font-medium text-gray-700">
+      {Icon ? <Icon size={15} className="text-gray-500" /> : null}
+      <span>
+        {children} {required ? <span className="text-red-600">*</span> : null}
+      </span>
+    </span>
+  );
+}
+
+function FieldError({ children }) {
+  if (!children) return null;
+  return <div className="pt-1 text-xs font-medium text-red-600">{children}</div>;
+}
+
+function inputClass(hasError = false) {
+  return [
+    "input input-bordered h-12 w-full rounded-2xl bg-white px-4",
+    "border-gray-200 shadow-none transition",
+    "focus:border-gray-300",
+    hasError ? "border-red-300" : "",
+  ].join(" ");
+}
+
+function textareaClass(hasError = false) {
+  return [
+    "textarea textarea-bordered min-h-[110px] w-full rounded-2xl bg-white px-4 py-3",
+    "border-gray-200 shadow-none transition",
+    "focus:border-gray-300",
+    hasError ? "border-red-300" : "",
+  ].join(" ");
 }
 
 export default function CheckoutPage() {
@@ -335,43 +374,52 @@ export default function CheckoutPage() {
         onClose={() => (busy ? null : setConfirm(false))}
       />
 
-      <div className="site-shell space-y-6 py-8">
-        <div className="flex flex-col gap-4 rounded-2xl border bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span>Checkout</span>
-              <span className="inline-flex items-center gap-1 rounded-full border bg-gray-50 px-3 py-1 text-xs text-gray-700">
-                <ShieldCheck size={14} /> Secure
-              </span>
+      <div className="site-shell space-y-5 py-5 sm:space-y-6 sm:py-6 md:py-8">
+        <div className="overflow-hidden rounded-[28px] border border-black/5 bg-white shadow-sm">
+          <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between lg:p-7">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
+                <span>Checkout</span>
 
-              {!isAuthed ? (
-                <span className="inline-flex items-center gap-1 rounded-full border bg-gray-50 px-3 py-1 text-xs text-gray-700">
-                  {settingsLoading
-                    ? "Checking store policy..."
-                    : guestAllowed
-                    ? "Guest checkout enabled"
-                    : "Sign in required"}
+                <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
+                  <ShieldCheck size={14} /> Secure
                 </span>
-              ) : null}
 
-              {syncing ? (
-                <span className="flex items-center gap-2 text-xs text-gray-500">
-                  <Loader2 size={14} className="animate-spin" /> Syncing cart...
-                </span>
-              ) : null}
+                {!isAuthed ? (
+                  <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
+                    {settingsLoading
+                      ? "Checking store policy..."
+                      : guestAllowed
+                        ? "Guest checkout enabled"
+                        : "Sign in required"}
+                  </span>
+                ) : null}
+
+                {syncing ? (
+                  <span className="inline-flex items-center gap-2 text-xs text-gray-500">
+                    <Loader2 size={14} className="animate-spin" />
+                    Syncing cart...
+                  </span>
+                ) : null}
+              </div>
+
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 sm:text-[30px]">
+                Shipping & Payment
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600">
+                Complete your shipping information and review your order before placing it.
+              </p>
             </div>
 
-            <h1 className="mt-1 text-2xl font-bold text-gray-900 md:text-3xl">
-              Shipping & Payment
-            </h1>
+            <Link
+              to="/cart"
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-900 transition hover:bg-gray-50"
+            >
+              <ArrowLeft size={16} />
+              Back to cart
+            </Link>
           </div>
-
-          <Link
-            to="/cart"
-            className="btn btn-outline rounded-2xl border-gray-200 bg-white hover:bg-gray-50"
-          >
-            <ArrowLeft size={16} /> Back to cart
-          </Link>
         </div>
 
         {!isAuthed && !settingsLoading && !guestAllowed ? (
@@ -386,289 +434,279 @@ export default function CheckoutPage() {
         ) : null}
 
         {cartEmpty ? (
-          <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
-            <div className="mx-auto mb-3 w-fit rounded-full border bg-gray-50 px-3 py-1 text-sm">
+          <div className="rounded-[28px] border border-black/5 bg-white p-8 text-center shadow-sm sm:p-10">
+            <div className="mx-auto mb-3 w-fit rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-sm font-medium text-gray-700">
               Empty cart
             </div>
-            <h2 className="text-2xl font-bold">Your cart is empty</h2>
-            <p className="mt-2 text-gray-600">
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900">
+              Your cart is empty
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-gray-600">
               Add items to your cart before checkout.
             </p>
             <Link
               to="/shop"
-              className="btn mt-6 rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
+              className="mt-6 inline-flex h-11 items-center justify-center rounded-2xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-gray-900"
             >
               Go to shop
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <div className="space-y-6 rounded-2xl border bg-white p-6 shadow-sm lg:col-span-8">
-              <div>
-                <div className="text-lg font-semibold text-gray-900">
-                  Shipping details
-                </div>
-                <div className="mt-1 text-sm text-gray-500">
-                  Please provide your delivery information.
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <label className="space-y-1">
-                  <span className="text-sm font-medium text-gray-700">
-                    Full name <span className="text-red-600">*</span>
-                  </span>
-                  <input
-                    name="name"
-                    value={form.name}
-                    onChange={onChange}
-                    className={[
-                      "input input-bordered w-full rounded-2xl bg-white",
-                      errors.name ? "border-red-300" : "border-gray-200",
-                    ].join(" ")}
-                    placeholder="Your name"
-                    autoComplete="name"
-                  />
-                  {errors.name ? (
-                    <div className="text-xs text-red-600">{errors.name}</div>
-                  ) : null}
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-sm font-medium text-gray-700">
-                    Phone <span className="text-red-600">*</span>
-                  </span>
-                  <input
-                    name="phone"
-                    value={form.phone}
-                    onChange={onChange}
-                    className={[
-                      "input input-bordered w-full rounded-2xl bg-white",
-                      errors.phone ? "border-red-300" : "border-gray-200",
-                    ].join(" ")}
-                    placeholder="01XXXXXXXXX"
-                    autoComplete="tel"
-                  />
-                  {errors.phone ? (
-                    <div className="text-xs text-red-600">{errors.phone}</div>
-                  ) : null}
-                </label>
-
-                <label className="space-y-1 md:col-span-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    Address <span className="text-red-600">*</span>
-                  </span>
-                  <input
-                    name="addressLine"
-                    value={form.addressLine}
-                    onChange={onChange}
-                    className={[
-                      "input input-bordered w-full rounded-2xl bg-white",
-                      errors.addressLine ? "border-red-300" : "border-gray-200",
-                    ].join(" ")}
-                    placeholder="House, Road, Area"
-                    autoComplete="street-address"
-                  />
-                  {errors.addressLine ? (
-                    <div className="text-xs text-red-600">
-                      {errors.addressLine}
-                    </div>
-                  ) : null}
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-sm font-medium text-gray-700">
-                    City <span className="text-red-600">*</span>
-                  </span>
-                  <input
-                    name="city"
-                    value={form.city}
-                    onChange={onChange}
-                    className={[
-                      "input input-bordered w-full rounded-2xl bg-white",
-                      errors.city ? "border-red-300" : "border-gray-200",
-                    ].join(" ")}
-                    placeholder="Dhaka"
-                    autoComplete="address-level2"
-                  />
-                  {errors.city ? (
-                    <div className="text-xs text-red-600">{errors.city}</div>
-                  ) : null}
-                </label>
-
-                <label className="space-y-1">
-                  <span className="text-sm font-medium text-gray-700">
-                    Postal code
-                  </span>
-                  <input
-                    name="postalCode"
-                    value={form.postalCode}
-                    onChange={onChange}
-                    className="input input-bordered w-full rounded-2xl border-gray-200 bg-white"
-                    placeholder="1207"
-                    autoComplete="postal-code"
-                  />
-                </label>
-
-                <label className="space-y-1 md:col-span-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    Country
-                  </span>
-                  <input
-                    name="country"
-                    value={form.country}
-                    onChange={onChange}
-                    className="input input-bordered w-full rounded-2xl border-gray-200 bg-white"
-                    placeholder="Bangladesh"
-                    autoComplete="country-name"
-                  />
-                </label>
-
-                <label className="space-y-1 md:col-span-2">
-                  <span className="text-sm font-medium text-gray-700">
-                    Order note (optional)
-                  </span>
-                  <textarea
-                    name="note"
-                    value={form.note}
-                    onChange={onChange}
-                    className="textarea textarea-bordered min-h-[90px] w-full rounded-2xl border-gray-200 bg-white"
-                    placeholder="Delivery instructions (optional)"
-                  />
-                </label>
-              </div>
-
-              <div className="rounded-2xl border bg-gray-50 p-5">
-                <div className="text-sm font-semibold text-gray-900">
-                  Payment method
-                </div>
-                <div className="mt-1 text-sm text-gray-600">
-                  Currently available:
-                </div>
-
-                <div className="mt-4 flex items-center gap-3">
-                  <input
-                    type="radio"
-                    name="paymentMethod"
-                    value="cod"
-                    checked={form.paymentMethod === "cod"}
-                    onChange={onChange}
-                    className="radio"
-                  />
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">
-                      Cash on delivery (COD)
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Pay when you receive your order.
-                    </div>
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <div className="space-y-6 xl:col-span-8">
+              <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
+                <div className="flex flex-col gap-2 border-b border-gray-100 pb-5">
+                  <div className="inline-flex items-center gap-2 text-lg font-semibold text-gray-900">
+                    <MapPin size={18} />
+                    Shipping details
                   </div>
+                  <div className="text-sm text-gray-500">
+                    Please provide your delivery information.
+                  </div>
+                </div>
+
+                <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <label className="block">
+                    <FieldLabel icon={User} required>
+                      Full name
+                    </FieldLabel>
+                    <input
+                      name="name"
+                      value={form.name}
+                      onChange={onChange}
+                      className={inputClass(!!errors.name)}
+                      placeholder="Your name"
+                      autoComplete="name"
+                    />
+                    <FieldError>{errors.name}</FieldError>
+                  </label>
+
+                  <label className="block">
+                    <FieldLabel icon={Phone} required>
+                      Phone
+                    </FieldLabel>
+                    <input
+                      name="phone"
+                      value={form.phone}
+                      onChange={onChange}
+                      className={inputClass(!!errors.phone)}
+                      placeholder="01XXXXXXXXX"
+                      autoComplete="tel"
+                    />
+                    <FieldError>{errors.phone}</FieldError>
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <FieldLabel icon={MapPin} required>
+                      Address
+                    </FieldLabel>
+                    <input
+                      name="addressLine"
+                      value={form.addressLine}
+                      onChange={onChange}
+                      className={inputClass(!!errors.addressLine)}
+                      placeholder="House, Road, Area"
+                      autoComplete="street-address"
+                    />
+                    <FieldError>{errors.addressLine}</FieldError>
+                  </label>
+
+                  <label className="block">
+                    <FieldLabel required>City</FieldLabel>
+                    <input
+                      name="city"
+                      value={form.city}
+                      onChange={onChange}
+                      className={inputClass(!!errors.city)}
+                      placeholder="Dhaka"
+                      autoComplete="address-level2"
+                    />
+                    <FieldError>{errors.city}</FieldError>
+                  </label>
+
+                  <label className="block">
+                    <FieldLabel>Postal code</FieldLabel>
+                    <input
+                      name="postalCode"
+                      value={form.postalCode}
+                      onChange={onChange}
+                      className={inputClass(false)}
+                      placeholder="1207"
+                      autoComplete="postal-code"
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <FieldLabel>Country</FieldLabel>
+                    <input
+                      name="country"
+                      value={form.country}
+                      onChange={onChange}
+                      className={inputClass(false)}
+                      placeholder="Bangladesh"
+                      autoComplete="country-name"
+                    />
+                  </label>
+
+                  <label className="block md:col-span-2">
+                    <FieldLabel>Order note (optional)</FieldLabel>
+                    <textarea
+                      name="note"
+                      value={form.note}
+                      onChange={onChange}
+                      className={textareaClass(false)}
+                      placeholder="Delivery instructions (optional)"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
+                <div className="flex flex-col gap-2 border-b border-gray-100 pb-5">
+                  <div className="inline-flex items-center gap-2 text-lg font-semibold text-gray-900">
+                    <CreditCard size={18} />
+                    Payment method
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    Currently available payment option.
+                  </div>
+                </div>
+
+                <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 sm:p-5">
+                  <label className="flex cursor-pointer items-start gap-3">
+                    <input
+                      type="radio"
+                      name="paymentMethod"
+                      value="cod"
+                      checked={form.paymentMethod === "cod"}
+                      onChange={onChange}
+                      className="radio mt-0.5"
+                    />
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        Cash on delivery (COD)
+                      </div>
+                      <div className="mt-1 text-xs leading-5 text-gray-500">
+                        Pay when you receive your order.
+                      </div>
+                    </div>
+                  </label>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-4 rounded-2xl border bg-white p-6 shadow-sm lg:col-span-4">
-              <div className="text-lg font-semibold text-gray-900">
-                Order summary
-              </div>
+            <div className="xl:col-span-4">
+              <div className="space-y-4 xl:sticky xl:top-24">
+                <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6">
+                  <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+                    <PackageCheck size={18} />
+                    Order summary
+                  </div>
 
-              {cartCouponCode ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
-                    <TicketPercent size={16} />
-                    Coupon applied
-                  </div>
-                  <div className="mt-2 text-sm text-emerald-700">
-                    {cartAppliedCoupon?.promotion?.code || cartCouponCode}
-                  </div>
-                  <div className="mt-1 text-xs text-emerald-700">
-                    {cartAppliedCoupon?.promotion?.name || "Discount will be revalidated during checkout."}
-                  </div>
-                </div>
-              ) : null}
+                  {cartCouponCode ? (
+                    <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                      <div className="flex items-center gap-2 text-sm font-semibold text-emerald-800">
+                        <TicketPercent size={16} />
+                        Coupon applied
+                      </div>
+                      <div className="mt-2 text-sm font-medium text-emerald-700">
+                        {cartAppliedCoupon?.promotion?.code || cartCouponCode}
+                      </div>
+                      <div className="mt-1 text-xs leading-5 text-emerald-700">
+                        {cartAppliedCoupon?.promotion?.name ||
+                          "Discount will be revalidated during checkout."}
+                      </div>
+                    </div>
+                  ) : null}
 
-              <div className="space-y-3">
-                {items.map((it) => (
-                  <div
-                    key={`${it.id}${it.cartItemId ? `-${it.cartItemId}` : ""}`}
-                    className="flex items-center gap-3 rounded-2xl border p-3"
+                  <div className="mt-5 space-y-3">
+                    {items.map((it) => (
+                      <div
+                        key={`${it.id}${it.cartItemId ? `-${it.cartItemId}` : ""}`}
+                        className="flex items-center gap-3 rounded-2xl border border-gray-200 p-3"
+                      >
+                        <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100">
+                          {it.image ? (
+                            <img
+                              src={it.image}
+                              alt={it.title}
+                              className="h-full w-full object-cover"
+                              loading="lazy"
+                            />
+                          ) : null}
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate text-sm font-semibold text-gray-900">
+                            {it.title}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            Qty: {it.qty} • {formatMoney(it.price)}
+                          </div>
+                        </div>
+
+                        <div className="text-sm font-bold text-gray-900">
+                          {formatMoney((it.price || 0) * (it.qty || 0))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="my-5 h-px bg-gray-100" />
+
+                  <div className="space-y-2 text-sm text-gray-600">
+                    <div className="flex items-center justify-between">
+                      <span>Subtotal</span>
+                      <span className="font-semibold text-gray-900">
+                        {formatMoney(subtotal)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span>Shipping</span>
+                      <span className="font-semibold text-gray-900">
+                        {formatMoney(0)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span>Discount</span>
+                      <span className="font-semibold text-emerald-700">
+                        -{formatMoney(previewDiscount)}
+                      </span>
+                    </div>
+
+                    <div className="my-3 h-px bg-gray-100" />
+
+                    <div className="flex items-center justify-between text-base">
+                      <span className="font-semibold text-gray-900">Total</span>
+                      <span className="font-bold text-gray-900">
+                        {formatMoney(total)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="mt-5 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-70"
+                    onClick={() => setConfirm(true)}
+                    disabled={busy || settingsLoading || (!isAuthed && !guestAllowed)}
                   >
-                    <div className="h-12 w-12 flex-shrink-0 overflow-hidden rounded-2xl border bg-gray-100">
-                      {it.image ? (
-                        <img
-                          src={it.image}
-                          alt={it.title}
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      ) : null}
-                    </div>
+                    {busy ? (
+                      <span className="inline-flex items-center gap-2">
+                        <Loader2 size={16} className="animate-spin" />
+                        Placing order...
+                      </span>
+                    ) : (
+                      "Place order"
+                    )}
+                  </button>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-semibold text-gray-900">
-                        {it.title}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        Qty: {it.qty} • {formatMoney(it.price)}
-                      </div>
-                    </div>
-
-                    <div className="text-sm font-bold text-gray-900">
-                      {formatMoney((it.price || 0) * (it.qty || 0))}
-                    </div>
+                  <div className="mt-4 text-xs leading-5 text-gray-500">
+                    Your order will be placed securely via backend with stock validation and
+                    coupon re-check at submit time.
                   </div>
-                ))}
-              </div>
-
-              <div className="h-px bg-gray-100" />
-
-              <div className="space-y-2 text-sm text-gray-600">
-                <div className="flex items-center justify-between">
-                  <span>Subtotal</span>
-                  <span className="font-semibold text-gray-900">
-                    {formatMoney(subtotal)}
-                  </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span>Shipping</span>
-                  <span className="font-semibold text-gray-900">
-                    {formatMoney(0)}
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <span>Discount</span>
-                  <span className="font-semibold text-emerald-700">
-                    -{formatMoney(previewDiscount)}
-                  </span>
-                </div>
-
-                <div className="h-px bg-gray-100" />
-                <div className="flex items-center justify-between">
-                  <span className="font-semibold text-gray-900">Total</span>
-                  <span className="font-bold text-gray-900">
-                    {formatMoney(total)}
-                  </span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="btn w-full rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
-                onClick={() => setConfirm(true)}
-                disabled={busy || settingsLoading || (!isAuthed && !guestAllowed)}
-              >
-                {busy ? (
-                  <span className="inline-flex items-center gap-2">
-                    <Loader2 size={16} className="animate-spin" /> Placing order...
-                  </span>
-                ) : (
-                  "Place order"
-                )}
-              </button>
-
-              <div className="text-xs text-gray-500">
-                Your order will be placed securely via backend with stock validation and coupon re-check at submit time.
               </div>
             </div>
           </div>

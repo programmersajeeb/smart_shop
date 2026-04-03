@@ -78,31 +78,48 @@ function prettyStatus(status) {
 function OrderSkeleton() {
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50">
-      <div className="site-shell space-y-6 py-8">
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
+      <div className="site-shell space-y-5 py-5 sm:space-y-6 sm:py-6 md:py-8">
+        <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6">
           <div className="skeleton h-4 w-40 rounded-lg" />
           <div className="mt-3 skeleton h-8 w-72 rounded-lg" />
-          <div className="mt-4 flex gap-3">
+          <div className="mt-4 flex flex-wrap gap-3">
             <div className="skeleton h-8 w-28 rounded-full" />
             <div className="skeleton h-8 w-36 rounded-full" />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <div className="rounded-2xl border bg-white p-6 shadow-sm lg:col-span-8">
-            <div className="skeleton h-5 w-36 rounded-lg" />
-            <div className="mt-4 space-y-3">
-              <div className="skeleton h-20 w-full rounded-2xl" />
-              <div className="skeleton h-20 w-full rounded-2xl" />
-              <div className="skeleton h-20 w-full rounded-2xl" />
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+          <div className="space-y-6 xl:col-span-8">
+            <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6">
+              <div className="skeleton h-5 w-36 rounded-lg" />
+              <div className="mt-4 space-y-3">
+                <div className="skeleton h-20 w-full rounded-2xl" />
+                <div className="skeleton h-20 w-full rounded-2xl" />
+                <div className="skeleton h-20 w-full rounded-2xl" />
+              </div>
+            </div>
+
+            <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6">
+              <div className="skeleton h-5 w-40 rounded-lg" />
+              <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="skeleton h-16 w-full rounded-2xl" />
+                <div className="skeleton h-16 w-full rounded-2xl" />
+                <div className="skeleton h-16 w-full rounded-2xl" />
+                <div className="skeleton h-16 w-full rounded-2xl" />
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4 rounded-2xl border bg-white p-6 shadow-sm lg:col-span-4">
-            <div className="skeleton h-5 w-32 rounded-lg" />
-            <div className="skeleton h-4 w-full rounded-lg" />
-            <div className="skeleton h-4 w-5/6 rounded-lg" />
-            <div className="skeleton h-24 w-full rounded-2xl" />
+          <div className="xl:col-span-4">
+            <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6">
+              <div className="skeleton h-5 w-32 rounded-lg" />
+              <div className="mt-4 space-y-3">
+                <div className="skeleton h-4 w-full rounded-lg" />
+                <div className="skeleton h-4 w-5/6 rounded-lg" />
+                <div className="skeleton h-4 w-4/6 rounded-lg" />
+                <div className="skeleton h-24 w-full rounded-2xl" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -112,19 +129,23 @@ function OrderSkeleton() {
 
 function EmptyLookupCard({ phone, setPhone }) {
   return (
-    <div className="rounded-2xl border bg-gray-50 p-5">
+    <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-start gap-3">
-        <AlertTriangle className="mt-0.5 text-amber-600" size={18} />
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-2 text-amber-700">
+          <AlertTriangle size={18} />
+        </div>
+
         <div className="min-w-0 w-full">
-          <div className="text-sm font-semibold text-gray-900">
+          <div className="text-base font-semibold text-gray-900">
             Guest order lookup
           </div>
-          <p className="mt-1 text-sm text-gray-600">
-            Guest order দেখতে checkout এ দেয়া <span className="font-semibold">phone number</span>{" "}
-            দিন।
+
+          <p className="mt-1 text-sm leading-6 text-gray-600">
+            Guest order দেখতে checkout এ দেয়া{" "}
+            <span className="font-semibold">phone number</span> দিন।
           </p>
 
-          <div className="mt-4 max-w-sm">
+          <div className="mt-4 max-w-md">
             <label className="text-sm font-medium text-gray-700">
               Phone number
             </label>
@@ -132,7 +153,7 @@ function EmptyLookupCard({ phone, setPhone }) {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="01XXXXXXXXX"
-              className="input input-bordered mt-2 w-full rounded-2xl border-gray-200 bg-white"
+              className="input input-bordered mt-2 h-12 w-full rounded-2xl border-gray-200 bg-white px-4"
               autoComplete="tel"
             />
           </div>
@@ -146,23 +167,25 @@ function ErrorCard({ message }) {
   return (
     <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-sm text-red-700">
       <div className="font-semibold">Couldn’t load order</div>
-      <div className="mt-1">{message}</div>
+      <div className="mt-1 leading-6">{message}</div>
     </div>
   );
 }
 
 function InfoRow({ icon, label, value }) {
   const Icon = icon;
+
   return (
-    <div className="flex items-start gap-3">
-      <div className="mt-0.5 rounded-xl border bg-gray-50 p-2 text-gray-600">
+    <div className="flex items-start gap-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4">
+      <div className="mt-0.5 rounded-xl border border-gray-200 bg-white p-2 text-gray-600">
         <Icon size={16} />
       </div>
+
       <div className="min-w-0">
-        <div className="text-xs uppercase tracking-wide text-gray-500">
+        <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
           {label}
         </div>
-        <div className="mt-1 break-words text-sm font-medium text-gray-900">
+        <div className="mt-1 break-words text-sm font-medium leading-6 text-gray-900">
           {value || "-"}
         </div>
       </div>
@@ -298,24 +321,26 @@ export default function OrderConfirmationPage() {
 
   return (
     <div className="min-h-[calc(100vh-64px)] bg-gray-50">
-      <div className="site-shell space-y-6 py-8">
-        <div className="rounded-2xl border bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <div className="flex items-center gap-2 text-sm text-gray-500">
+      <div className="site-shell space-y-5 py-5 sm:space-y-6 sm:py-6 md:py-8">
+        <div className="overflow-hidden rounded-[28px] border border-black/5 bg-white shadow-sm">
+          <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-start lg:justify-between lg:p-7">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
                 <span>Order confirmation</span>
-                <span className="inline-flex items-center gap-1 rounded-full border bg-gray-50 px-3 py-1 text-xs text-gray-700">
-                  <ShieldCheck size={14} /> Secure
+
+                <span className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs font-medium text-gray-700">
+                  <ShieldCheck size={14} />
+                  Secure
                 </span>
               </div>
 
-              <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 md:text-3xl">
+              <h1 className="mt-2 text-2xl font-bold tracking-tight text-gray-900 sm:text-[30px]">
                 {order?._id
                   ? "Thank you! Your order has been placed."
                   : "Track your order"}
               </h1>
 
-              <p className="mt-2 max-w-2xl text-gray-600">
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-gray-600 sm:text-base">
                 {order?._id
                   ? "Your order is recorded successfully. You can review item details, shipping information, and order summary below."
                   : "Use this page to review your order details after checkout."}
@@ -323,7 +348,7 @@ export default function OrderConfirmationPage() {
 
               {order?._id ? (
                 <div className="mt-4 flex flex-wrap gap-3">
-                  <span className="inline-flex items-center gap-2 rounded-full border bg-gray-50 px-3 py-1 text-xs text-gray-700">
+                  <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-3 py-1 text-xs text-gray-700">
                     <ReceiptText size={14} />
                     Order ID: <span className="font-semibold">{order._id}</span>
                   </span>
@@ -343,14 +368,15 @@ export default function OrderConfirmationPage() {
             <div className="flex flex-wrap gap-3">
               <Link
                 to="/shop"
-                className="btn btn-outline rounded-2xl border-gray-200 bg-white hover:bg-gray-50"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-900 transition hover:bg-gray-50"
               >
-                <ArrowLeft size={16} /> Continue shopping
+                <ArrowLeft size={16} />
+                Continue shopping
               </Link>
 
               <Link
                 to={isAuthed ? "/account/orders" : "/cart"}
-                className="btn rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
+                className="inline-flex h-11 items-center justify-center rounded-2xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-gray-900"
               >
                 {isAuthed ? "My orders" : "View cart"}
               </Link>
@@ -366,7 +392,7 @@ export default function OrderConfirmationPage() {
               <button
                 type="submit"
                 disabled={!sanitizePhone(phoneInput) || submittingLookup}
-                className="btn rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
+                className="inline-flex h-11 items-center justify-center rounded-2xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:cursor-not-allowed disabled:opacity-70"
               >
                 {submittingLookup ? (
                   <span className="inline-flex items-center gap-2">
@@ -381,7 +407,7 @@ export default function OrderConfirmationPage() {
               <Link
                 to="/signin"
                 state={{ from: `/order-confirmation/${id}` }}
-                className="btn btn-outline rounded-2xl border-gray-200 bg-white hover:bg-gray-50"
+                className="inline-flex h-11 items-center justify-center rounded-2xl border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-900 transition hover:bg-gray-50"
               >
                 Sign in instead
               </Link>
@@ -392,9 +418,9 @@ export default function OrderConfirmationPage() {
         {error && !order ? <ErrorCard message={error} /> : null}
 
         {order?._id ? (
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-            <div className="space-y-6 lg:col-span-8">
-              <div className="rounded-2xl border bg-white p-6 shadow-sm">
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+            <div className="space-y-6 xl:col-span-8">
+              <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
                 <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
                   <ShoppingBag size={18} />
                   Ordered items
@@ -421,9 +447,9 @@ export default function OrderConfirmationPage() {
                       return (
                         <div
                           key={`${title}-${idx}`}
-                          className="flex items-center gap-3 rounded-2xl border p-3"
+                          className="flex items-center gap-3 rounded-2xl border border-gray-200 p-3 sm:p-4"
                         >
-                          <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl border bg-gray-100">
+                          <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 sm:h-16 sm:w-16">
                             {image ? (
                               <img
                                 src={image}
@@ -435,61 +461,49 @@ export default function OrderConfirmationPage() {
                           </div>
 
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-semibold text-gray-900">
+                            <div className="truncate text-sm font-semibold text-gray-900 sm:text-[15px]">
                               {title}
                             </div>
-                            <div className="text-xs text-gray-500">
+                            <div className="text-xs text-gray-500 sm:text-sm">
                               Qty: {qty} • {formatMoney(price)}
                             </div>
                           </div>
 
-                          <div className="text-sm font-bold text-gray-900">
+                          <div className="text-sm font-bold text-gray-900 sm:text-[15px]">
                             {formatMoney(price * qty)}
                           </div>
                         </div>
                       );
                     })
                   ) : (
-                    <div className="rounded-2xl border bg-gray-50 p-5 text-sm text-gray-600">
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-5 text-sm text-gray-600">
                       No order items found.
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="rounded-2xl border bg-white p-6 shadow-sm">
+              <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6 lg:p-7">
                 <div className="flex items-center gap-2 text-lg font-semibold text-gray-900">
                   <PackageCheck size={18} />
                   Shipping details
                 </div>
 
-                <div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+                <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2">
                   <InfoRow icon={User} label="Recipient" value={shipping?.name} />
                   <InfoRow icon={Phone} label="Phone" value={shipping?.phone} />
-                  <InfoRow
-                    icon={MapPin}
-                    label="Address"
-                    value={shipping?.addressLine}
-                  />
+                  <InfoRow icon={MapPin} label="Address" value={shipping?.addressLine} />
                   <InfoRow icon={MapPin} label="City" value={shipping?.city} />
-                  <InfoRow
-                    icon={MapPin}
-                    label="Country"
-                    value={shipping?.country}
-                  />
-                  <InfoRow
-                    icon={MapPin}
-                    label="Postal code"
-                    value={shipping?.postalCode}
-                  />
+                  <InfoRow icon={MapPin} label="Country" value={shipping?.country} />
+                  <InfoRow icon={MapPin} label="Postal code" value={shipping?.postalCode} />
                 </div>
 
                 {shipping?.note ? (
-                  <div className="mt-5 rounded-2xl border bg-gray-50 p-4">
-                    <div className="text-xs uppercase tracking-wide text-gray-500">
+                  <div className="mt-5 rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-500">
                       Delivery note
                     </div>
-                    <div className="mt-1 text-sm text-gray-800">
+                    <div className="mt-1 text-sm leading-6 text-gray-800">
                       {shipping.note}
                     </div>
                   </div>
@@ -497,80 +511,83 @@ export default function OrderConfirmationPage() {
               </div>
             </div>
 
-            <div className="space-y-6 lg:col-span-4">
-              <div className="rounded-2xl border bg-white p-6 shadow-sm">
-                <div className="text-lg font-semibold text-gray-900">
-                  Order summary
+            <div className="xl:col-span-4">
+              <div className="space-y-6 xl:sticky xl:top-24">
+                <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6">
+                  <div className="text-lg font-semibold text-gray-900">
+                    Order summary
+                  </div>
+
+                  <div className="mt-5 space-y-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Subtotal</span>
+                      <span className="font-semibold text-gray-900">
+                        {formatMoney(subtotal)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Shipping</span>
+                      <span className="font-semibold text-gray-900">
+                        {formatMoney(shippingFee)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Discount</span>
+                      <span className="font-semibold text-gray-900">
+                        {formatMoney(discount)}
+                      </span>
+                    </div>
+
+                    <div className="h-px bg-gray-100" />
+
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-gray-900">Total</span>
+                      <span className="text-base font-bold text-gray-900">
+                        {formatMoney(total)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-xs text-emerald-800">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <CheckCircle2 size={14} />
+                      Order recorded successfully
+                    </div>
+                    <div className="mt-1 leading-5">
+                      We’ve saved your order and it is now in processing.
+                    </div>
+                  </div>
                 </div>
 
-                <div className="mt-5 space-y-3 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Subtotal</span>
-                    <span className="font-semibold text-gray-900">
-                      {formatMoney(subtotal)}
-                    </span>
-                  </div>
+                {!isAuthed ? (
+                  <div className="rounded-[28px] border border-black/5 bg-white p-5 shadow-sm sm:p-6">
+                    <div className="text-sm font-semibold text-gray-900">
+                      Guest order
+                    </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Shipping</span>
-                    <span className="font-semibold text-gray-900">
-                      {formatMoney(shippingFee)}
-                    </span>
-                  </div>
+                    <p className="mt-2 text-sm leading-6 text-gray-600">
+                      Sign in later to manage future orders more easily and access your full
+                      order history.
+                    </p>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500">Discount</span>
-                    <span className="font-semibold text-gray-900">
-                      {formatMoney(discount)}
-                    </span>
+                    <Link
+                      to="/signin"
+                      state={{
+                        from: `/order-confirmation/${id}${
+                          shipping?.phone
+                            ? `?phone=${encodeURIComponent(shipping.phone)}`
+                            : ""
+                        }`,
+                      }}
+                      className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-2xl bg-black px-5 text-sm font-semibold text-white transition hover:bg-gray-900"
+                    >
+                      Sign in now
+                    </Link>
                   </div>
-
-                  <div className="h-px bg-gray-100" />
-
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-gray-900">Total</span>
-                    <span className="text-base font-bold text-gray-900">
-                      {formatMoney(total)}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-5 rounded-2xl border bg-gray-50 p-4 text-xs text-gray-600">
-                  <div className="flex items-center gap-2 font-semibold text-gray-900">
-                    <CheckCircle2 size={14} />
-                    Order recorded successfully
-                  </div>
-                  <div className="mt-1">
-                    We’ve saved your order and it is now in processing.
-                  </div>
-                </div>
+                ) : null}
               </div>
-
-              {!isAuthed ? (
-                <div className="rounded-2xl border bg-white p-6 shadow-sm">
-                  <div className="text-sm font-semibold text-gray-900">
-                    Guest order
-                  </div>
-                  <p className="mt-2 text-sm text-gray-600">
-                    Sign in later to manage future orders more easily and access
-                    your full order history.
-                  </p>
-
-                  <Link
-                    to="/signin"
-                    state={{
-                      from: `/order-confirmation/${id}${
-                        shipping?.phone
-                          ? `?phone=${encodeURIComponent(shipping.phone)}`
-                          : ""
-                      }`,
-                    }}
-                    className="btn mt-4 w-full rounded-2xl border-0 bg-black text-white hover:bg-gray-900"
-                  >
-                    Sign in now
-                  </Link>
-                </div>
-              ) : null}
             </div>
           </div>
         ) : null}
