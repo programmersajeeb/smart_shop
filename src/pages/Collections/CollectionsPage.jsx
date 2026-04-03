@@ -19,10 +19,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import api from "../../services/apiClient";
 
-import menImg from "../../assets/men.png";
-import womenImg from "../../assets/women.png";
-import accessoriesImg from "../../assets/accessories.png";
-
 const COLLECTION_ICONS = {
   ShoppingBag,
   Shirt,
@@ -36,40 +32,52 @@ const DEFAULT_HIGHLIGHTS = [
   {
     id: "secure-checkout",
     title: "Secure checkout",
-    description: "A smooth and dependable checkout experience from cart to order.",
+    description: "A smooth checkout flow from cart to order confirmation.",
     iconKey: "ShieldCheck",
   },
   {
     id: "fast-delivery",
     title: "Fast delivery",
-    description: "Quick handling and a cleaner fulfillment flow for everyday orders.",
+    description: "Quick handling and a dependable order experience.",
     iconKey: "Truck",
   },
   {
     id: "easy-returns",
     title: "Easy returns",
-    description: "Simple support when a customer needs help after purchase.",
+    description: "Simple follow-up support when customers need help after purchase.",
     iconKey: "RefreshCcw",
   },
   {
     id: "easy-browsing",
     title: "Easy browsing",
-    description: "A layout designed to help shoppers reach the right products faster.",
+    description: "A cleaner layout that helps shoppers get where they want faster.",
     iconKey: "CheckCircle2",
   },
 ];
 
 const DEFAULT_WHY_ITEMS = [
-  { id: "faster-discovery", text: "Find categories faster without scrolling through everything." },
-  { id: "cleaner-layout", text: "A cleaner layout that feels easier to read on any screen." },
-  { id: "mobile-friendly", text: "Better mobile browsing with clearer tap targets and spacing." },
-  { id: "quick-filters", text: "Quick filters that help narrow things down right away." },
+  {
+    id: "faster-discovery",
+    text: "Browse categories faster without digging through everything at once.",
+  },
+  {
+    id: "cleaner-layout",
+    text: "A cleaner layout that feels easier to scan on desktop and mobile.",
+  },
+  {
+    id: "mobile-friendly",
+    text: "A more comfortable mobile experience with clearer spacing and tap targets.",
+  },
+  {
+    id: "quick-filters",
+    text: "Quick filters that help narrow things down right away.",
+  },
 ];
 
 const DEFAULT_FINAL_STATS = [
-  { id: "responsive", label: "Easy browsing", value: "Responsive" },
-  { id: "clean-ui", label: "Clear layout", value: "Clean UI" },
-  { id: "mobile", label: "Works best on", value: "Mobile" },
+  { id: "responsive", label: "Browsing", value: "Responsive" },
+  { id: "clean-ui", label: "Layout", value: "Clean UI" },
+  { id: "mobile", label: "Best on", value: "Mobile" },
 ];
 
 const HIGHLIGHT_ICONS = {
@@ -97,15 +105,181 @@ const Pill = memo(function Pill({ active, children, onClick }) {
   );
 });
 
+function resolveAssetUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  if (!value) return "";
+  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+
+  const base = String(api?.defaults?.baseURL || window.location.origin).trim();
+
+  try {
+    const normalizedPath = value.startsWith("/")
+      ? value
+      : `/${value.replace(/^\.?\//, "")}`;
+    return new URL(normalizedPath, base).toString();
+  } catch {
+    return value;
+  }
+}
+
+function collectionIconFromKey(iconKey) {
+  return COLLECTION_ICONS[String(iconKey || "")] || ShoppingBag;
+}
+
+function highlightIconFromKey(iconKey) {
+  return HIGHLIGHT_ICONS[String(iconKey || "")] || ShieldCheck;
+}
+
+function normalizeHighlightCards(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      title: String(item?.title || "").trim(),
+      description: String(item?.description || "").trim(),
+      iconKey: String(item?.iconKey || "").trim(),
+    }))
+    .filter((item) => item.title || item.description)
+    .slice(0, 4);
+}
+
+function normalizeStatItems(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      label: String(item?.label || "").trim(),
+      value: String(item?.value || "").trim(),
+      hint: String(item?.hint || "").trim(),
+    }))
+    .filter((item) => item.label || item.value || item.hint)
+    .slice(0, 6);
+}
+
+function normalizeWhyItems(input) {
+  const list = Array.isArray(input) ? input : [];
+  return list
+    .map((item) => ({
+      id: String(item?.id || "").trim(),
+      text: String(item?.text || "").trim(),
+    }))
+    .filter((item) => item.text)
+    .slice(0, 6);
+}
+
+function normalizeCollectionCards(input) {
+  const list = Array.isArray(input) ? input : [];
+
+  return list
+    .map((item, index) => {
+      const title = String(item?.title || "").trim();
+      const slug = String(item?.slug || "").trim();
+      const highlights = Array.isArray(item?.highlights)
+        ? item.highlights
+            .map((entry) => String(entry || "").trim())
+            .filter(Boolean)
+            .slice(0, 6)
+        : [];
+
+      return {
+        id: String(item?.id || slug || `collection-${index + 1}`).trim(),
+        key: String(item?.id || slug || title || `collection-${index + 1}`).trim(),
+        title,
+        slug,
+        tag: String(item?.tag || "").trim(),
+        badge: String(item?.badge || "").trim(),
+        description: String(item?.description || "").trim(),
+        image: String(item?.image || "").trim(),
+        href: String(item?.href || "").trim(),
+        iconKey: String(item?.iconKey || "").trim(),
+        count: Number.isFinite(Number(item?.count)) ? Number(item.count) : 0,
+        isActive: item?.isActive !== false,
+        featured:
+          item?.featured === true ||
+          item?.featured === "true" ||
+          item?.featured === 1 ||
+          item?.featured === "1",
+        sortOrder:
+          Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : index + 1,
+        highlights,
+      };
+    })
+    .filter((item) => item.title && item.isActive)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
+function normalizeShopCategories(input) {
+  const list = Array.isArray(input) ? input : [];
+
+  return list
+    .map((item, index) => ({
+      id: String(item?.id || item?.slug || `category-${index + 1}`).trim(),
+      title: String(item?.name || "").trim(),
+      slug: String(item?.slug || "").trim(),
+      image: String(item?.image || "").trim(),
+      iconKey: String(item?.iconKey || "").trim(),
+      isActive: item?.isActive !== false,
+      featured:
+        item?.featured === true ||
+        item?.featured === "true" ||
+        item?.featured === 1 ||
+        item?.featured === "1",
+      sortOrder:
+        Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : index + 1,
+    }))
+    .filter((item) => item.title && item.isActive)
+    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
+}
+
+function buildFallbackCollectionsFromShopCategories(categories, countMap) {
+  return normalizeShopCategories(categories).map((item) => {
+    const titleKey = String(item.title || "").trim().toLowerCase();
+    const slugKey = String(item.slug || "").trim().toLowerCase();
+    const countFromFacets = countMap.get(slugKey) ?? countMap.get(titleKey) ?? 0;
+
+    return {
+      id: item.id,
+      key: item.id || item.slug || item.title.toLowerCase(),
+      title: item.title,
+      slug: item.slug,
+      tag: item.featured ? "Featured" : "Collection",
+      badge: item.featured ? "Popular now" : "",
+      description: `${item.title} picks arranged in a cleaner way for easier browsing.`,
+      image: resolveAssetUrl(item.image),
+      href: `/shop?category=${encodeURIComponent(item.title)}`,
+      icon: collectionIconFromKey(item.iconKey),
+      count: countFromFacets,
+      featured: Boolean(item.featured),
+      highlights: item.featured
+        ? ["Featured", "Popular picks", "Shop now"]
+        : ["Live catalog", "Updated", "Category"],
+    };
+  });
+}
+
 function ImageWithSkeleton({
   src,
   alt,
   className = "",
   skeletonClassName = "",
   loading = "lazy",
+  fallbackLabel = "Image unavailable",
 }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+
+  if (!src) {
+    return (
+      <div
+        className={[
+          "flex items-center justify-center border bg-gray-50 text-sm text-gray-500",
+          className,
+        ].join(" ")}
+      >
+        {fallbackLabel}
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full overflow-hidden">
@@ -136,7 +310,7 @@ function ImageWithSkeleton({
             className,
           ].join(" ")}
         >
-          Image unavailable
+          {fallbackLabel}
         </div>
       ) : null}
     </div>
@@ -176,6 +350,7 @@ const CollectionCard = memo(function CollectionCard({ item }) {
           alt={item.title}
           className="h-[260px] sm:h-[300px]"
           skeletonClassName="rounded-none"
+          fallbackLabel="No image added yet"
         />
 
         <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/18 to-transparent" />
@@ -244,160 +419,192 @@ const CollectionCard = memo(function CollectionCard({ item }) {
   );
 });
 
-function getFallbackImage(name) {
-  const value = String(name || "").trim().toLowerCase();
-  if (value === "women") return womenImg;
-  if (value === "men") return menImg;
-  if (value === "accessories") return accessoriesImg;
-  return womenImg;
-}
+function CollectionsPageSkeleton() {
+  return (
+    <div className="w-full animate-pulse">
+      <section className="border-b border-black/5">
+        <div className="site-shell py-8 sm:py-10 lg:py-12">
+          <div className="mb-5 h-5 w-40 rounded-full bg-gray-100" />
 
-function resolveAssetUrl(rawUrl) {
-  const value = String(rawUrl || "").trim();
-  if (!value) return "";
-  if (/^(https?:|data:|blob:)/i.test(value)) return value;
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+            <div className="rounded-[32px] border border-black/5 bg-white p-5 shadow-sm sm:p-7 lg:p-8">
+              <div className="h-8 w-36 rounded-full bg-gray-100" />
+              <div className="mt-4 h-10 w-full max-w-2xl rounded-2xl bg-gray-100" />
+              <div className="mt-3 h-10 w-5/6 max-w-xl rounded-2xl bg-gray-100" />
+              <div className="mt-6 flex gap-3">
+                <div className="h-12 w-40 rounded-2xl bg-gray-100" />
+                <div className="h-12 w-36 rounded-2xl bg-gray-100" />
+              </div>
+              <div className="mt-7 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="h-24 rounded-2xl bg-gray-100" />
+                <div className="h-24 rounded-2xl bg-gray-100" />
+                <div className="h-24 rounded-2xl bg-gray-100" />
+              </div>
+            </div>
 
-  const base = String(api?.defaults?.baseURL || window.location.origin).trim();
+            <div className="min-h-[320px] rounded-[32px] border border-black/5 bg-gray-100 sm:min-h-[380px]" />
+          </div>
 
-  try {
-    const normalizedPath = value.startsWith("/")
-      ? value
-      : `/${value.replace(/^\.?\//, "")}`;
-    return new URL(normalizedPath, base).toString();
-  } catch {
-    return value;
-  }
-}
+          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="h-28 rounded-[26px] bg-gray-100" />
+            <div className="h-28 rounded-[26px] bg-gray-100" />
+            <div className="h-28 rounded-[26px] bg-gray-100" />
+            <div className="h-28 rounded-[26px] bg-gray-100" />
+          </div>
+        </div>
+      </section>
 
-function collectionIconFromKey(iconKey) {
-  return COLLECTION_ICONS[String(iconKey || "")] || ShoppingBag;
-}
+      <section className="border-b border-black/5 bg-white/70">
+        <div className="site-shell py-5">
+          <div className="rounded-[28px] border border-black/5 bg-white p-4 shadow-sm sm:p-5">
+            <div className="h-6 w-44 rounded-xl bg-gray-100" />
+            <div className="mt-4 h-14 w-full rounded-[22px] bg-gray-100" />
+            <div className="mt-4 flex gap-2">
+              <div className="h-10 w-24 rounded-full bg-gray-100" />
+              <div className="h-10 w-24 rounded-full bg-gray-100" />
+              <div className="h-10 w-28 rounded-full bg-gray-100" />
+            </div>
+          </div>
+        </div>
+      </section>
 
-function highlightIconFromKey(iconKey) {
-  return HIGHLIGHT_ICONS[String(iconKey || "")] || ShieldCheck;
-}
+      <section className="py-10 sm:py-12 lg:py-14">
+        <div className="site-shell">
+          <div className="h-8 w-56 rounded-xl bg-gray-100" />
+          <div className="mt-2 h-6 w-full max-w-xl rounded-xl bg-gray-100" />
 
-function normalizeShopCategories(input) {
-  const list = Array.isArray(input) ? input : [];
-  return list
-    .map((item) => ({
-      id: String(item?.id || "").trim(),
-      title: String(item?.name || "").trim(),
-      slug: String(item?.slug || "").trim(),
-      image: String(item?.image || "").trim(),
-      iconKey: String(item?.iconKey || "").trim(),
-      isActive: item?.isActive !== false,
-      featured: Boolean(item?.featured),
-      sortOrder: Number.isFinite(Number(item?.sortOrder)) ? Number(item.sortOrder) : 0,
-    }))
-    .filter((item) => item.title && item.isActive)
-    .sort((a, b) => Number(a.sortOrder || 0) - Number(b.sortOrder || 0));
-}
+          <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
+            <div className="overflow-hidden rounded-[30px] border border-black/5 bg-white">
+              <div className="h-[300px] bg-gray-100" />
+              <div className="p-5 sm:p-6">
+                <div className="flex gap-2">
+                  <div className="h-8 w-20 rounded-full bg-gray-100" />
+                  <div className="h-8 w-24 rounded-full bg-gray-100" />
+                </div>
+                <div className="mt-5 h-12 rounded-xl bg-gray-100" />
+              </div>
+            </div>
 
-function normalizeHighlightCards(input) {
-  const list = Array.isArray(input) ? input : [];
-  return list
-    .map((item) => ({
-      id: String(item?.id || "").trim(),
-      title: String(item?.title || "").trim(),
-      description: String(item?.description || "").trim(),
-      iconKey: String(item?.iconKey || "").trim(),
-    }))
-    .filter((item) => item.title || item.description)
-    .slice(0, 4);
-}
+            <div className="overflow-hidden rounded-[30px] border border-black/5 bg-white">
+              <div className="h-[300px] bg-gray-100" />
+              <div className="p-5 sm:p-6">
+                <div className="flex gap-2">
+                  <div className="h-8 w-20 rounded-full bg-gray-100" />
+                  <div className="h-8 w-24 rounded-full bg-gray-100" />
+                </div>
+                <div className="mt-5 h-12 rounded-xl bg-gray-100" />
+              </div>
+            </div>
 
-function normalizeStatItems(input) {
-  const list = Array.isArray(input) ? input : [];
-  return list
-    .map((item) => ({
-      id: String(item?.id || "").trim(),
-      label: String(item?.label || "").trim(),
-      value: String(item?.value || "").trim(),
-      hint: String(item?.hint || "").trim(),
-    }))
-    .filter((item) => item.label || item.value || item.hint)
-    .slice(0, 6);
-}
-
-function normalizeWhyItems(input) {
-  const list = Array.isArray(input) ? input : [];
-  return list
-    .map((item) => ({
-      id: String(item?.id || "").trim(),
-      text: String(item?.text || "").trim(),
-    }))
-    .filter((item) => item.text)
-    .slice(0, 6);
+            <div className="overflow-hidden rounded-[30px] border border-black/5 bg-white">
+              <div className="h-[300px] bg-gray-100" />
+              <div className="p-5 sm:p-6">
+                <div className="flex gap-2">
+                  <div className="h-8 w-20 rounded-full bg-gray-100" />
+                  <div className="h-8 w-24 rounded-full bg-gray-100" />
+                </div>
+                <div className="mt-5 h-12 rounded-xl bg-gray-100" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 export default function CollectionsPage() {
   const [q, setQ] = useState("");
   const [active, setActive] = useState("All");
 
-  const { data: shopDoc } = useQuery({
-    queryKey: ["page-config", "shop"],
-    queryFn: async () => (await api.get("/page-config/shop")).data,
-    staleTime: 60000,
-  });
-
-  const { data: collectionsDoc } = useQuery({
+  const {
+    data: collectionsDoc,
+    isLoading: collectionsLoading,
+    isFetching: collectionsFetching,
+  } = useQuery({
     queryKey: ["page-config", "collections"],
     queryFn: async () => (await api.get("/page-config/collections")).data,
     staleTime: 60000,
   });
 
-  const { data: facetsDoc } = useQuery({
+  const { data: shopDoc, isLoading: shopLoading } = useQuery({
+    queryKey: ["page-config", "shop"],
+    queryFn: async () => (await api.get("/page-config/shop")).data,
+    staleTime: 60000,
+  });
+
+  const { data: facetsDoc, isLoading: facetsLoading } = useQuery({
     queryKey: ["products", "facets"],
     queryFn: async () => (await api.get("/products/facets")).data,
     staleTime: 60000,
   });
 
-  const shopConfig = shopDoc?.data || {};
   const collectionsConfig = collectionsDoc?.data || {};
+  const shopConfig = shopDoc?.data || {};
 
   const countMap = useMemo(() => {
     const map = new Map();
     const categories = Array.isArray(facetsDoc?.categories) ? facetsDoc.categories : [];
 
     for (const item of categories) {
-      const key = String(item?.value || item?.label || "").trim().toLowerCase();
-      if (!key) continue;
-      map.set(key, Number(item?.count || 0));
+      const valueKey = String(item?.value || "").trim().toLowerCase();
+      const labelKey = String(item?.label || "").trim().toLowerCase();
+      const count = Number(item?.count || 0);
+
+      if (valueKey) map.set(valueKey, count);
+      if (labelKey) map.set(labelKey, count);
     }
 
     return map;
   }, [facetsDoc?.categories]);
 
-  const collections = useMemo(() => {
-    return normalizeShopCategories(shopConfig?.categories).map((item) => {
-      const safeTitle = String(item.title || "").trim();
-      const resolvedCount = countMap.get(safeTitle.toLowerCase()) || 0;
+  const configuredCollections = useMemo(() => {
+    return normalizeCollectionCards(collectionsConfig?.collectionCards).map((item) => {
+      const titleKey = String(item.title || "").trim().toLowerCase();
+      const slugKey = String(item.slug || "").trim().toLowerCase();
+      const countFromFacets = countMap.get(slugKey) ?? countMap.get(titleKey) ?? 0;
 
       return {
-        key: item.slug || item.id || safeTitle.toLowerCase(),
-        title: safeTitle,
-        tag: item.featured ? "Featured" : "Collection",
-        badge: item.featured ? "Popular now" : "",
+        ...item,
+        key: item.key || item.slug || item.id || item.title.toLowerCase(),
+        tag: item.tag || (item.featured ? "Featured" : "Collection"),
+        badge: item.badge || (item.featured ? "Popular now" : ""),
         icon: collectionIconFromKey(item.iconKey),
-        image: resolveAssetUrl(item.image) || getFallbackImage(safeTitle),
-        href: `/shop?category=${encodeURIComponent(safeTitle)}`,
-        description: `${safeTitle} picks arranged for faster browsing.`,
-        highlights: item.featured
-          ? ["Featured", "Popular picks", "Shop now"]
-          : ["Live catalog", "Updated", "Category"],
-        count: resolvedCount,
+        image: resolveAssetUrl(item.image),
+        href: item.href || `/shop?category=${encodeURIComponent(item.title)}`,
+        description:
+          item.description ||
+          `${item.title} picks arranged in a cleaner way for easier browsing.`,
+        highlights: item.highlights?.length
+          ? item.highlights
+          : item.featured
+            ? ["Featured", "Popular picks", "Shop now"]
+            : ["Live catalog", "Updated", "Category"],
+        count: Number(item.count || 0) > 0 ? Number(item.count || 0) : countFromFacets,
         featured: Boolean(item.featured),
       };
     });
+  }, [collectionsConfig?.collectionCards, countMap]);
+
+  const fallbackCollections = useMemo(() => {
+    return buildFallbackCollectionsFromShopCategories(shopConfig?.categories, countMap);
   }, [shopConfig?.categories, countMap]);
+
+  const collections = useMemo(() => {
+    return configuredCollections.length > 0 ? configuredCollections : fallbackCollections;
+  }, [configuredCollections, fallbackCollections]);
 
   const heroStats = useMemo(() => {
     const source = normalizeStatItems(collectionsConfig?.hero?.statItems).slice(0, 3);
     const fallback = [
       { id: "collections", label: "Collections", value: "", hint: "Easy ways to browse" },
       { id: "products", label: "Products", value: "", hint: "Across active categories" },
-      { id: "experience", label: "Experience", value: "Mobile first", hint: "Clean, quick and responsive" },
+      {
+        id: "experience",
+        label: "Experience",
+        value: "Mobile first",
+        hint: "Clean, quick and responsive",
+      },
     ];
 
     const items = source.length ? source : fallback;
@@ -406,20 +613,26 @@ export default function CollectionsPage() {
       const labelKey = String(item.label || "").trim().toLowerCase();
 
       if (labelKey === "collections") {
-        return {
-          ...item,
-          value: item.value || String(collections.length),
-        };
-      }
+  return {
+    ...item,
+    value:
+      String(item.value || "").trim() && String(item.value).trim() !== "0"
+        ? item.value
+        : String(collections.length),
+  };
+}
 
-      if (labelKey === "products") {
-        return {
-          ...item,
-          value:
-            item.value ||
-            String(collections.reduce((sum, entry) => sum + Number(entry.count || 0), 0)),
-        };
-      }
+if (labelKey === "products") {
+  return {
+    ...item,
+    value:
+      String(item.value || "").trim() && String(item.value).trim() !== "0"
+        ? item.value
+        : String(
+            collections.reduce((sum, entry) => sum + Number(entry.count || 0), 0)
+          ),
+  };
+}
 
       return item;
     });
@@ -430,10 +643,7 @@ export default function CollectionsPage() {
     return items.length ? items : DEFAULT_HIGHLIGHTS;
   }, [collectionsConfig?.trustHighlights]);
 
-  const categories = useMemo(
-    () => ["All", ...collections.map((item) => item.title)],
-    [collections]
-  );
+  const categories = useMemo(() => ["All", ...collections.map((item) => item.title)], [collections]);
 
   const featuredCollection = useMemo(
     () => collections.find((item) => item.featured) || collections[0],
@@ -467,11 +677,21 @@ export default function CollectionsPage() {
     return items.length ? items : DEFAULT_FINAL_STATS;
   }, [collectionsConfig?.finalCta?.statItems]);
 
+  const pageLoading =
+    (collectionsLoading || shopLoading || facetsLoading) &&
+    !collectionsDoc &&
+    !shopDoc &&
+    !facetsDoc;
+
+  if (pageLoading) {
+    return <CollectionsPageSkeleton />;
+  }
+
   if (!featuredCollection) {
     return (
       <div className="site-shell py-16">
         <div className="rounded-[28px] border border-gray-200 bg-white p-8 text-center shadow-sm">
-          No active collections available.
+          No active collections are available right now.
         </div>
       </div>
     );
@@ -503,12 +723,12 @@ export default function CollectionsPage() {
 
               <h1 className="mt-4 max-w-3xl text-3xl font-bold tracking-tight text-gray-950 sm:text-4xl lg:text-5xl">
                 {collectionsConfig?.hero?.title ||
-                  "Find your next pick by shopping the way people actually browse."}
+                  "Find your next pick by browsing collections built around how people actually shop."}
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-600 sm:text-[15px]">
                 {collectionsConfig?.hero?.description ||
-                  "Explore curated collections, jump into the categories that matter most, and discover what fits your style without extra steps."}
+                  "Explore curated collections, jump into the categories that matter most, and find what fits your style without extra steps."}
               </p>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -555,6 +775,7 @@ export default function CollectionsPage() {
                   }
                   alt={featuredCollection.title}
                   className="h-full min-h-[320px] sm:min-h-[380px]"
+                  fallbackLabel="No featured image added yet"
                 />
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -565,7 +786,9 @@ export default function CollectionsPage() {
                   </div>
 
                   <div className="rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur">
-                    {collectionsConfig?.hero?.featuredBadge || featuredCollection.badge || "Popular now"}
+                    {collectionsConfig?.hero?.featuredBadge ||
+                      featuredCollection.badge ||
+                      "Popular now"}
                   </div>
                 </div>
 
@@ -608,6 +831,10 @@ export default function CollectionsPage() {
               })}
             </div>
           ) : null}
+
+          {collectionsFetching ? (
+            <div className="mt-4 text-xs text-gray-500">Refreshing collections…</div>
+          ) : null}
         </div>
       </section>
 
@@ -633,7 +860,8 @@ export default function CollectionsPage() {
                     value={q}
                     onChange={(e) => setQ(e.target.value)}
                     placeholder={
-                      collectionsConfig?.filterPanel?.searchPlaceholder || "Search collections..."
+                      collectionsConfig?.filterPanel?.searchPlaceholder ||
+                      "Search collections..."
                     }
                     className="w-full border-0 bg-transparent text-sm text-gray-800 outline-none ring-0 placeholder:text-gray-400 focus:outline-none focus:ring-0 focus-visible:outline-none sm:text-[15px]"
                     aria-label="Search collections"
