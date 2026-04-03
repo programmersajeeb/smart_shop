@@ -51,7 +51,7 @@ export default function HomePage() {
       />
 
       <FlashSale data={homeData?.flashSale} loading={loading} error={error} />
-      <Testimonials data={homeData?.testimonials} loading={loading} error={error} />
+      {/* <Testimonials data={homeData?.testimonials} loading={loading} error={error} /> */}
       <WhyChooseUs data={homeData?.whyChooseUs} loading={loading} error={error} />
       <Newsletter data={homeData?.newsletter} loading={loading} error={error} />
       <SeasonalBanner data={homeData?.seasonalBanner} loading={loading} error={error} />

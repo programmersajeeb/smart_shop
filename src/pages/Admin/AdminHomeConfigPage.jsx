@@ -219,15 +219,153 @@ function normalizePriceItems(items) {
       id: sanitizeText(item?.id, 60) || `price-${index + 1}`,
       label: sanitizeText(item?.label, 80) || `Price range ${index + 1}`,
       href: normalizeUrl(item?.href),
+      img: normalizeUrl(item?.img || item?.image || ""),
+      eyebrow: sanitizeText(item?.eyebrow, 40),
+      description: sanitizeText(item?.description, 180),
     }))
-    .slice(0, 6);
+    .slice(0, 3);
 
   return normalized.length
     ? normalized
     : [
-        { id: "under-budget", label: "Under Budget", href: "" },
-        { id: "premium-range", label: "Premium Range", href: "" },
-        { id: "in-stock-deals", label: "In Stock Deals", href: "" },
+        {
+          id: "under-budget",
+          label: "Under Budget",
+          href: "/shop?priceMax=50",
+          img: "",
+          eyebrow: "Accessible picks",
+          description: "Curated essentials for smart everyday shopping.",
+        },
+        {
+          id: "mid-range",
+          label: "Mid Range",
+          href: "/shop?priceMax=100",
+          img: "",
+          eyebrow: "Balanced value",
+          description: "Well-crafted options that balance quality and price.",
+        },
+        {
+          id: "premium-picks",
+          label: "Premium Picks",
+          href: "/shop?priceMin=100",
+          img: "",
+          eyebrow: "Elevated selection",
+          description: "Statement pieces for a more refined wardrobe.",
+        },
+      ];
+}
+
+function normalizeStyleItems(items) {
+  const input = Array.isArray(items) ? items : [];
+  const normalized = input
+    .map((item, index) => ({
+      id: sanitizeText(item?.id, 60) || `style-${index + 1}`,
+      label: sanitizeText(item?.label, 80) || `Style ${index + 1}`,
+      href: normalizeUrl(item?.href || "/shop"),
+      img: normalizeUrl(item?.img || item?.image || ""),
+      type: sanitizeText(item?.type, 30).toLowerCase() || "style",
+      eyebrow: sanitizeText(item?.eyebrow, 40),
+      description: sanitizeText(item?.description, 200),
+    }))
+    .slice(0, 3);
+
+  return normalized.length
+    ? normalized
+    : [
+        {
+          id: "women",
+          label: "Women",
+          href: "/shop?category=Women",
+          img: "",
+          type: "category",
+          eyebrow: "Everyday edit",
+          description:
+            "Style and sophistication for every occasion with elevated wardrobe essentials.",
+        },
+        {
+          id: "accessories",
+          label: "Accessories",
+          href: "/shop?category=Accessories",
+          img: "",
+          type: "category",
+          eyebrow: "Tailored focus",
+          description:
+            "Premium finishing pieces that bring polish, depth, and signature detail.",
+        },
+        {
+          id: "jewelry",
+          label: "Jewelry",
+          href: "/shop?category=Jewelry",
+          img: "",
+          type: "category",
+          eyebrow: "Refined accents",
+          description:
+            "Refined accents crafted to add confidence, elegance, and distinction.",
+        },
+      ];
+}
+
+function normalizeFeedItems(items) {
+  const input = Array.isArray(items) ? items : [];
+  const normalized = input
+    .map((item, index) => ({
+      id: sanitizeText(item?.id, 60) || `feed-${index + 1}`,
+      title: sanitizeText(item?.title, 90) || "Shop the look",
+      href: normalizeUrl(item?.href || "/shop"),
+      image: normalizeUrl(item?.image || item?.img || ""),
+      eyebrow: sanitizeText(item?.eyebrow, 40),
+      description: sanitizeText(item?.description, 180),
+    }))
+    .slice(0, 5);
+
+  return normalized.length
+    ? normalized
+    : [
+        {
+          id: "feed-1",
+          title: "Shop the look",
+          href: "/shop",
+          image: "",
+          eyebrow: "Inspired edit",
+          description:
+            "Discover a curated visual story built around standout catalog moments and elevated styling.",
+        },
+        {
+          id: "feed-2",
+          title: "Shop the look",
+          href: "/shop",
+          image: "",
+          eyebrow: "Inspired edit",
+          description:
+            "A refined inspiration point designed to guide faster product discovery.",
+        },
+        {
+          id: "feed-3",
+          title: "Shop the look",
+          href: "/shop",
+          image: "",
+          eyebrow: "Inspired edit",
+          description:
+            "A refined inspiration point designed to guide faster product discovery.",
+        },
+        {
+          id: "feed-4",
+          title: "Shop the look",
+          href: "/shop",
+          image: "",
+          eyebrow: "Inspired edit",
+          description:
+            "A refined inspiration point designed to guide faster product discovery.",
+        },
+        {
+          id: "feed-5",
+          title: "Shop the look",
+          href: "/shop",
+          image: "",
+          eyebrow: "Inspired edit",
+          description:
+            "A refined inspiration point designed to guide faster product discovery.",
+        },
       ];
 }
 
@@ -368,11 +506,13 @@ function defaultHomeConfig() {
       title: "Shop by Style",
       subtitle:
         "Fast discovery paths based on category and brand-led shopping intent.",
+      items: normalizeStyleItems([]),
     },
 
     instagramFeed: {
       title: "Inspired by the Feed",
       subtitle: "Editorial-style product inspiration built from your live catalog.",
+      items: normalizeFeedItems([]),
     },
 
     brandStory: {
@@ -627,6 +767,7 @@ function normalizeHomeConfig(input) {
     data.shopByStyle.subtitle || base.shopByStyle.subtitle,
     220
   );
+  data.shopByStyle.items = normalizeStyleItems(data.shopByStyle.items);
 
   data.instagramFeed.title = sanitizeText(
     data.instagramFeed.title || base.instagramFeed.title,
@@ -636,6 +777,7 @@ function normalizeHomeConfig(input) {
     data.instagramFeed.subtitle || base.instagramFeed.subtitle,
     220
   );
+  data.instagramFeed.items = normalizeFeedItems(data.instagramFeed.items);
 
   data.brandStory.eyebrow = sanitizeText(
     data.brandStory.eyebrow || base.brandStory.eyebrow,
@@ -720,6 +862,59 @@ function makeApiPath(path) {
   const hasV1 = base.includes("/api/v1");
   const prefix = hasV1 ? "" : "/api/v1";
   return `${prefix}${path}`;
+}
+
+function extractHomeConfigPayload(payload) {
+  if (!payload || typeof payload !== "object") return {};
+
+  if (payload?.data?.data && typeof payload.data.data === "object") {
+    return payload.data.data;
+  }
+
+  if (payload?.data && typeof payload.data === "object") {
+    const hasKnownTopLevelKey =
+      "hero" in payload.data ||
+      "collections" in payload.data ||
+      "seasonalBanner" in payload.data ||
+      "brandStory" in payload.data ||
+      "newsletter" in payload.data;
+
+    if (hasKnownTopLevelKey) {
+      return payload.data;
+    }
+  }
+
+  if (payload?.config && typeof payload.config === "object") {
+    return payload.config;
+  }
+
+  const hasKnownRootKey =
+    "hero" in payload ||
+    "collections" in payload ||
+    "seasonalBanner" in payload ||
+    "brandStory" in payload ||
+    "newsletter" in payload;
+
+  if (hasKnownRootKey) {
+    return payload;
+  }
+
+  return {};
+}
+
+function extractVersionValue(payload) {
+  const candidates = [
+    payload?.version,
+    payload?.data?.version,
+    payload?.meta?.version,
+  ];
+
+  for (const value of candidates) {
+    const num = Number(value);
+    if (Number.isFinite(num)) return num;
+  }
+
+  return null;
 }
 
 async function uploadSingleImage(file) {
@@ -883,6 +1078,27 @@ function collectValidationIssues(config) {
       issues.push(`Shop by Price item ${index + 1} label is required.`);
     }
     addUrlIssue(`Shop by Price item ${index + 1} href`, item?.href);
+    addUrlIssue(`Shop by Price item ${index + 1} image`, item?.img);
+  }
+
+  for (const [index, item] of (config?.shopByStyle?.items || [])
+    .slice(0, 3)
+    .entries()) {
+    if (!String(item?.label || "").trim()) {
+      issues.push(`Shop by Style item ${index + 1} label is required.`);
+    }
+    addUrlIssue(`Shop by Style item ${index + 1} href`, item?.href);
+    addUrlIssue(`Shop by Style item ${index + 1} image`, item?.img);
+  }
+
+  for (const [index, item] of (config?.instagramFeed?.items || [])
+    .slice(0, 5)
+    .entries()) {
+    if (!String(item?.title || "").trim()) {
+      issues.push(`Inspired by the Feed item ${index + 1} title is required.`);
+    }
+    addUrlIssue(`Inspired by the Feed item ${index + 1} href`, item?.href);
+    addUrlIssue(`Inspired by the Feed item ${index + 1} image`, item?.image);
   }
 
   for (const [index, item] of (config?.brandStory?.stats || [])
@@ -1231,6 +1447,17 @@ export default function AdminHomeConfigPage() {
     hero: false,
     seasonalBanner: false,
     brandStory: false,
+    shopByPrice0: false,
+    shopByPrice1: false,
+    shopByPrice2: false,
+    shopByStyle0: false,
+    shopByStyle1: false,
+    shopByStyle2: false,
+    instagramFeed0: false,
+    instagramFeed1: false,
+    instagramFeed2: false,
+    instagramFeed3: false,
+    instagramFeed4: false,
   });
 
   const initialRef = useRef(stableStringify(normalizeHomeConfig({})));
@@ -1269,6 +1496,25 @@ export default function AdminHomeConfigPage() {
     []
   );
 
+  function syncFormWithServerData(payload, fallback = {}) {
+    const extracted = extractHomeConfigPayload(payload);
+    const source =
+      extracted && Object.keys(extracted).length > 0 ? extracted : fallback;
+
+    const normalized = normalizeHomeConfig(source);
+    const nextString = stableStringify(normalized);
+
+    setForm(normalized);
+    initialRef.current = nextString;
+
+    const nextVersion = extractVersionValue(payload);
+    if (nextVersion != null) {
+      versionRef.current = nextVersion;
+    }
+
+    return normalized;
+  }
+
   const configQuery = useQuery({
     queryKey: ["homeConfig"],
     enabled: Boolean(canRead),
@@ -1281,15 +1527,8 @@ export default function AdminHomeConfigPage() {
   });
 
   useEffect(() => {
-    if (!configQuery.data?.data) return;
-
-    const normalized = normalizeHomeConfig(configQuery.data.data);
-    setForm(normalized);
-    initialRef.current = stableStringify(normalized);
-
-    if (typeof configQuery.data?.version === "number") {
-      versionRef.current = configQuery.data.version;
-    }
+    if (!configQuery.data) return;
+    syncFormWithServerData(configQuery.data, defaultHomeConfig());
   }, [configQuery.data]);
 
   const normalizedForm = useMemo(() => normalizeHomeConfig(form), [form]);
@@ -1326,17 +1565,29 @@ export default function AdminHomeConfigPage() {
 
       return response.data;
     },
-    onSuccess: (data) => {
-      const normalized = normalizeHomeConfig(data?.data || form);
-      setForm(normalized);
-      initialRef.current = stableStringify(normalized);
-      queryClient.setQueryData(["homeConfig"], data);
+    onSuccess: async (data) => {
+      const normalized = syncFormWithServerData(data, normalizedForm);
 
-      if (typeof data?.version === "number") {
-        versionRef.current = data.version;
-      }
+      queryClient.setQueryData(["homeConfig"], (prev) => {
+        const previous = prev && typeof prev === "object" ? prev : {};
+        return {
+          ...previous,
+          ...(data && typeof data === "object" ? data : {}),
+          data: normalized,
+          version:
+            extractVersionValue(data) ??
+            extractVersionValue(previous) ??
+            versionRef.current,
+          updatedAt:
+            data?.updatedAt ||
+            data?.data?.updatedAt ||
+            previous?.updatedAt ||
+            new Date().toISOString(),
+        };
+      });
 
-      queryClient.invalidateQueries({ queryKey: ["home-page"] });
+      await queryClient.invalidateQueries({ queryKey: ["home-page"] });
+      await queryClient.invalidateQueries({ queryKey: ["homeConfig"] });
 
       toast.success("Home page config saved", {
         description: "Homepage settings and merchandising rules have been updated.",
@@ -1372,7 +1623,9 @@ export default function AdminHomeConfigPage() {
   const meta = configQuery.data
     ? {
         updatedAt: configQuery.data.updatedAt,
-        version: configQuery.data.version,
+        version:
+          extractVersionValue(configQuery.data) ??
+          versionRef.current,
       }
     : null;
 
@@ -1385,9 +1638,11 @@ export default function AdminHomeConfigPage() {
   }
 
   function resetToInitial() {
-    const initial = configQuery.data?.data
-      ? normalizeHomeConfig(configQuery.data.data)
-      : normalizeHomeConfig({});
+    const initialPayload = extractHomeConfigPayload(configQuery.data);
+    const initial =
+      initialPayload && Object.keys(initialPayload).length > 0
+        ? normalizeHomeConfig(initialPayload)
+        : normalizeHomeConfig({});
     setForm(initial);
   }
 
@@ -2129,43 +2384,315 @@ export default function AdminHomeConfigPage() {
                   Shop by Price items
                 </div>
                 <div className="mt-1 text-xs text-gray-500">
-                  Optional manual labels and links. Leave href empty to let defaults apply.
+                  Control price cards with label, link, eyebrow, description and optional image.
                 </div>
 
-                <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="mt-4 grid grid-cols-1 gap-4">
                   {(form?.shopByPrice?.items || []).slice(0, 3).map((item, index) => (
                     <div
                       key={`price-item-${index}`}
-                      className="space-y-3 rounded-2xl border border-gray-200 bg-white p-4"
+                      className="rounded-2xl border border-gray-200 bg-white p-4"
                     >
-                      <Input
-                        label="Label"
-                        value={item?.label || ""}
-                        onChange={(e) => {
-                          const next = [...(form?.shopByPrice?.items || [])];
-                          next[index] = { ...(next[index] || {}), label: e.target.value };
-                          setForm((prev) => setDeep(prev, ["shopByPrice", "items"], next));
-                        }}
-                        placeholder="Under Budget"
-                        disabled={inputDisabled}
-                        invalid={!String(item?.label || "").trim()}
-                      />
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Input
+                          label="Label"
+                          value={item?.label || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.shopByPrice?.items || [])];
+                            next[index] = { ...(next[index] || {}), label: e.target.value };
+                            setForm((prev) => setDeep(prev, ["shopByPrice", "items"], next));
+                          }}
+                          placeholder="Under Budget"
+                          disabled={inputDisabled}
+                          invalid={!String(item?.label || "").trim()}
+                        />
 
-                      <Input
-                        label="Href"
-                        value={item?.href || ""}
-                        onChange={(e) => {
-                          const next = [...(form?.shopByPrice?.items || [])];
-                          next[index] = { ...(next[index] || {}), href: e.target.value };
-                          setForm((prev) => setDeep(prev, ["shopByPrice", "items"], next));
-                        }}
-                        placeholder="/shop?priceMax=50"
-                        disabled={inputDisabled}
-                        invalid={
-                          Boolean(String(item?.href || "").trim()) &&
-                          !isSafeUrl(item?.href)
-                        }
-                      />
+                        <Input
+                          label="Href"
+                          value={item?.href || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.shopByPrice?.items || [])];
+                            next[index] = { ...(next[index] || {}), href: e.target.value };
+                            setForm((prev) => setDeep(prev, ["shopByPrice", "items"], next));
+                          }}
+                          placeholder="/shop?priceMax=50"
+                          disabled={inputDisabled}
+                          invalid={
+                            Boolean(String(item?.href || "").trim()) &&
+                            !isSafeUrl(item?.href)
+                          }
+                        />
+
+                        <Input
+                          label="Eyebrow"
+                          value={item?.eyebrow || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.shopByPrice?.items || [])];
+                            next[index] = { ...(next[index] || {}), eyebrow: e.target.value };
+                            setForm((prev) => setDeep(prev, ["shopByPrice", "items"], next));
+                          }}
+                          placeholder="Accessible picks"
+                          disabled={inputDisabled}
+                        />
+
+                        <div className="md:col-span-2">
+                          <Textarea
+                            label="Description"
+                            value={item?.description || ""}
+                            onChange={(e) => {
+                              const next = [...(form?.shopByPrice?.items || [])];
+                              next[index] = {
+                                ...(next[index] || {}),
+                                description: e.target.value,
+                              };
+                              setForm((prev) => setDeep(prev, ["shopByPrice", "items"], next));
+                            }}
+                            placeholder="Short supporting text for this card"
+                            disabled={inputDisabled}
+                            rows={3}
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <ImageUploadField
+                            label={`Price card image ${index + 1}`}
+                            value={item?.img || ""}
+                            onChange={(e) => {
+                              const next = [...(form?.shopByPrice?.items || [])];
+                              next[index] = { ...(next[index] || {}), img: e.target.value };
+                              setForm((prev) => setDeep(prev, ["shopByPrice", "items"], next));
+                            }}
+                            onUpload={(file) =>
+                              handleImageUpload(
+                                `shopByPrice${index}`,
+                                ["shopByPrice", "items", index, "img"],
+                                file
+                              )
+                            }
+                            uploading={uploading[`shopByPrice${index}`]}
+                            disabled={readOnly || busy}
+                            helper="Optional custom card image."
+                            emptyHelper="Leave empty to use storefront fallback imagery."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div className="text-sm font-semibold text-gray-900">
+                  Shop by Style items
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  Manage the 3 style cards used in the premium editorial layout.
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4">
+                  {(form?.shopByStyle?.items || []).slice(0, 3).map((item, index) => (
+                    <div
+                      key={`style-item-${index}`}
+                      className="rounded-2xl border border-gray-200 bg-white p-4"
+                    >
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Input
+                          label="Label"
+                          value={item?.label || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.shopByStyle?.items || [])];
+                            next[index] = { ...(next[index] || {}), label: e.target.value };
+                            setForm((prev) => setDeep(prev, ["shopByStyle", "items"], next));
+                          }}
+                          placeholder="Women"
+                          disabled={inputDisabled}
+                          invalid={!String(item?.label || "").trim()}
+                        />
+
+                        <Input
+                          label="Href"
+                          value={item?.href || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.shopByStyle?.items || [])];
+                            next[index] = { ...(next[index] || {}), href: e.target.value };
+                            setForm((prev) => setDeep(prev, ["shopByStyle", "items"], next));
+                          }}
+                          placeholder="/shop?category=Women"
+                          disabled={inputDisabled}
+                          invalid={
+                            Boolean(String(item?.href || "").trim()) &&
+                            !isSafeUrl(item?.href)
+                          }
+                        />
+
+                        <Input
+                          label="Type"
+                          value={item?.type || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.shopByStyle?.items || [])];
+                            next[index] = { ...(next[index] || {}), type: e.target.value };
+                            setForm((prev) => setDeep(prev, ["shopByStyle", "items"], next));
+                          }}
+                          placeholder="category"
+                          disabled={inputDisabled}
+                          helper="Examples: category, brand, style, collection"
+                        />
+
+                        <Input
+                          label="Eyebrow"
+                          value={item?.eyebrow || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.shopByStyle?.items || [])];
+                            next[index] = { ...(next[index] || {}), eyebrow: e.target.value };
+                            setForm((prev) => setDeep(prev, ["shopByStyle", "items"], next));
+                          }}
+                          placeholder="Everyday edit"
+                          disabled={inputDisabled}
+                        />
+
+                        <div className="md:col-span-2">
+                          <Textarea
+                            label="Description"
+                            value={item?.description || ""}
+                            onChange={(e) => {
+                              const next = [...(form?.shopByStyle?.items || [])];
+                              next[index] = {
+                                ...(next[index] || {}),
+                                description: e.target.value,
+                              };
+                              setForm((prev) => setDeep(prev, ["shopByStyle", "items"], next));
+                            }}
+                            placeholder="Short supporting text for this style card"
+                            disabled={inputDisabled}
+                            rows={3}
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <ImageUploadField
+                            label={`Style card image ${index + 1}`}
+                            value={item?.img || ""}
+                            onChange={(e) => {
+                              const next = [...(form?.shopByStyle?.items || [])];
+                              next[index] = { ...(next[index] || {}), img: e.target.value };
+                              setForm((prev) => setDeep(prev, ["shopByStyle", "items"], next));
+                            }}
+                            onUpload={(file) =>
+                              handleImageUpload(
+                                `shopByStyle${index}`,
+                                ["shopByStyle", "items", index, "img"],
+                                file
+                              )
+                            }
+                            uploading={uploading[`shopByStyle${index}`]}
+                            disabled={readOnly || busy}
+                            helper="Recommended for premium visual consistency."
+                            emptyHelper="Leave empty to let storefront use fallback imagery."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                <div className="text-sm font-semibold text-gray-900">
+                  Inspired by the Feed items
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  Control featured inspiration cards, editorial titles, image and mood copy.
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4">
+                  {(form?.instagramFeed?.items || []).slice(0, 5).map((item, index) => (
+                    <div
+                      key={`feed-item-${index}`}
+                      className="rounded-2xl border border-gray-200 bg-white p-4"
+                    >
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <Input
+                          label="Title"
+                          value={item?.title || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.instagramFeed?.items || [])];
+                            next[index] = { ...(next[index] || {}), title: e.target.value };
+                            setForm((prev) => setDeep(prev, ["instagramFeed", "items"], next));
+                          }}
+                          placeholder="Shop the look"
+                          disabled={inputDisabled}
+                          invalid={!String(item?.title || "").trim()}
+                        />
+
+                        <Input
+                          label="Href"
+                          value={item?.href || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.instagramFeed?.items || [])];
+                            next[index] = { ...(next[index] || {}), href: e.target.value };
+                            setForm((prev) => setDeep(prev, ["instagramFeed", "items"], next));
+                          }}
+                          placeholder="/shop"
+                          disabled={inputDisabled}
+                          invalid={
+                            Boolean(String(item?.href || "").trim()) &&
+                            !isSafeUrl(item?.href)
+                          }
+                        />
+
+                        <Input
+                          label="Eyebrow"
+                          value={item?.eyebrow || ""}
+                          onChange={(e) => {
+                            const next = [...(form?.instagramFeed?.items || [])];
+                            next[index] = { ...(next[index] || {}), eyebrow: e.target.value };
+                            setForm((prev) => setDeep(prev, ["instagramFeed", "items"], next));
+                          }}
+                          placeholder="Inspired edit"
+                          disabled={inputDisabled}
+                        />
+
+                        <div className="md:col-span-2">
+                          <Textarea
+                            label="Description"
+                            value={item?.description || ""}
+                            onChange={(e) => {
+                              const next = [...(form?.instagramFeed?.items || [])];
+                              next[index] = {
+                                ...(next[index] || {}),
+                                description: e.target.value,
+                              };
+                              setForm((prev) => setDeep(prev, ["instagramFeed", "items"], next));
+                            }}
+                            placeholder="Short supporting text for this inspiration card"
+                            disabled={inputDisabled}
+                            rows={3}
+                          />
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <ImageUploadField
+                            label={`Feed image ${index + 1}`}
+                            value={item?.image || ""}
+                            onChange={(e) => {
+                              const next = [...(form?.instagramFeed?.items || [])];
+                              next[index] = { ...(next[index] || {}), image: e.target.value };
+                              setForm((prev) => setDeep(prev, ["instagramFeed", "items"], next));
+                            }}
+                            onUpload={(file) =>
+                              handleImageUpload(
+                                `instagramFeed${index}`,
+                                ["instagramFeed", "items", index, "image"],
+                                file
+                              )
+                            }
+                            uploading={uploading[`instagramFeed${index}`]}
+                            disabled={readOnly || busy}
+                            helper="Editorial card image."
+                            emptyHelper="Leave empty to use storefront fallback imagery."
+                          />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
